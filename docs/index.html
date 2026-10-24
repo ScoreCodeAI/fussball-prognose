@@ -274,6 +274,19 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 
 .csg{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}.csg .dco{padding:8px 2px}.csg .dco strong{font-size:12px}.csg .dco span{font-family:Orbitron;font-size:13px;color:var(--tx)}
 .grid2 .mt{min-width:0}
+
+.bdays{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 -16px 4px;padding:2px 16px 8px}
+.bday{flex:none;min-width:56px;text-align:center;padding:8px 8px 6px;border-radius:14px;background:var(--panel);border:1px solid var(--line);cursor:pointer}
+.bday b{display:block;font-family:Orbitron;font-size:10px;letter-spacing:1px;color:var(--mu)}.bday span{font-size:12px;font-weight:600}.bday i{display:block;font-style:normal;font-size:10px;color:var(--mu)}
+.bday.on{border-color:var(--cy);background:linear-gradient(160deg,color-mix(in srgb,var(--cy) 25%,var(--panel)),color-mix(in srgb,var(--vi) 25%,var(--panel)));box-shadow:0 0 16px color-mix(in srgb,var(--cy) 35%,transparent)}.bday.on b{color:#fff}
+.rkrow{display:grid;grid-template-columns:26px 34px 1fr auto;gap:10px;align-items:center;padding:11px 6px;border-bottom:1px solid #ffffff0d;cursor:pointer;border-radius:12px}
+.rkrow:last-child{border-bottom:0}
+.rkrow.on{background:color-mix(in srgb,var(--c) 10%,transparent);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--c) 55%,transparent)}
+.rkn{font-family:Orbitron;font-size:15px;color:var(--mu);text-align:center}
+.rkn.gold{color:#ffd60a;text-shadow:0 0 10px #ffd60a}.rkn.silver{color:#d6dbe8}.rkn.bronze{color:#e0965a}
+.rkm b{font-size:13px}.rkmk{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:10.5px;color:var(--mu);margin-top:3px;font-family:'JetBrains Mono'}.rkmk em{font-style:normal;font-weight:700}
+.rkm .track{margin-top:6px}
+.rkp{font-family:Orbitron;font-size:18px;text-shadow:0 0 12px currentColor}
 </style></head><body>
 <div class="phone"><div class="wrap">
 <div class="top"><span id="stand">LADE …</span><span class="live"><i></i>AUTO-UPDATE</span></div>
@@ -335,7 +348,7 @@ function hit(mk,p,r){const t=r.h+r.a;switch(mk){
  case"1x2":{const f=fav(p)[0];return f=="1"?r.h>r.a:f=="2"?r.h<r.a:r.h==r.a}
  case"ou":return p.ue25>=50?t>2:t<=2;
  case"bts":return p.bts>=50?(r.h>0&&r.a>0):!(r.h>0&&r.a>0);
- case"ht":{if(r.hh==null)return null;const m=Math.max(...p.ht),f=p.ht.indexOf(m);return f==0?r.hh>r.ha:f==2?r.hh<r.ha:r.hh==r.ha}
+ case"ht":{if(!p.ht||r.hh==null)return null;const m=Math.max(...p.ht),f=p.ht.indexOf(m);return f==0?r.hh>r.ha:f==2?r.hh<r.ha:r.hh==r.ha}
  case"th":return p.th.indexOf(Math.max(...p.th))==Math.min(r.h,3);
  case"ta":return p.ta.indexOf(Math.max(...p.ta))==Math.min(r.a,3);
  case"cs":return p.cs[0][0]==r.h+":"+r.a}}
@@ -389,7 +402,7 @@ function probCard(s,p){const r=res(s);
  ${markt("Spielausgang",[["1",p.p1],["X",p.px],["2",p.p2]])}
  ${markt("Über / Unter 2,5 Tore",[["Über",p.ue25],["Unter",100-p.ue25]])}
  ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",100-p.bts]])}
- ${markt("Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]])}
+ ${p.ht?markt("Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]]):`<div class="pg"><div class="pgh"><span>Halbzeit</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
  ${markt(`Tore ${s.heim}`,[["0",p.th[0]],["1",p.th[1]],["2",p.th[2]],["3+",p.th[3]]])}
  ${markt(`Tore ${s.gast}`,[["0",p.ta[0]],["1",p.ta[1]],["2",p.ta[2]],["3+",p.ta[3]]])}
  <div class="pg"><div class="pgh"><span>Correct Score</span><b>Tipp <em>${p.cs[0][0]}</em></b></div>
@@ -404,7 +417,7 @@ function renderTop(){$("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.ma
  const tag=D.spiele.filter(s=>s.datum==S.tag),done=tag.length&&tag[0].ergebnis!=null;let secs=[];
  if(S.markt=="tore")secs=[["🔥 Über 2,5 Tore",tag.filter(s=>P(s).ue25>=55).map(s=>[s,P(s).ue25,"Ü2.5"]),"ou"],["🧊 Unter 2,5 Tore",tag.filter(s=>P(s).ue25<=45).map(s=>[s,100-P(s).ue25,"U2.5"]),"ou"]];
  else if(S.markt=="bts")secs=[["✅ Beide treffen: Ja",tag.filter(s=>P(s).bts>=55).map(s=>[s,P(s).bts,null]),"bts"],["⛔ Beide treffen: Nein",tag.filter(s=>P(s).bts<=45).map(s=>[s,100-P(s).bts,null]),"bts"]];
- else if(S.markt=="ht")secs=[["⏱ Klarste Halbzeit-Tipps",tag.map(s=>{const[f,fp]=best(P(s).ht,["1","X","2"]);return[s,fp,null,"HZ "+f]}).filter(x=>x[1]>=45),"ht"]];
+ else if(S.markt=="ht")secs=[["⏱ Klarste Halbzeit-Tipps",tag.filter(s=>P(s).ht).map(s=>{const[f,fp]=best(P(s).ht,["1","X","2"]);return[s,fp,null,"HZ "+f]}).filter(x=>x[1]>=45),"ht"]];
  else if(S.markt=="cs")secs=[["🎯 Wahrscheinlichste Ergebnisse",tag.map(s=>[s,P(s).cs[0][1],null,P(s).cs[0][0]]),"cs"]];
  else secs=[["🏆 Klarste Favoriten",tag.map(s=>{const[f,fp]=fav(P(s));return[s,fp,f,f]}).filter(x=>x[1]>=50),"1x2"]];
  $("toplist").innerHTML=`<p class="hint">${done?"Rückblick: So lagen die Top-Tipps an diesem Tag":"Die stärksten Prognosen des Tages aus allen Ligen"} · Modell ${M().kurz}</p>`+
@@ -414,20 +427,31 @@ function renderTop(){$("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.ma
   <div class="tr"><b class="mono">${lab?lab+' · ':''}${pr}%</b>${q?`<small>@ ${String(q).replace(".",",")}</small>`:""}${ok!=null?`<span class="ck ${ok?'y':'n'}">${ok?'✓':'✕'}</span>`:""}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine klaren Tipps in diesem Markt.</p></div>`)}).join("")}
 
 /* ---------- Bilanz: nur letzte Spielwoche ---------- */
-function renderBilanz(){const fertig=D.spiele.filter(s=>s.ergebnis);if(!fertig.length){$("bilanz").innerHTML=`<div class="card"><p class="msub">Noch keine abgeschlossene Spielwoche.</p></div>`;return}
- const tage=[...new Set(fertig.map(s=>s.datum))].sort(),von=tage[0],bis=tage[tage.length-1];
+function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.length){$("bilanz").innerHTML=`<div class="card"><p class="msub">Noch keine abgeschlossene Spielwoche.</p></div>`;return}
+ const tage=[...new Set(alle.map(s=>s.datum))].sort(),von=tage[0],bis=tage[tage.length-1];
+ if(S.btag&&!tage.includes(S.btag))S.btag=null;
+ const fertig=S.btag?alle.filter(s=>s.datum==S.btag):alle;
  const MK=[["1x2","Spielausgang"],["ht","Halbzeit"],["ou","Über/Unter 2,5"],["bts","Beide treffen"],["tt","Tore pro Team"],["cs","Correct Score"]];
- const stat=(list,k)=>{const ks=k=="tt"?["th","ta"]:[k];let w=0,n=0;for(const s of list)for(const kk of ks){const h=hit(kk,P(s),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
+ const stat=(list,k,mid=S.modell)=>{const ks=k=="tt"?["th","ta"]:[k];let w=0,n=0;for(const s of list)for(const kk of ks){const h=hit(kk,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
+ const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
  const all=MK.map(([k])=>stat(fertig,k)),W=all.reduce((a,x)=>a+x[0],0),L=all.reduce((a,x)=>a+x[1],0);
- let ligen="";for(const l of D.laender)for(const g of l.ligen){const ls=fertig.filter(s=>s.liga==g.code);if(!ls.length)continue;const[w,lo]=stat(ls,"1x2"),[w2,l2]=stat(ls,"ou");
-  ligen+=`<div class="brow"><span>${l.flagge} ${g.name}</span><span class="mono">1X2 <b class="${w/(w+lo)>=.5?'ok':'no'}">${Math.round(w/(w+lo)*100)}%</b></span><span class="mono">Ü/U <b class="${w2/(w2+l2)>=.5?'ok':'no'}">${Math.round(w2/(w2+l2)*100)}%</b></span></div>`}
- $("bilanz").innerHTML=`<p class="hint">Nur die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>: Prognosen, die vor den Spielen feststanden, gegen die echten Ergebnisse.</p>
- <div class="bcard"><div class="bh"><span class="swi" style="background:linear-gradient(140deg,${M().farbe1},${M().farbe2});width:40px;height:40px;font-size:18px">${M().icon}</span><div style="flex:1"><b>${M().name}</b><small>${fertig.length} Spiele · ${W+L} Tipps</small></div><b class="big">${Math.round(W/(W+L)*100)}%</b></div>
+ const chips=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+
+  tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
+ const rk=D.modelle.map(m=>{const st=MK.map(([k])=>stat(fertig,k,m.id)),w=st.reduce((a,x)=>a+x[0],0),l=st.reduce((a,x)=>a+x[1],0);let rs=0,rn=0;for(const s of fertig){const p=P(s,m.id),r=res(s);if(!p||!r)continue;const o=r.h>r.a?0:r.h==r.a?1:2,a1=p.p1/100,ax=p.px/100;rs+=((a1-(o==0))**2+(a1+ax-(o<=1))**2)/2;rn++}return{m,st,g:w+l?w/(w+l):0,rps:rn?rs/rn:null}}).sort((a,b)=>b.g-a.g);
+ const ranking=rk.map((x,i)=>`<div class="rkrow${x.m.id==S.modell?' on':''}" style="--c:${x.m.farbe1}" onclick="S.modell='${x.m.id}';render()">
+  <span class="rkn${i==0?' gold':i==1?' silver':i==2?' bronze':''}">${i+1}</span>
+  <span class="swi" style="background:linear-gradient(140deg,${x.m.farbe1},${x.m.farbe2});width:34px;height:34px;font-size:15px">${x.m.icon}</span>
+  <div class="rkm"><b>${x.m.name}</b><div class="rkmk">${MK.slice(0,4).map(([k,n],j)=>{const r=rate(x.st[j]);return `<span>${["1X2","HZ","Ü/U","BTS"][j]} <em class="${r==null?'':r>=50?'ok':'no'}">${r==null?'–':r+'%'}</em></span>`}).join("")}<span>RPS <em>${x.rps==null?'–':x.rps.toFixed(3).replace(".",",")}</em></span></div>
+  <div class="track"><i style="width:${Math.round(x.g*100)}%;background:linear-gradient(90deg,${x.m.farbe1},${x.m.farbe2})"></i></div></div>
+  <b class="rkp" style="color:${x.m.farbe1}">${Math.round(x.g*100)}%</b></div>`).join("");
+ $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Prognosen, die vor den Spielen feststanden, gegen die echten Ergebnisse.</p>
+ <h3>🏆 Modell-Ranking <span>${fertig.length} Spiele</span></h3><div class="card" style="padding:6px 12px">${ranking}</div>
+ <h3>Details <span>${M().kurz}</span></h3>
+ <div class="bcard"><div class="bh"><span class="swi" style="background:linear-gradient(140deg,${M().farbe1},${M().farbe2});width:40px;height:40px;font-size:18px">${M().icon}</span><div style="flex:1"><b>${M().name}</b><small>${fertig.length} Spiele · ${W+L} Tipps</small></div><b class="big">${W+L?Math.round(W/(W+L)*100):0}%</b></div>
  <div class="wl"><span class="won">${W} Richtig</span><span class="lost">${L} Falsch</span></div>
  <div class="mbl">TREFFER JE WETTMARKT</div>
- <div class="grid2">${MK.map(([k,n],i)=>{const[w,l]=all[i],r=w+l?Math.round(w/(w+l)*100):0;return `<div class="mt"><b>${n}</b><div><span>Richtig</span><em class="ok">${w}</em></div><div><span>Falsch</span><em class="no">${l}</em></div><div class="rate"><div class="track"><i style="width:${r}%;background:${r>=(k=="cs"?10:k=="tt"?40:50)?'linear-gradient(90deg,var(--cy),var(--vi))':'var(--rd)'}"></i></div><strong>${r}%</strong></div></div>`}).join("")}</div></div>
- <p class="hint" style="margin-top:10px">Zur Einordnung: Correct Score trifft selbst bei Profis nur in etwa 10–13 % der Fälle, Tore pro Team in etwa 35–45 %.</p>
- <h3>Nach Liga <span>letzte Spielwoche</span></h3><div class="card" style="padding:4px 14px">${ligen}</div>`}
+ <div class="grid2">${MK.map(([k,n],i)=>{const[w,l]=all[i],r=w+l?Math.round(w/(w+l)*100):0;return `<div class="mt"><b>${n}</b><div><span>Richtig</span><em class="ok">${w}</em></div><div><span>Falsch</span><em class="no">${l}</em></div><div class="rate"><div class="track"><i style="width:${r}%;background:${r>=(k=="cs"?10:k=="tt"?40:50)?'linear-gradient(90deg,var(--cy),var(--vi))':'var(--rd)'}"></i></div><strong>${w+l?r+'%':'–'}</strong></div></div>`}).join("")}</div></div>
+ <p class="hint" style="margin-top:10px">Zur Einordnung: Correct Score trifft selbst bei Profis nur in etwa 10–13 % der Fälle, Tore pro Team in etwa 35–45 %. Tippe im Ranking auf ein Modell, um seine Details zu sehen. RPS misst, wie gut die 1X2-Wahrscheinlichkeiten insgesamt waren, nicht nur der Favorit: kleiner ist besser, ein Münzwurf-Niveau liegt bei etwa 0,23.</p>`}
 
 /* ---------- Matrix-Code-Regen ---------- */
 const MXZ="01アイウエオカキクケコサシスセソ<>{}=+*#ΣλØ01";
