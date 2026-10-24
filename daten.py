@@ -3,7 +3,7 @@
 import pandas as pd
 import requests
 
-from ligen import LAENDER, SAISON
+from ligen import LAENDER, SAISON, EXTRA_LIGEN
 
 ALLE_LIGEN = [code for ligen in LAENDER.values() for code in ligen]
 SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG"]
@@ -12,6 +12,20 @@ XG_RAW = "https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data/mai
 XG_API = "https://api.github.com/repos/xgabora/Club-Football-Match-Data/contents/data"
 FD_SAISON = "https://www.football-data.co.uk/mmz4281/{saison}/{liga}.csv"
 FD_FIXTURES = "https://www.football-data.co.uk/fixtures.csv"
+FD_NEU = "https://www.football-data.co.uk/new/{liga}.csv"
+FD_NEU_FIXTURES = "https://www.football-data.co.uk/new_league_fixtures.csv"
+EXTRA_QUOTEN = {"AvgCH": "AvgH", "AvgCD": "AvgD", "AvgCA": "AvgA", "PSCH": "B365H", "PSCD": "B365D", "PSCA": "B365A"}
+
+
+def extra_liga(liga):
+    """Extra-Liga (z. B. Daenemark) im selben Format wie die Hauptligen."""
+    d = _csv(FD_NEU.format(liga=liga))
+    d = d.rename(columns={"Home": "HomeTeam", "Away": "AwayTeam", "HG": "FTHG", "AG": "FTAG"})
+    for alt, neu in EXTRA_QUOTEN.items():
+        if alt in d and neu not in d:
+            d[neu] = d[alt]
+    d["Div"] = liga
+    return d
 
 
 def _csv(url):
@@ -45,7 +59,7 @@ def saison():
     teile = []
     for liga in ALLE_LIGEN:
         try:
-            d = _csv(FD_SAISON.format(saison=SAISON, liga=liga))
+            d = extra_liga(liga) if liga in EXTRA_LIGEN else _csv(FD_SAISON.format(saison=SAISON, liga=liga))
             d = d[["HomeTeam", "AwayTeam", "FTHG", "FTAG", "Date"]].copy()
             d.columns = ["Home", "Away", "HG", "AG", "Date"]
             d["Div"] = liga
@@ -67,6 +81,16 @@ def alle_spiele():
 
 def kommende_spiele():
     fx = _csv(FD_FIXTURES)
+    try:
+        nf = _csv(FD_NEU_FIXTURES).rename(columns={"Home": "HomeTeam", "Away": "AwayTeam"})
+        land_code = {v: k for k, v in EXTRA_LIGEN.items()}
+        nf["Div"] = nf["Country"].map(land_code)
+        for alt, neu in EXTRA_QUOTEN.items():
+            if alt in nf and neu not in nf:
+                nf[neu] = nf[alt]
+        fx = pd.concat([fx, nf.dropna(subset=["Div"])], ignore_index=True)
+    except Exception:
+        pass
     fx = fx[fx["Div"].isin(ALLE_LIGEN)].copy()
     fx["Date"] = pd.to_datetime(fx["Date"], dayfirst=True, errors="coerce")
     return fx.sort_values(["Date", "Div"]).reset_index(drop=True)

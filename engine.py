@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore")
 ORDNER = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ORDNER)
 import daten
-from ligen import LAENDER, SAISON_START
+from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
 # ---------- Grundeinstellungen (nur Grenzen - die Werte sucht der Motor selbst) ----------
 BACKTEST_START = "2025-07-01"
@@ -30,8 +30,8 @@ GITTER_MIN_VALUE = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20]
 GITTER_QUOTE_MIN = [1.5, 1.7, 1.9, 2.1, 2.5]
 GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
 
-FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
-           "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Türkei": "🇹🇷", "Griechenland": "🇬🇷", "Schottland": "🏴"}
+FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
+           "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Türkei": "🇹🇷", "Griechenland": "🇬🇷", "Schottland": "🇬🇧"}
 MODELL_FARBEN = {"modell_poisson": ("λ", "#22e4ff", "#a855f7", "Angriffs- und Abwehrstärke, neuere Spiele zählen mehr"),
                  "modell_elo": ("E", "#a855f7", "#e449ff", "Teamstärke aus Elo-Werten"),
                  "modell_durchschnitt": ("Ø", "#ffb020", "#ff6b3d", "Einfaches Vergleichsmodell aus 12 Monaten")}
@@ -65,10 +65,11 @@ def modelle_laden():
 def quoten_spiele():
     teile = []
     spalten = sorted({c for v in MAERKTE.values() for c in v})
-    for s in SAISONS_QUOTEN:
-        for liga in daten.ALLE_LIGEN:
+    quellen = [(s, liga) for s in SAISONS_QUOTEN for liga in daten.ALLE_LIGEN if liga not in EXTRA_LIGEN]
+    quellen += [("neu", liga) for liga in EXTRA_LIGEN if liga in daten.ALLE_LIGEN]
+    for s, liga in quellen:
             try:
-                d = daten._csv(daten.FD_SAISON.format(saison=s, liga=liga))
+                d = daten.extra_liga(liga) if s == "neu" else daten._csv(daten.FD_SAISON.format(saison=s, liga=liga))
             except Exception:
                 continue
             d = d.dropna(subset=["HomeTeam", "AwayTeam", "FTHG", "FTAG"]).copy()
@@ -83,6 +84,7 @@ def quoten_spiele():
             out["HTAG"] = pd.to_numeric(d["HTAG"], errors="coerce") if "HTAG" in d else np.nan
             teile.append(out)
     q = pd.concat(teile).dropna(subset=["Date", "HG", "AG"])
+    q = q[q["Date"] >= pd.Timestamp(BACKTEST_START) - pd.DateOffset(years=4)]
     return q.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
 
 
