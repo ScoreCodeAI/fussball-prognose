@@ -30,7 +30,7 @@ GITTER_MIN_VALUE = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20]
 GITTER_QUOTE_MIN = [1.5, 1.7, 1.9, 2.1, 2.5]
 GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
 
-FLAGGEN = {"Deutschland": "🇩🇪", "England": "🏴", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
+FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
            "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Türkei": "🇹🇷", "Griechenland": "🇬🇷", "Schottland": "🏴"}
 MODELL_FARBEN = {"modell_poisson": ("λ", "#22e4ff", "#a855f7", "Angriffs- und Abwehrstärke, neuere Spiele zählen mehr"),
                  "modell_elo": ("E", "#a855f7", "#e449ff", "Teamstärke aus Elo-Werten"),
@@ -75,23 +75,36 @@ def quoten_spiele():
             out = pd.DataFrame({"Div": liga, "Home": d["HomeTeam"], "Away": d["AwayTeam"],
                                 "HG": pd.to_numeric(d["FTHG"], errors="coerce"),
                                 "AG": pd.to_numeric(d["FTAG"], errors="coerce"),
-                                "Date": pd.to_datetime(d["Date"], dayfirst=True, errors="coerce")})
+                                "Date": pd.to_datetime(d["Date"], dayfirst=True, errors="coerce"),
+                                "Time": d["Time"].fillna("").astype(str).str[:5] if "Time" in d else ""})
             for c in spalten:
                 out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
+            out["HTHG"] = pd.to_numeric(d["HTHG"], errors="coerce") if "HTHG" in d else np.nan
+            out["HTAG"] = pd.to_numeric(d["HTAG"], errors="coerce") if "HTAG" in d else np.nan
             teile.append(out)
     q = pd.concat(teile).dropna(subset=["Date", "HG", "AG"])
     return q.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
 
 
 # ---------- Wahrscheinlichkeiten ----------
+HT_ANTEIL = 0.45   # Anteil der Tore in der 1. Halbzeit - wird aus den Daten neu berechnet
+
+
 def maerkte(lh, la):
     M = np.outer(poisson.pmf(range(11), lh), poisson.pmf(range(11), la))
     M /= M.sum()
     unter = M[np.add.outer(range(11), range(11)) <= 2].sum()
     i, j = np.unravel_index(M.argmax(), M.shape)
+    H = np.outer(poisson.pmf(range(9), lh * HT_ANTEIL), poisson.pmf(range(9), la * HT_ANTEIL))
+    H /= H.sum()
+    ph, pa = M.sum(axis=1), M.sum(axis=0)
+    cs = sorted(((M[a, b], f"{a}:{b}") for a in range(7) for b in range(7)), reverse=True)[:5]
     return {"1": np.tril(M, -1).sum(), "X": np.trace(M), "2": np.triu(M, 1).sum(),
             "Ü2.5": 1 - unter, "U2.5": unter, "BTS": 1 - M[0, :].sum() - M[:, 0].sum() + M[0, 0],
-            "tipp": f"{i}:{j}"}
+            "tipp": f"{i}:{j}",
+            "HT": [np.tril(H, -1).sum(), np.trace(H), np.triu(H, 1).sum()],
+            "TH": [ph[0], ph[1], ph[2], 1 - ph[:3].sum()], "TA": [pa[0], pa[1], pa[2], 1 - pa[:3].sum()],
+            "CS": [[k, v] for v, k in cs]}
 
 
 def quote(row, namen):
@@ -143,7 +156,9 @@ def backtest(mod, spiele_land, quoten_land):
             q, pk = markt_wkeiten(s)
             sid = len(spiele_out)
             spiele_out.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "Home": s["Home"], "Away": s["Away"],
-                               "HG": int(s["HG"]), "AG": int(s["AG"]), "p": p, "q": q})
+                               "HG": int(s["HG"]), "AG": int(s["AG"]), "p": p, "q": q, "Time": str(s.get("Time", "") or "")[:5],
+                               "xg": [r(lh), r(la)],
+                               "HT": f'{int(s["HTHG"])}:{int(s["HTAG"])}' if pd.notna(s.get("HTHG")) and pd.notna(s.get("HTAG")) else None})
             for mk in MAERKTE:
                 if q[mk] and mk in pk:
                     kandidaten.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "mk": mk, "grp": GRUPPE[mk],
@@ -253,6 +268,39 @@ def prognosen(mod, modell, fx_liga, par):
     return out
 
 
+# ---------- Neues Format fuer die Webseite (v3) ----------
+KURZ = {"modell_poisson": "Poisson", "modell_durchschnitt": "Durchschnitt", "modell_elo": "Elo"}
+
+
+def value_liste(p, q, par):
+    pk = {}
+    for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
+        if all(q.get(m) for m in grp):
+            inv = {m: 1 / q[m] for m in grp}
+            t = sum(inv.values())
+            pk.update({m: inv[m] / t for m in grp})
+    out = []
+    for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
+        best = None
+        for mk in grp:
+            if not (q.get(mk) and mk in pk) or not (par["quote_min"] <= q[mk] <= par["quote_max"]):
+                continue
+            e = (par["mischung"] * p[mk] + (1 - par["mischung"]) * pk[mk]) * q[mk] - 1
+            if par["min_value"] < e < MAX_VALUE and (best is None or e > best[2]):
+                best = (mk, q[mk], e)
+        if best:
+            out.append({"markt": MARKT_NAME[best[0]], "quote": r(best[1], 2), "edge": r(best[2] * 100, 0)})
+    return out
+
+
+def prog_eintrag(p, xg, q, par):
+    return {"p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
+            "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"], "xg": xg,
+            "ht": [r(x * 100, 0) for x in p["HT"]], "th": [r(x * 100, 0) for x in p["TH"]],
+            "ta": [r(x * 100, 0) for x in p["TA"]], "cs": [[k, r(v * 100, 1)] for k, v in p["CS"]],
+            "value": value_liste(p, q, par)}
+
+
 # ---------- Hauptprogramm ----------
 def main():
     t0 = time.time()
@@ -265,9 +313,26 @@ def main():
     spiele = spiele.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
     fx = daten.kommende_spiele()
     log(f"Spiele: {len(spiele):,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
+    global HT_ANTEIL
+    ht = q.dropna(subset=["HTHG", "HTAG"])
+    if len(ht) > 500:
+        HT_ANTEIL = float((ht["HTHG"] + ht["HTAG"]).sum() / (ht["HG"] + ht["AG"]).sum())
+    log(f"Anteil Tore in der 1. Halbzeit: {HT_ANTEIL:.1%}")
 
     ergebnis = {"stand": heute.strftime("%Y-%m-%d"), "daten_bis": spiele["Date"].max().strftime("%Y-%m-%d"),
-                "anzahl_spiele": int(len(spiele)), "laender": [], "modelle": [], "ligen": {}}
+                "anzahl_spiele": int(len(spiele)), "laender": [], "modelle": [], "spiele": []}
+    woche_ende = q["Date"].max()
+    woche_start = woche_ende - pd.Timedelta(days=6)   # letzte Spielwoche
+    log(f"Letzte Spielwoche: {woche_start.date()} bis {woche_ende.date()}")
+    spiel_map = {}
+
+    def eintrag(liga, datum, zeit, heim, gast, ergebnis_txt, quoten, ht=None):
+        key = (liga, datum.strftime("%Y-%m-%d"), heim, gast)
+        if key not in spiel_map:
+            spiel_map[key] = {"liga": liga, "datum": key[1], "zeit": zeit or "", "heim": heim, "gast": gast,
+                              "ergebnis": ergebnis_txt, "ergebnis_ht": ht,
+                              "quoten": {k: r(v, 2) for k, v in quoten.items()}, "prog": {}}
+        return spiel_map[key]
     for land, ligen in LAENDER.items():
         ergebnis["laender"].append({"name": land, "flagge": FLAGGEN.get(land, "🏳"),
                                     "ligen": [{"code": c, "name": n} for c, n in ligen.items()]})
@@ -300,23 +365,47 @@ def main():
         log(f"Einstellung (an Vorsaison gelernt): {par_test}")
         log(f"Einstellung (live, alle Daten):    {par_live}")
 
+        # Letzte Spielwoche: Prognosen, die VOR den Spielen feststanden (aus dem Backtest)
+        n_alt = 0
+        for sp in alle_spiele:
+            if woche_start <= sp["Date"] <= woche_ende:
+                e = eintrag(sp["Div"], sp["Date"], sp["Time"], sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"], sp["HT"])
+                e["prog"][key] = prog_eintrag(sp["p"], sp["xg"], sp["q"], par_live)
+                n_alt += 1
+        # Kommende Spiele
+        n_neu = 0
         for land, ligen in LAENDER.items():
-            for c in ligen:
-                a = auswerten(alle_spiele, W_test, c)
-                a["prognosen"] = prognosen(mod, live_modelle[land], fx[fx["Div"] == c], par_live)
-                ergebnis["ligen"].setdefault(c, {"name": ligen[c], "land": land, "modelle": {}})["modelle"][key] = a
-                s = a["saison"]
-                log(f"   {ligen[c]:<18} Wetten {s['wetten']:>4} | ROI {s['roi']} % | Treffer {s['treffer']} %")
+            for _, f in fx[fx["Div"].isin(list(ligen))].iterrows():
+                if pd.isna(f["Date"]):
+                    continue
+                try:
+                    lh, la = mod.tore_erwartet(live_modelle[land], f["HomeTeam"], f["AwayTeam"])
+                except Exception:
+                    continue
+                qq, _ = markt_wkeiten(f)
+                e = eintrag(f["Div"], f["Date"], str(f.get("Time", "") or "")[:5], f["HomeTeam"], f["AwayTeam"], None, qq)
+                e["prog"][key] = prog_eintrag(maerkte(lh, la), [r(lh), r(la)], qq, par_live)
+                n_neu += 1
+        log(f"   Prognosen: {n_alt} aus der letzten Spielwoche, {n_neu} kommende Spiele")
 
-        ic, c1, c2, txt = MODELL_FARBEN.get(key, ("•", "#22e4ff", "#a855f7", ""))
+        ic, c1, c2, txt = MODELL_FARBEN.get(key, ("•", "#2bf5a0", "#22e4ff", ""))
+        ic, c1, c2 = getattr(mod, "ICON", ic), getattr(mod, "FARBE1", c1), getattr(mod, "FARBE2", c2)
         saison_w = W_test[W_test["Date"] >= pd.Timestamp(SAISON_START)]
         ergebnis["modelle"].append({
-            "id": key, "name": mod.NAME, "icon": ic, "farbe1": c1, "farbe2": c2,
+            "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", KURZ.get(key, mod.NAME.split(" ")[0])),
+            "icon": ic, "farbe1": c1, "farbe2": c2,
             "beschreibung": getattr(mod, "BESCHREIBUNG", txt),
             "saison": kennzahlen(saison_w),
             "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
             "einstellung_test": par_test, "einstellung_live": par_live})
 
+    # nur Spiele, fuer die jedes Modell eine Prognose hat
+    ids = [m["id"] for m in ergebnis["modelle"]]
+    liste = [e for e in spiel_map.values() if all(i in e["prog"] for i in ids)]
+    liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
+    for i, e in enumerate(liste):
+        e["id"] = i
+    ergebnis["spiele"] = liste
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:
