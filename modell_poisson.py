@@ -1,5 +1,6 @@
 # ===== MODELL: Poisson (zeitgewichtet) =====
 # Jedes Modell braucht: NAME, trainiere(df, heute), tore_erwartet(modell, heim, gast)
+import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import statsmodels.formula.api as smf
@@ -15,6 +16,9 @@ def trainiere(df, heute):
     a = pd.DataFrame({"team": df["Home"], "gegner": df["Away"], "heim": 1, "tore": df["HG"], "w": w})
     b = pd.DataFrame({"team": df["Away"], "gegner": df["Home"], "heim": 0, "tore": df["AG"], "w": w})
     d = pd.concat([a, b], ignore_index=True)
+    d = d[np.isfinite(d["w"]) & (d["w"] > 0) & d["tore"].notna()]   # ungueltige Zeilen entfernen
+    if len(d) < 50:
+        raise ValueError("zu wenig Daten")
     return smf.glm("tore ~ heim + team + gegner", data=d,
                    family=sm.families.Poisson(), freq_weights=d["w"]).fit()
 
