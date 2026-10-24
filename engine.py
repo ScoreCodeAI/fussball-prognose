@@ -28,7 +28,7 @@ from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
 # ---------- Grundeinstellungen ----------
 BACKTEST_START = "2025-07-01"
-SAISONS_QUOTEN = ["2526", "2627"]
+SAISONS_QUOTEN = ["2122", "2223", "2324", "2425", "2526", "2627"]   # aeltere Saisons fuellen Luecken der Historie (z. B. Griechenland)
 NEU_TRAINIEREN_TAGE = 7
 QUOTE_GRENZEN = (1.5, 5.0)
 MAX_VALUE = 0.50
@@ -87,8 +87,8 @@ def quoten_spiele():
                             "Time": d["Time"].fillna("").astype(str).str[:5] if "Time" in d else ""})
         for c in spalten:
             out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
-        out["HTHG"] = pd.to_numeric(d["HTHG"], errors="coerce") if "HTHG" in d else np.nan
-        out["HTAG"] = pd.to_numeric(d["HTAG"], errors="coerce") if "HTAG" in d else np.nan
+        for c in daten.STAT_SPALTEN:
+            out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
         teile.append(out)
     q = pd.concat(teile).dropna(subset=["Date", "HG", "AG"])
     q = q[q["Date"] >= pd.Timestamp(BACKTEST_START) - pd.DateOffset(years=4)]
@@ -383,6 +383,10 @@ def main():
                           **{k: r(np.mean([qq[k] for qq in rows if k in qq]), 4) for k in ks}}
 
     ids = [m["id"] for m in ergebnis["modelle"]]
+    for i in ids:
+        fehlt = sum(1 for e in spiel_map.values() if i not in e["prog"])
+        if fehlt:
+            log(f"ACHTUNG: {fehlt} Spiele ohne Prognose von {i} - diese Spiele werden nicht angezeigt")
     liste = [e for e in spiel_map.values() if all(i in e["prog"] for i in ids)]
     liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
     for i, e in enumerate(liste):
