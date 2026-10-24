@@ -6,7 +6,7 @@ import requests
 from ligen import LAENDER, SAISON, EXTRA_LIGEN
 
 ALLE_LIGEN = [code for ligen in LAENDER.values() for code in ligen]
-SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG"]
+SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG", "HTHG", "HTAG"]
 
 XG_RAW = "https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data/main/data/"
 XG_API = "https://api.github.com/repos/xgabora/Club-Football-Match-Data/contents/data"
@@ -47,7 +47,7 @@ def _xgabora_url():
 
 
 def historie():
-    cols = ["Division", "MatchDate", "HomeTeam", "AwayTeam", "FTHome", "FTAway"]
+    cols = ["Division", "MatchDate", "HomeTeam", "AwayTeam", "FTHome", "FTAway", "HTHome", "HTAway"]
     h = pd.read_csv(_xgabora_url(), usecols=cols, low_memory=False)[cols]
     h = h[h["Division"].isin(ALLE_LIGEN)].copy()
     h.columns = SPALTEN
@@ -60,8 +60,11 @@ def saison():
     for liga in ALLE_LIGEN:
         try:
             d = extra_liga(liga) if liga in EXTRA_LIGEN else _csv(FD_SAISON.format(saison=SAISON, liga=liga))
-            d = d[["HomeTeam", "AwayTeam", "FTHG", "FTAG", "Date"]].copy()
-            d.columns = ["Home", "Away", "HG", "AG", "Date"]
+            for c in ("HTHG", "HTAG"):
+                if c not in d:
+                    d[c] = float("nan")
+            d = d[["HomeTeam", "AwayTeam", "FTHG", "FTAG", "HTHG", "HTAG", "Date"]].copy()
+            d.columns = ["Home", "Away", "HG", "AG", "HTHG", "HTAG", "Date"]
             d["Div"] = liga
             d["Date"] = pd.to_datetime(d["Date"], dayfirst=True, errors="coerce")
             teile.append(d[SPALTEN])

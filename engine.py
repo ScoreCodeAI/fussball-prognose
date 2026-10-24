@@ -1,44 +1,51 @@
-# ===== SCORE CODE AGENT - BACKTEST- UND PROGNOSE-MOTOR (v2, auto-kalibriert) =====
-# 1) Walk-forward-Backtest: jede Woche nur mit Daten VOR dieser Woche trainieren
-# 2) Auto-Kalibrierung: sucht pro Modell die besten Einstellungen
-#    (Markt-Mischung, Mindest-Value, Quotenbereich innerhalb 1,5-5,0)
-#    - gelernt an der Vorsaison, ehrlich geprueft an der laufenden Saison
-# 3) Prognosen fuer kommende Spiele mit den auf ALLEN Daten kalibrierten Werten
-# Ergebnis: docs/daten.json
-import glob, importlib, json, os, sys, time, warnings
+# ===== SCORE CODE AGENT - BACKTEST- UND PROGNOSE-MOTOR (v3) =====
+# Jedes Modell ist eine eigene Datei modell_*.py und wird automatisch erkannt.
+# Schnittstelle eines Modells:
+#   NAME, KURZ, ICON, FARBE1, FARBE2, BESCHREIBUNG   (Anzeige im Dashboard)
+#   BACKTEST_WOCHEN (optional)                        (kuerzerer Rueckwaerts-Test fuer langsame Modelle)
+#   trainiere(df, heute) -> modell                    (nur Spiele VOR "heute")
+#   vorhersage(modell, heim, gast) -> {"ft": Matrix, "ht": Matrix oder None, "xg": [h, a]}
+#   diagnose(modell) -> Text (optional)
+# Ablauf:
+#  1) Walk-forward-Backtest: jede Woche nur mit Daten VOR dieser Woche trainieren
+#  2) Qualitaetsmasse (RPS, Log-Loss, ...) und Trefferquoten je Markt
+#  3) Value-Auto-Kalibrierung (Quotenbereich 1,5-5,0)
+#  4) Prognosen fuer kommende Spiele -> docs/daten.json
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_v, "1")   # Prozesse laufen parallel - jeder nur mit einem Rechenkern
+
+import glob, importlib, json, multiprocessing, sys, time, warnings
 import numpy as np
 import pandas as pd
-from scipy.stats import poisson
 
 warnings.filterwarnings("ignore")
 ORDNER = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ORDNER)
 import daten
+import kern
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
-# ---------- Grundeinstellungen (nur Grenzen - die Werte sucht der Motor selbst) ----------
+# ---------- Grundeinstellungen ----------
 BACKTEST_START = "2025-07-01"
 SAISONS_QUOTEN = ["2526", "2627"]
 NEU_TRAINIEREN_TAGE = 7
-QUOTE_GRENZEN = (1.5, 5.0)       # aeusserer Rahmen fuer erlaubte Quoten
-MAX_VALUE = 0.50                 # ueber +50 % ist praktisch immer ein Datenfehler
-MIN_WETTEN = 60                  # eine Einstellung braucht genug Wetten, sonst zaehlt sie nicht
-
-# Suchraum der Auto-Kalibrierung
-GITTER_MISCHUNG = [0.2, 0.35, 0.5, 0.65, 0.8, 1.0]       # Anteil Modell vs. Markt (1.0 = nur Modell)
+QUOTE_GRENZEN = (1.5, 5.0)
+MAX_VALUE = 0.50
+MIN_WETTEN = 60
+GITTER_MISCHUNG = [0.2, 0.35, 0.5, 0.65, 0.8, 1.0]
 GITTER_MIN_VALUE = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20]
 GITTER_QUOTE_MIN = [1.5, 1.7, 1.9, 2.1, 2.5]
 GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
 
-FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
-           "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Türkei": "🇹🇷", "Griechenland": "🇬🇷", "Schottland": "🇬🇧"}
-MODELL_FARBEN = {"modell_poisson": ("λ", "#22e4ff", "#a855f7", "Angriffs- und Abwehrstärke, neuere Spiele zählen mehr"),
-                 "modell_elo": ("E", "#a855f7", "#e449ff", "Teamstärke aus Elo-Werten"),
-                 "modell_durchschnitt": ("Ø", "#ffb020", "#ff6b3d", "Einfaches Vergleichsmodell aus 12 Monaten")}
+FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
+           "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Griechenland": "🇬🇷", "Schottland": "🇬🇧",
+           "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Türkei": "🇹🇷"}
 MAERKTE = {"1": ["AvgH", "B365H"], "X": ["AvgD", "B365D"], "2": ["AvgA", "B365A"],
            "Ü2.5": ["Avg>2.5", "B365>2.5"], "U2.5": ["Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
 MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "Über 2,5", "U2.5": "Unter 2,5"}
+K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
 heute = pd.Timestamp.today().normalize()
 
 
@@ -68,45 +75,24 @@ def quoten_spiele():
     quellen = [(s, liga) for s in SAISONS_QUOTEN for liga in daten.ALLE_LIGEN if liga not in EXTRA_LIGEN]
     quellen += [("neu", liga) for liga in EXTRA_LIGEN if liga in daten.ALLE_LIGEN]
     for s, liga in quellen:
-            try:
-                d = daten.extra_liga(liga) if s == "neu" else daten._csv(daten.FD_SAISON.format(saison=s, liga=liga))
-            except Exception:
-                continue
-            d = d.dropna(subset=["HomeTeam", "AwayTeam", "FTHG", "FTAG"]).copy()
-            out = pd.DataFrame({"Div": liga, "Home": d["HomeTeam"], "Away": d["AwayTeam"],
-                                "HG": pd.to_numeric(d["FTHG"], errors="coerce"),
-                                "AG": pd.to_numeric(d["FTAG"], errors="coerce"),
-                                "Date": pd.to_datetime(d["Date"], dayfirst=True, errors="coerce"),
-                                "Time": d["Time"].fillna("").astype(str).str[:5] if "Time" in d else ""})
-            for c in spalten:
-                out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
-            out["HTHG"] = pd.to_numeric(d["HTHG"], errors="coerce") if "HTHG" in d else np.nan
-            out["HTAG"] = pd.to_numeric(d["HTAG"], errors="coerce") if "HTAG" in d else np.nan
-            teile.append(out)
+        try:
+            d = daten.extra_liga(liga) if s == "neu" else daten._csv(daten.FD_SAISON.format(saison=s, liga=liga))
+        except Exception:
+            continue
+        d = d.dropna(subset=["HomeTeam", "AwayTeam", "FTHG", "FTAG"]).copy()
+        out = pd.DataFrame({"Div": liga, "Home": d["HomeTeam"], "Away": d["AwayTeam"],
+                            "HG": pd.to_numeric(d["FTHG"], errors="coerce"),
+                            "AG": pd.to_numeric(d["FTAG"], errors="coerce"),
+                            "Date": pd.to_datetime(d["Date"], dayfirst=True, errors="coerce"),
+                            "Time": d["Time"].fillna("").astype(str).str[:5] if "Time" in d else ""})
+        for c in spalten:
+            out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
+        out["HTHG"] = pd.to_numeric(d["HTHG"], errors="coerce") if "HTHG" in d else np.nan
+        out["HTAG"] = pd.to_numeric(d["HTAG"], errors="coerce") if "HTAG" in d else np.nan
+        teile.append(out)
     q = pd.concat(teile).dropna(subset=["Date", "HG", "AG"])
     q = q[q["Date"] >= pd.Timestamp(BACKTEST_START) - pd.DateOffset(years=4)]
     return q.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
-
-
-# ---------- Wahrscheinlichkeiten ----------
-HT_ANTEIL = 0.45   # Anteil der Tore in der 1. Halbzeit - wird aus den Daten neu berechnet
-
-
-def maerkte(lh, la):
-    M = np.outer(poisson.pmf(range(11), lh), poisson.pmf(range(11), la))
-    M /= M.sum()
-    unter = M[np.add.outer(range(11), range(11)) <= 2].sum()
-    i, j = np.unravel_index(M.argmax(), M.shape)
-    H = np.outer(poisson.pmf(range(9), lh * HT_ANTEIL), poisson.pmf(range(9), la * HT_ANTEIL))
-    H /= H.sum()
-    ph, pa = M.sum(axis=1), M.sum(axis=0)
-    cs = sorted(((M[a, b], f"{a}:{b}") for a in range(7) for b in range(7)), reverse=True)[:5]
-    return {"1": np.tril(M, -1).sum(), "X": np.trace(M), "2": np.triu(M, 1).sum(),
-            "Ü2.5": 1 - unter, "U2.5": unter, "BTS": 1 - M[0, :].sum() - M[:, 0].sum() + M[0, 0],
-            "tipp": f"{i}:{j}",
-            "HT": [np.tril(H, -1).sum(), np.trace(H), np.triu(H, 1).sum()],
-            "TH": [ph[0], ph[1], ph[2], 1 - ph[:3].sum()], "TA": [pa[0], pa[1], pa[2], 1 - pa[:3].sum()],
-            "CS": [[k, v] for v, k in cs]}
 
 
 def quote(row, namen):
@@ -137,10 +123,29 @@ def gewonnen(mk, hg, ag):
     return {"1": hg > ag, "X": hg == ag, "2": hg < ag, "Ü2.5": hg + ag > 2, "U2.5": hg + ag <= 2}[mk]
 
 
+def _int(v):
+    try:
+        return None if pd.isna(v) else int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+# ---------- Modell aufrufen ----------
+def berechne(mod, modell, heim, gast):
+    if hasattr(mod, "vorhersage"):
+        o = mod.vorhersage(modell, heim, gast)
+        ft, ht = o["ft"], o.get("ht")
+        xg = o.get("xg") or kern.erwartete_tore(ft)
+    else:   # alte Schnittstelle: nur erwartete Tore, keine eigene Halbzeit
+        lh, la = mod.tore_erwartet(modell, heim, gast)
+        ft, ht, xg = kern.matrix_unabhaengig(lh, la), None, [lh, la]
+    return ft, ht, [r(xg[0]), r(xg[1])]
+
+
 # ---------- Backtest ----------
-def backtest(mod, spiele_land, quoten_land):
+def backtest(mod, spiele_land, quoten_land, start):
     spiele_out, kandidaten = [], []
-    for w in pd.date_range(BACKTEST_START, heute, freq=f"{NEU_TRAINIEREN_TAGE}D"):
+    for w in pd.date_range(start, heute, freq=f"{NEU_TRAINIEREN_TAGE}D"):
         woche = quoten_land[(quoten_land["Date"] >= w) & (quoten_land["Date"] < w + pd.Timedelta(days=NEU_TRAINIEREN_TAGE))]
         if woche.empty:
             continue
@@ -151,25 +156,72 @@ def backtest(mod, spiele_land, quoten_land):
             continue
         for _, s in woche.iterrows():
             try:
-                lh, la = mod.tore_erwartet(modell, s["Home"], s["Away"])
+                ft, ht, xg = berechne(mod, modell, s["Home"], s["Away"])
             except Exception:
                 continue
-            p = maerkte(lh, la)
+            p = kern.maerkte(ft, ht)
             q, pk = markt_wkeiten(s)
+            hg, ag, hth, hta = int(s["HG"]), int(s["AG"]), _int(s.get("HTHG")), _int(s.get("HTAG"))
             sid = len(spiele_out)
             spiele_out.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "Home": s["Home"], "Away": s["Away"],
-                               "HG": int(s["HG"]), "AG": int(s["AG"]), "p": p, "q": q, "Time": str(s.get("Time", "") or "")[:5],
-                               "xg": [r(lh), r(la)],
-                               "HT": f'{int(s["HTHG"])}:{int(s["HTAG"])}' if pd.notna(s.get("HTHG")) and pd.notna(s.get("HTAG")) else None})
+                               "HG": hg, "AG": ag, "p": p, "q": q, "Time": str(s.get("Time", "") or "")[:5], "xg": xg,
+                               "HT": f"{hth}:{hta}" if hth is not None and hta is not None else None,
+                               "qual": kern.qualitaet(p, ft, ht, hg, ag, hth, hta)})
             for mk in MAERKTE:
                 if q[mk] and mk in pk:
                     kandidaten.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "mk": mk, "grp": GRUPPE[mk],
-                                       "pm": p[mk], "pk": pk[mk], "q": q[mk], "win": gewonnen(mk, s["HG"], s["AG"])})
+                                       "pm": p[mk], "pk": pk[mk], "q": q[mk], "win": gewonnen(mk, hg, ag)})
     return spiele_out, kandidaten
 
 
+# ---------- Parallele Berechnung je Land ----------
+_G = {}
+
+
+def _land_arbeit(job):
+    key, land = job
+    t0 = time.time()
+    try:
+        mod = sys.modules.get(key) or importlib.import_module(key)
+        codes = list(LAENDER[land])
+        sp_land = _G["spiele"][_G["spiele"]["Div"].isin(codes)]
+        start = _G["start"][key]
+        q_land = _G["q"][(_G["q"]["Div"].isin(codes)) & (_G["q"]["Date"] >= start)]
+        s_out, k_out = backtest(mod, sp_land, q_land, start)
+        live, diag = [], ""
+        try:
+            lm = mod.trainiere(sp_land, heute)
+            diag = mod.diagnose(lm) if hasattr(mod, "diagnose") else ""
+            for _, f in _G["fx"][_G["fx"]["Div"].isin(codes)].iterrows():
+                if pd.isna(f["Date"]):
+                    continue
+                try:
+                    ft, ht, xg = berechne(mod, lm, f["HomeTeam"], f["AwayTeam"])
+                except Exception:
+                    continue
+                qq, _ = markt_wkeiten(f)
+                live.append({"Div": f["Div"], "Date": f["Date"], "Time": str(f.get("Time", "") or "")[:5],
+                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": kern.maerkte(ft, ht), "xg": xg, "q": qq})
+        except Exception as e:
+            diag = f"Live-Training fehlgeschlagen: {str(e)[:80]}"
+        return land, s_out, k_out, live, diag, time.time() - t0
+    except Exception as e:
+        return land, [], [], [], f"FEHLER: {str(e)[:120]}", time.time() - t0
+
+
+def _parallel(jobs):
+    n = min(len(jobs), os.cpu_count() or 1)
+    if n > 1:
+        try:
+            with multiprocessing.get_context("fork").Pool(n) as pool:
+                return list(pool.imap_unordered(_land_arbeit, jobs))
+        except Exception as e:
+            log("Parallel nicht möglich, rechne nacheinander:", str(e)[:80])
+    return [_land_arbeit(j) for j in jobs]
+
+
+# ---------- Value-Kalibrierung ----------
 def wetten_waehlen(K, par):
-    """Waehlt die Wetten fuer eine Einstellung: hoechstens 1 Wette je Spiel und Marktgruppe."""
     if K.empty:
         return K.assign(edge=[], profit=[])
     pf = par["mischung"] * K["pm"] + (1 - par["mischung"]) * K["pk"]
@@ -181,8 +233,6 @@ def wetten_waehlen(K, par):
 
 
 def kalibrieren(K):
-    """Probiert alle Kombinationen und nimmt die mit dem besten 'vorsichtigen' ROI
-    (Durchschnittsgewinn minus Unsicherheit) - so gewinnen keine Zufallstreffer."""
     best, best_score = None, -1e9
     for mi in GITTER_MISCHUNG:
         for mv in GITTER_MIN_VALUE:
@@ -209,71 +259,6 @@ def kennzahlen(W):
     return {"wetten": int(n), "roi": r(g / n * 100), "treffer": r((W["profit"] > 0).mean() * 100, 0), "gewinn": r(g, 2)}
 
 
-# ---------- Auswertung je Liga ----------
-def auswerten(spiele, W, liga):
-    z = [s for s in spiele if s["Div"] == liga]
-    Wl = W[W["Div"] == liga]
-    saison = Wl[Wl["Date"] >= pd.Timestamp(SAISON_START)]
-    kurve = []
-    if not saison.empty:
-        kurve = [r(v, 2) for v in saison.set_index("Date")["profit"].sort_index().resample("W").sum().cumsum()]
-    maerkte_roi = {MARKT_NAME[mk]: kennzahlen(saison[saison["mk"] == mk]) for mk in MAERKTE}
-
-    letzter = []
-    if z:
-        ende = max(s["Date"] for s in z)
-        wetten_id = {}
-        for _, w in Wl.iterrows():
-            wetten_id.setdefault(w["id"], []).append(w)
-        for s in [s for s in z if s["Date"] > ende - pd.Timedelta(days=5)]:
-            p = s["p"]
-            if s["id"] in wetten_id:
-                w = max(wetten_id[s["id"]], key=lambda x: x["edge"])
-                mk, q, value = w["mk"], w["q"], True
-            else:
-                mk = max(["1", "X", "2"], key=lambda k: p[k])
-                q, value = s["q"].get(mk), False
-            win = gewonnen(mk, s["HG"], s["AG"])
-            letzter.append({"datum": s["Date"].strftime("%d.%m."), "heim": s["Home"], "gast": s["Away"],
-                            "ergebnis": f'{s["HG"]}:{s["AG"]}', "tipp": mk, "prog": p["tipp"], "quote": r(q, 2),
-                            "value": value, "richtig": bool(win),
-                            "profit": r(((q - 1) if win else -1.0) if value else 0.0, 2)})
-    return {"saison": kennzahlen(saison), "gesamt": kennzahlen(Wl), "kurve": kurve,
-            "maerkte": maerkte_roi, "letzter_spieltag": letzter}
-
-
-def prognosen(mod, modell, fx_liga, par):
-    out = []
-    for _, s in fx_liga.iterrows():
-        try:
-            lh, la = mod.tore_erwartet(modell, s["HomeTeam"], s["AwayTeam"])
-        except Exception:
-            continue
-        p = maerkte(lh, la)
-        q, pk = markt_wkeiten(s)
-        value = []
-        for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
-            best = None
-            for mk in grp:
-                if not (q[mk] and mk in pk) or not (par["quote_min"] <= q[mk] <= par["quote_max"]):
-                    continue
-                e = (par["mischung"] * p[mk] + (1 - par["mischung"]) * pk[mk]) * q[mk] - 1
-                if par["min_value"] < e < MAX_VALUE and (best is None or e > best[2]):
-                    best = (mk, q[mk], e)
-            if best:
-                value.append({"markt": MARKT_NAME[best[0]], "quote": r(best[1], 2), "edge": r(best[2] * 100, 0)})
-        out.append({"datum": s["Date"].strftime("%Y-%m-%d") if pd.notna(s["Date"]) else None,
-                    "zeit": str(s.get("Time", "") or "")[:5], "heim": s["HomeTeam"], "gast": s["AwayTeam"],
-                    "p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
-                    "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"],
-                    "xg": [r(lh), r(la)], "quoten": {mk: r(v, 2) for mk, v in q.items()}, "value": value})
-    return out
-
-
-# ---------- Neues Format fuer die Webseite (v3) ----------
-KURZ = {"modell_poisson": "Poisson", "modell_durchschnitt": "Durchschnitt", "modell_elo": "Elo"}
-
-
 def value_liste(p, q, par):
     pk = {}
     for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
@@ -298,34 +283,34 @@ def value_liste(p, q, par):
 def prog_eintrag(p, xg, q, par):
     return {"p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
             "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"], "xg": xg,
-            "ht": [r(x * 100, 0) for x in p["HT"]], "th": [r(x * 100, 0) for x in p["TH"]],
-            "ta": [r(x * 100, 0) for x in p["TA"]], "cs": [[k, r(v * 100, 1)] for k, v in p["CS"]],
-            "value": value_liste(p, q, par)}
+            "ht": None if p["HT"] is None else [r(x * 100, 0) for x in p["HT"]],
+            "th": [r(x * 100, 0) for x in p["TH"]], "ta": [r(x * 100, 0) for x in p["TA"]],
+            "cs": [[k, r(v * 100, 1)] for k, v in p["CS"]], "value": value_liste(p, q, par)}
 
 
 # ---------- Hauptprogramm ----------
 def main():
     t0 = time.time()
     modelle = modelle_laden()
-    log("Modelle:", ", ".join(m.NAME for m in modelle.values()))
+    if not modelle:
+        raise SystemExit("Keine Modell-Dateien (modell_*.py) gefunden.")
+    log("Modelle:", ", ".join(m.NAME for m in modelle.values()), f"| Rechenkerne: {os.cpu_count()}")
     log("Lade Historie, Quoten und kommende Spiele ...")
     hist = daten.historie()
     q = quoten_spiele()
     spiele = pd.concat([hist, q[daten.SPALTEN]]).dropna(subset=["Date", "HG", "AG"])
     spiele = spiele.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
     fx = daten.kommende_spiele()
-    log(f"Spiele: {len(spiele):,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
-    global HT_ANTEIL
-    ht = q.dropna(subset=["HTHG", "HTAG"])
-    if len(ht) > 500:
-        HT_ANTEIL = float((ht["HTHG"] + ht["HTAG"]).sum() / (ht["HG"] + ht["AG"]).sum())
-    log(f"Anteil Tore in der 1. Halbzeit: {HT_ANTEIL:.1%}")
+    log(f"Spiele: {len(spiele):,} | mit Halbzeit: {spiele['HTHG'].notna().sum():,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
 
     ergebnis = {"stand": heute.strftime("%Y-%m-%d"), "daten_bis": spiele["Date"].max().strftime("%Y-%m-%d"),
                 "anzahl_spiele": int(len(spiele)), "laender": [], "modelle": [], "spiele": []}
     woche_ende = q["Date"].max()
-    woche_start = woche_ende - pd.Timedelta(days=6)   # letzte Spielwoche
+    woche_start = woche_ende - pd.Timedelta(days=6)
     log(f"Letzte Spielwoche: {woche_start.date()} bis {woche_ende.date()}")
+    for land, ligen in LAENDER.items():
+        ergebnis["laender"].append({"name": land, "flagge": FLAGGEN.get(land, "🏳"),
+                                    "ligen": [{"code": c, "name": n} for c, n in ligen.items()]})
     spiel_map = {}
 
     def eintrag(liga, datum, zeit, heim, gast, ergebnis_txt, quoten, ht=None):
@@ -335,19 +320,24 @@ def main():
                               "ergebnis": ergebnis_txt, "ergebnis_ht": ht,
                               "quoten": {k: r(v, 2) for k, v in quoten.items()}, "prog": {}}
         return spiel_map[key]
-    for land, ligen in LAENDER.items():
-        ergebnis["laender"].append({"name": land, "flagge": FLAGGEN.get(land, "🏳"),
-                                    "ligen": [{"code": c, "name": n} for c, n in ligen.items()]})
+
+    _G.update(spiele=spiele, q=q, fx=fx, start={})
+    groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
+    reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
+    qual_roh = {}
 
     for key, mod in modelle.items():
-        log(f"===== {mod.NAME} =====")
-        alle_spiele, alle_kand, live_modelle = [], [], {}
-        for land, ligen in LAENDER.items():
-            codes = list(ligen)
-            sp_land = spiele[spiele["Div"].isin(codes)]
-            q_land = q[(q["Div"].isin(codes)) & (q["Date"] >= pd.Timestamp(BACKTEST_START))]
-            log(f"{land}: Backtest ...")
-            s_out, k_out = backtest(mod, sp_land, q_land)
+        tm = time.time()
+        wochen = getattr(mod, "BACKTEST_WOCHEN", None)
+        start = pd.Timestamp(BACKTEST_START)
+        if wochen:
+            start = max(start, heute - pd.Timedelta(weeks=wochen))
+        _G["start"][key] = start
+        log(f"===== {mod.NAME} ===== (Backtest ab {start.date()})")
+        res = {x[0]: x for x in _parallel([(key, land) for land in reihenfolge])}
+        alle_spiele, alle_kand, live = [], [], []
+        for land in LAENDER:
+            _, s_out, k_out, lv, diag, dauer = res[land]
             off = len(alle_spiele)
             for s in s_out:
                 s["id"] += off
@@ -355,53 +345,43 @@ def main():
                 k["id"] += off
             alle_spiele += s_out
             alle_kand += k_out
-            live_modelle[land] = mod.trainiere(sp_land, heute)
-        K = pd.DataFrame(alle_kand)
+            live += lv
+            log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
+        K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
 
-        # Kalibrierung 1 (ehrlich): nur an der Vorsaison lernen -> laufende Saison ist unbekannt
-        vor = K[K["Date"] < pd.Timestamp(SAISON_START)]
-        par_test = kalibrieren(vor)
+        par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
         W_test = wetten_waehlen(K, par_test)
-        # Kalibrierung 2 (live): an allen Daten lernen -> fuer die kommenden Prognosen
         par_live = kalibrieren(K)
-        log(f"Einstellung (an Vorsaison gelernt): {par_test}")
-        log(f"Einstellung (live, alle Daten):    {par_live}")
 
-        # Letzte Spielwoche: Prognosen, die VOR den Spielen feststanden (aus dem Backtest)
         n_alt = 0
         for sp in alle_spiele:
             if woche_start <= sp["Date"] <= woche_ende:
                 e = eintrag(sp["Div"], sp["Date"], sp["Time"], sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"], sp["HT"])
                 e["prog"][key] = prog_eintrag(sp["p"], sp["xg"], sp["q"], par_live)
                 n_alt += 1
-        # Kommende Spiele
-        n_neu = 0
-        for land, ligen in LAENDER.items():
-            for _, f in fx[fx["Div"].isin(list(ligen))].iterrows():
-                if pd.isna(f["Date"]):
-                    continue
-                try:
-                    lh, la = mod.tore_erwartet(live_modelle[land], f["HomeTeam"], f["AwayTeam"])
-                except Exception:
-                    continue
-                qq, _ = markt_wkeiten(f)
-                e = eintrag(f["Div"], f["Date"], str(f.get("Time", "") or "")[:5], f["HomeTeam"], f["AwayTeam"], None, qq)
-                e["prog"][key] = prog_eintrag(maerkte(lh, la), [r(lh), r(la)], qq, par_live)
-                n_neu += 1
-        log(f"   Prognosen: {n_alt} aus der letzten Spielwoche, {n_neu} kommende Spiele")
+        for lv in live:
+            e = eintrag(lv["Div"], lv["Date"], lv["Time"], lv["Home"], lv["Away"], None, lv["q"])
+            e["prog"][key] = prog_eintrag(lv["p"], lv["xg"], lv["q"], par_live)
+        qual_roh[key] = [(s["Date"], s["qual"]) for s in alle_spiele]
+        log(f"   Prognosen: {n_alt} letzte Spielwoche, {len(live)} kommend | {time.time() - tm:.0f} s")
 
-        ic, c1, c2, txt = MODELL_FARBEN.get(key, ("•", "#2bf5a0", "#22e4ff", ""))
-        ic, c1, c2 = getattr(mod, "ICON", ic), getattr(mod, "FARBE1", c1), getattr(mod, "FARBE2", c2)
         saison_w = W_test[W_test["Date"] >= pd.Timestamp(SAISON_START)]
         ergebnis["modelle"].append({
-            "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", KURZ.get(key, mod.NAME.split(" ")[0])),
-            "icon": ic, "farbe1": c1, "farbe2": c2,
-            "beschreibung": getattr(mod, "BESCHREIBUNG", txt),
-            "saison": kennzahlen(saison_w),
+            "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", mod.NAME.split(" ")[0]),
+            "icon": getattr(mod, "ICON", "•"), "farbe1": getattr(mod, "FARBE1", "#2bf5a0"),
+            "farbe2": getattr(mod, "FARBE2", "#22e4ff"), "beschreibung": getattr(mod, "BESCHREIBUNG", ""),
+            "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
             "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
             "einstellung_test": par_test, "einstellung_live": par_live})
 
-    # nur Spiele, fuer die jedes Modell eine Prognose hat
+    # Qualitaet: alle Modelle auf demselben Zeitraum vergleichen
+    vergleich_ab = max(_G["start"].values())
+    for m in ergebnis["modelle"]:
+        rows = [qq for d, qq in qual_roh[m["id"]] if d >= vergleich_ab]
+        ks = sorted({k for qq in rows for k in qq})
+        m["qualitaet"] = {"ab": vergleich_ab.strftime("%Y-%m-%d"), "spiele": len(rows),
+                          **{k: r(np.mean([qq[k] for qq in rows if k in qq]), 4) for k in ks}}
+
     ids = [m["id"] for m in ergebnis["modelle"]]
     liste = [e for e in spiel_map.values() if all(i in e["prog"] for i in ids)]
     liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
@@ -412,16 +392,15 @@ def main():
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:
         json.dump(ergebnis, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"Fertig in {time.time() - t0:.0f} s -> {pfad} ({os.path.getsize(pfad) / 1024:.0f} KB)")
+    log(f"Fertig in {time.time() - t0:.0f} s -> {pfad} ({os.path.getsize(pfad) / 1024:.0f} KB, {len(liste)} Spiele)")
 
-    print("\n===== MODELL-RANKING =====")
-    print("Vorsaison = daran wurde gelernt | Saison = ehrlicher Test mit unbekannten Spielen\n")
-    for m in sorted(ergebnis["modelle"], key=lambda m: -(m["saison"]["roi"] if m["saison"]["roi"] is not None else -999)):
-        v, s, p = m["vorsaison"], m["saison"], m["einstellung_test"]
+    print(f"\n===== MODELL-RANKING (Qualität ab {vergleich_ab.date()}, kleiner = besser) =====")
+    for m in sorted(ergebnis["modelle"], key=lambda m: m["qualitaet"].get("rps") or 9):
+        qq, s = m["qualitaet"], m["saison"]
         print(f"{m['name']}")
-        print(f"   Einstellung: Modell-Anteil {p['mischung']:.0%} | Value ab {p['min_value']:.0%} | Quoten {p['quote_min']}-{p['quote_max']}")
-        print(f"   Vorsaison: {v['wetten']:>4} Wetten | ROI {v['roi']} % | Treffer {v['treffer']} %")
-        print(f"   SAISON:    {s['wetten']:>4} Wetten | ROI {s['roi']} % | Treffer {s['treffer']} % | Gewinn {s['gewinn']} Einheiten\n")
+        print(f"   RPS {qq.get('rps')} | LogLoss 1X2 {qq.get('logloss_1x2')} | Ü/U {qq.get('logloss_ou')} | "
+              f"BTS {qq.get('logloss_bts')} | HZ {qq.get('logloss_ht')} | Correct Score {qq.get('nll_cs')} ({qq['spiele']} Spiele)")
+        print(f"   Value-Wetten Saison: {s['wetten']} | ROI {s['roi']} % | Treffer {s['treffer']} %\n")
 
 
 if __name__ == "__main__":
