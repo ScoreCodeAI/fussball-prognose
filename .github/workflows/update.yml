@@ -1,0 +1,30 @@
+name: Taegliches Update
+
+on:
+  schedule:
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pakete installieren
+        run: pip install pandas numpy scipy statsmodels requests
+      - name: Motor starten
+        run: python engine.py
+      - name: Ergebnis speichern
+        run: |
+          git config user.name "score-code-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/daten.json
+          git commit -m "Daten-Update $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git push
