@@ -16,7 +16,7 @@ def trainiere(df, heute):
     a = pd.DataFrame({"team": df["Home"], "gegner": df["Away"], "heim": 1, "tore": df["HG"], "w": w})
     b = pd.DataFrame({"team": df["Away"], "gegner": df["Home"], "heim": 0, "tore": df["AG"], "w": w})
     d = pd.concat([a, b], ignore_index=True)
-    d = d[np.isfinite(d["w"]) & (d["w"] > 0) & d["tore"].notna()]   # ungueltige Zeilen entfernen
+    d = d[np.isfinite(d["w"]) & (d["w"] > 0) & d["tore"].notna() & d["team"].notna() & d["gegner"].notna()]   # ungueltige Zeilen entfernen
     if len(d) < 50:
         raise ValueError("zu wenig Daten")
     return smf.glm("tore ~ heim + team + gegner", data=d,
