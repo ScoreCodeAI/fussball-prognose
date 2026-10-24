@@ -18,7 +18,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Pakete installieren
-        run: pip install pandas numpy scipy statsmodels requests
+        run: pip install pandas numpy scipy statsmodels requests scikit-learn
       - name: Motor starten
         run: python engine.py
       - name: Ergebnis speichern
