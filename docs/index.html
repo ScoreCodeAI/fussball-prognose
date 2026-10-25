@@ -373,23 +373,19 @@ function hit(mk,p,r){const t=r.h+r.a;switch(mk){
  case"ou":return p.ue25>=50?t>2:t<=2;
  case"bts":return p.bts>=50?(r.h>0&&r.a>0):!(r.h>0&&r.a>0);
  case"ht":{if(!p.ht||r.hh==null)return null;const m=Math.max(...p.ht),f=p.ht.indexOf(m);return f==0?r.hh>r.ha:f==2?r.hh<r.ha:r.hh==r.ha}
- case"htft":{if(!p.htft||r.hh==null)return null;return HTFT[p.htft.indexOf(Math.max(...p.htft))]==htftRes(r)}
- case"cs":return p.cs[0][0]==r.h+":"+r.a}}
-const HTFT=["1/1","1/X","1/2","X/1","X/X","X/2","2/1","2/X","2/2"];
+ case"ht2":{if(!p.ht2||r.hh==null)return null;const m=Math.max(...p.ht2),f=p.ht2.indexOf(m);return f==0?(r.h-r.hh)>(r.a-r.ha):f==2?(r.h-r.hh)<(r.a-r.ha):(r.h-r.hh)==(r.a-r.ha)}}}
 const sg=(a,b)=>a>b?"1":a<b?"2":"X";
-const htftRes=r=>r.hh==null?null:sg(r.hh,r.ha)+"/"+sg(r.h,r.a);
 /* Treffer eines Vorteil-Tipps: Markt + Label */
 function vhit(mk,lab,r){if(!r)return null;const t=r.h+r.a;switch(mk){
  case"1x2":return lab==sg(r.h,r.a);
- case"ou":return lab.startsWith("Über")?t>2:t<=2;
+ case"ou":return lab.startsWith("OVER")?t>2:t<=2;
  case"bts":return (lab=="Ja")==(r.h>0&&r.a>0);
- case"ht":return r.hh==null?null:lab=="HZ "+sg(r.hh,r.ha);
- case"htft":return r.hh==null?null:lab==htftRes(r);
- case"cs":return lab==r.h+":"+r.a}}
+ case"ht":return r.hh==null?null:lab=="HZ1 "+sg(r.hh,r.ha);
+ case"ht2":return r.hh==null?null:lab=="HZ2 "+sg(r.h-r.hh,r.a-r.ha)}}
 /* echte Quote (falls vorhanden), sonst Markt-Quote ohne Marge */
 function vquote(s,mk,v){const q=s.quoten||{};if(mk=="1x2"&&q[v[0]])return[q[v[0]],1];
- if(mk=="ou"){const k=v[0].startsWith("Über")?"Ü2.5":"U2.5";if(q[k])return[q[k],1]}return[+(100/v[2]).toFixed(2),0]}
-const VTM=[["1x2","🏆 1X2"],["ou","⚽ Über/Unter"],["bts","🤝 BTTS"],["ht","⏱ Halbzeit"],["htft","🔀 HZ/ES"],["cs","🎯 Correct Score"]];
+ if(mk=="ou"){const k=v[0].startsWith("OVER")?"Ü2.5":"U2.5";if(q[k])return[q[k],1]}return[+(100/v[2]).toFixed(2),0]}
+const VTM=[["1x2","🏆 1X2"],["ou","⚽ OVER / UNDER"],["bts","🤝 BTTS"],["ht","⏱ 1. Halbzeit"],["ht2","⏱ 2. Halbzeit"]];
 const kom=x=>String(x).replace(".",",");
 /* ---------- Modell Q · Quoten-Analyse ---------- */
 const isQ=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="quoten";
@@ -455,9 +451,9 @@ function toggle(c){S.offen.has(c)?S.offen.delete(c):S.offen.add(c);renderSpiele(
 function row(s){if(isQ(S.modell))return qRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
  if(r){const ok=hit("1x2",p,r),ou=hit("ou",p,r);
   return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono"><b>${s.ergebnis}</b></div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
-  <div class="rchk"><span class="ck ${ok?'y':'n'}">${f} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'Ü':'U'}2,5 ${ou?'✓':'✕'}</span></div></div>`}
+  <div class="rchk"><span class="ck ${ok?'y':'n'}">${f} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'OVER':'UNDER'} ${ou?'✓':'✕'}</span></div></div>`}
  return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
- <div class="rtip"><span class="tp">${f} · ${fp}%</span><span class="ou">Ü2,5 ${p.ue25}%</span>${p.value.length?'<span class="vd" title="Value"></span>':''}</div></div>`}
+ <div class="rtip"><span class="tp">${f} · ${fp}%</span><span class="ou">OVER ${p.ue25}%</span>${valBadge(p)}</div></div>`}
 
 /* ---------- Detail ---------- */
 function openDetail(id){S.detail=id;S.dtab=S.modell;S.seite="detail";render();scrollTo(0,0)}
@@ -478,41 +474,36 @@ function markt(titel,opts){const best=Math.max(...opts.map(o=>o[1]));const tip=o
  return `<div class="pg"><div class="pgh"><span>${titel}</span><b>Tipp <em>${tip[0]}</em></b></div>
  <div class="pgb">${opts.map(o=>`<div class="opt${o[1]==best?' win':''}" style="flex:${Math.max(o[1],14)}"><span>${o[0]}</span><strong>${o[1]}%</strong></div>`).join("")}</div></div>`}
 function probCard(s,p){const r=res(s);
- const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","Halbzeit"],["htft","HZ/ES"],["ou","Über/Unter"],["bts","Beide treffen"],["cs","Ergebnis"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
- return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}
+ const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"],["bts","Beide treffen"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
+ const herk=p.quelle?`<p class="hint">★ Zusammengesetzt: 1X2 <b>${p.quelle["1x2"]}</b> · OVER/UNDER <b>${p.quelle.ou}</b> · BTTS <b>${p.quelle.bts}</b> · 1. HZ <b>${p.quelle.ht}</b> · 2. HZ <b>${p.quelle.ht2}</b></p>`:p.quelle_markt?`<p class="hint">Aus den Quoten von <b>${p.quelle_markt}</b>, Marge herausgerechnet.</p>`:"";
+ return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${herk}${chk}
  ${markt("Spielausgang",[["1",p.p1],["X",p.px],["2",p.p2]])}
- ${markt("Über / Unter 2,5 Tore",[["Über",p.ue25],["Unter",100-p.ue25]])}
+ ${markt("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",Math.round((100-p.ue25)*10)/10]])}
  ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",100-p.bts]])}
- ${p.ht?markt("Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]]):`<div class="pg"><div class="pgh"><span>Halbzeit</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
- ${p.htft?htftBlock(s,p):""}
- <div class="pg"><div class="pgh"><span>Correct Score</span><b>Tipp <em>${p.cs[0][0]}</em></b></div>
- <div class="csg">${p.cs.map((c,i)=>`<div class="dco${i==0?' win':''}"><span>${c[0]}</span><strong>${String(c[1]).replace(".",",")}%</strong></div>`).join("")}</div></div>
+ ${p.ht?markt("1. Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]])+(p.ht2?markt("2. Halbzeit",[["1",p.ht2[0]],["X",p.ht2[1]],["2",p.ht2[2]]]):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
  ${vtBlock(s,p)}
  ${p.value.map(v=>`<div class="val"><div><div style="font-size:12px;font-weight:600">⚡ Value: ${v.markt} @ ${String(v.quote).replace(".",",")}</div><div style="font-size:11px;color:var(--mu)">Modell sieht mehr Chance als die Quote</div></div><b>+${v.edge}%</b></div>`).join("")}
  </div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
-function htftBlock(s,p){const mx=Math.max(...p.htft),mk=s.markt&&s.markt.htft,vt=p.vt&&p.vt.htft;
- return `<div class="pg"><div class="pgh"><span>Halbzeit / Endstand</span><b>Tipp <em>${HTFT[p.htft.indexOf(mx)]}</em></b></div>
- <div class="csg" style="grid-template-columns:repeat(3,1fr)">${HTFT.map((k,i)=>`<div class="dco${p.htft[i]==mx?' win':''}"${vt&&vt[0]==k?' style="border-color:var(--gr);box-shadow:0 0 12px #2bf5a055"':''}><span>${k}</span><strong>${kom(p.htft[i])}%</strong>${mk?`<span style="font-size:10px;opacity:.6">Markt ${kom(mk[i])}%</span>`:""}</div>`).join("")}</div></div>`}
-function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]);if(!l.length)return"";
+const VKURZ={"Heimsieg":"1","Remis":"X","Auswärtssieg":"2","OVER 2,5":"OVER","UNDER 2,5":"UNDER"};
+function valBadge(p){const v=(p.value||[]).slice().sort((a,b)=>b.edge-a.edge)[0];return v?`<span class="qe">VALUE ${VKURZ[v.markt]||v.markt} +${v.edge}%</span>`:""}
+function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]).sort((a,b)=>vt[b[0]][3]-vt[a[0]][3]);if(!l.length)return"";
  return `<div class="pg"><div class="pgh"><span>💡 Vorteil gegenüber dem Markt</span><b>${s.markt?s.markt.quelle:""}</b></div>`+
  l.map(([k,n])=>{const v=vt[k],[q,echt]=vquote(s,k,v),r=res(s),h=vhit(k,v[0],r);
   return `<div class="val" style="margin-top:8px"><div><div style="font-size:12px;font-weight:600">${n}: <b>${v[0]}</b></div><div style="font-size:11px;color:var(--mu)">Modell ${kom(v[1])}% · Markt ${kom(v[2])}% · ${echt?"Quote":"Markt-Quote ≈"} ${kom(q)} · fair ${kom((100/v[1]).toFixed(2))}</div></div><b>+${kom(v[3])}%${h!=null?` ${h?'✓':'✕'}`:""}</b></div>`}).join("")+`</div>`}
 
 /* ---------- Top-Tipps ---------- */
-const MARKTE=[["tore","⚽ Über / Unter 2,5"],["bts","🤝 Beide treffen"],["1x2","🏆 Spielausgang"],["ht","⏱ Halbzeit"],["htft","🔀 HZ/ES"],["cs","🎯 Correct Score"]];
-const VT_KEY={tore:"ou",bts:"bts","1x2":"1x2",ht:"ht",htft:"htft",cs:"cs"};
-function renderTop(){if(isQ(S.modell))return renderTopQ();S.tmode=S.tmode||"vt";
+const MARKTE=[["tore","⚽ OVER / UNDER 2,5"]];
+const VT_KEY={tore:"ou"};
+function renderTop(){if(isQ(S.modell))return renderTopQ();S.tmode=S.tmode||"vt";S.markt="tore";
  if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
  $("tmode").innerHTML=[["vt","💰 Größter Vorteil"],["sicher","🛡 Sicherste"]].map(m=>`<div class="chip${S.tmode==m[0]?' on':''}" onclick="S.tmode='${m[0]}';renderTop()">${m[1]}</div>`).join("");
  $("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.markt==m[0]?' on':''}" onclick="S.markt='${m[0]}';renderTop()">${m[1]}</div>`).join("");
  if(S.tmode=="vt")return renderTopVorteil();
  const tag=D.spiele.filter(s=>s.datum==S.tag),done=tag.length&&tag[0].ergebnis!=null;let secs=[];
- if(S.markt=="tore")secs=[["🔥 Über 2,5 Tore",tag.filter(s=>P(s).ue25>=55).map(s=>[s,P(s).ue25,"Ü2.5"]),"ou"],["🧊 Unter 2,5 Tore",tag.filter(s=>P(s).ue25<=45).map(s=>[s,100-P(s).ue25,"U2.5"]),"ou"]];
+ if(S.markt=="tore")secs=[["🔥 OVER 2,5",tag.filter(s=>P(s).ue25>=55).map(s=>[s,P(s).ue25,"Ü2.5"]),"ou"],["🧊 UNDER 2,5",tag.filter(s=>P(s).ue25<=45).map(s=>[s,100-P(s).ue25,"U2.5"]),"ou"]];
  else if(S.markt=="bts")secs=[["✅ Beide treffen: Ja",tag.filter(s=>P(s).bts>=55).map(s=>[s,P(s).bts,null]),"bts"],["⛔ Beide treffen: Nein",tag.filter(s=>P(s).bts<=45).map(s=>[s,100-P(s).bts,null]),"bts"]];
  else if(S.markt=="ht")secs=[["⏱ Klarste Halbzeit-Tipps",tag.filter(s=>P(s).ht).map(s=>{const[f,fp]=best(P(s).ht,["1","X","2"]);return[s,fp,null,"HZ "+f]}).filter(x=>x[1]>=45),"ht"]];
- else if(S.markt=="htft")secs=[["🔀 Wahrscheinlichste HZ/ES",tag.filter(s=>P(s).htft).map(s=>{const[f,fp]=best(P(s).htft,HTFT);return[s,Math.round(fp),null,f]}),"htft"]];
- else if(S.markt=="cs")secs=[["🎯 Wahrscheinlichste Ergebnisse",tag.map(s=>[s,P(s).cs[0][1],null,P(s).cs[0][0]]),"cs"]];
  else secs=[["🏆 Klarste Favoriten",tag.map(s=>{const[f,fp]=fav(P(s));return[s,fp,f,f]}).filter(x=>x[1]>=50),"1x2"]];
  $("toplist").innerHTML=`<p class="hint">${done?"Rückblick: So lagen die Top-Tipps an diesem Tag":"Die stärksten Prognosen des Tages aus allen Ligen"} · Modell ${M().kurz}</p>`+
  secs.map(([t,l,k])=>{l.sort((a,b)=>b[1]-a[1]);return `<h3>${t} <span>${l.length} Spiele</span></h3>`+(l.length?`<div class="card" style="padding:4px 14px">${l.slice(0,12).map(([s,pr,mk,lab])=>{const r=res(s),q=mk?s.quoten[mk]:null,ok=r?hit(k,P(s),r):null;
@@ -521,21 +512,28 @@ function renderTop(){if(isQ(S.modell))return renderTopQ();S.tmode=S.tmode||"vt";
   <div class="tr"><b class="mono">${lab?lab+' · ':''}${pr}%</b>${q?`<small>@ ${String(q).replace(".",",")}</small>`:""}${ok!=null?`<span class="ck ${ok?'y':'n'}">${ok?'✓':'✕'}</span>`:""}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine klaren Tipps in diesem Markt.</p></div>`)}).join("")}
 
 /* ---------- Values: Wettquoten-Vergleich aus allen Modellen ---------- */
-const VF=[["alle","Alle"],["markt","💹 Markt-Value"],["modell","🧠 Modell-Value"],["1X2","🏆 1X2"],["Tore","⚽ Über/Unter"],["BTTS","🤝 BTTS"],["Halbzeit","⏱ Halbzeit"],["HZ/ES","🔀 HZ/ES"],["Correct Score","🎯 Correct Score"]];
-function renderValues(){S.vf=S.vf||"alle";
+const VF=[["markt","💹 Markt-Value"],["1X2","🏆 1X2"],["OU","⚽ OVER / UNDER"],["sarimax","📈 SARIMAX O/U"]];
+function renderValues(){if(!VF.some(f=>f[0]==S.vf))S.vf="markt";
  $("vchips").innerHTML=VF.map(f=>`<div class="chip${S.vf==f[0]?' on':''}" onclick="S.vf='${f[0]}';renderValues()">${f[1]}</div>`).join("");
- const alle=(D.values||[]).filter(v=>v.datum==S.tag);
- const l=alle.filter(v=>S.vf=="alle"||(S.vf=="markt"&&v.art!="modell")||(S.vf=="modell"&&v.art!="markt")||v.gruppe==S.vf);
- const k=x=>String(x).replace(".",",");
- const hint=`<p class="hint"><b>Markt-Value</b>: Ein Buchmacher zahlt mehr als die faire Quote (Pinnacle ohne Marge). <b>Modell-Value</b>: mind. 2 Modelle sehen Value – bei 1X2/Über-Unter gegen die beste Quote, bei BTTS/Halbzeit/HZ-ES/Correct Score gegen die Markt-Erwartung.</p>`;
+ if(S.vf=="sarimax")return renderSarimax();
+ const sc=v=>Math.max(v.ev_markt,v.ev_modelle??-99);
+ const l=(D.values||[]).filter(v=>v.datum==S.tag).filter(v=>S.vf=="markt"?v.art!="modell":v.gruppe==S.vf).sort((a,b)=>S.vf=="markt"?b.ev_markt-a.ev_markt:sc(b)-sc(a));
+ const hint=`<p class="hint"><b>Markt-Value</b>: Betfair Exchange zahlt mehr als die faire Quote (Pinnacle ohne Marge). <b>Modelle</b>: mind. 2 Modelle sehen Value gegen die Betfair-Quote. Betfair-Kommission ist nicht abgezogen. Größter Vorteil zuerst.</p>`;
  if(!D.values){$("vlist").innerHTML=hint+`<div class="card"><p class="msub">Noch keine Value-Daten – beim nächsten Update verfügbar.</p></div>`;return}
  $("vlist").innerHTML=hint+`<h3>💰 Values <span>${l.length} Tipps</span></h3>`+(l.length?`<div class="card" style="padding:4px 14px">${l.map(v=>{
   const fl=D.laender.find(x=>x.ligen.some(g=>g.code==v.liga));
-  const mk=v.quote==null?"":v.art!="modell"?`<span class="vbad mk">Markt ${v.ev_markt>0?'+':''}${k(v.ev_markt)}%</span>`:`<span class="vbad no">Markt ${k(v.ev_markt)}%</span>`;
-  const md=v.modelle_ja.length?`<span class="vbad md" title="${v.modelle_ja.join(', ')}">${v.modelle_ja.length}/${v.modelle_n} Modelle${v.ev_modelle!=null?' +'+k(v.ev_modelle)+'%':''}</span>`:"";
+  const mk=v.art!="modell"?`<span class="vbad mk">Markt +${kom(v.ev_markt)}%</span>`:`<span class="vbad no">Markt ${kom(v.ev_markt)}%</span>`;
+  const md=v.modelle_ja.length?`<span class="vbad md" title="${v.modelle_ja.join(', ')}">${v.modelle_ja.length}/${v.modelle_n} Modelle${v.ev_modelle!=null?' +'+kom(v.ev_modelle)+'%':''}</span>`:"";
   return `<div class="trow" onclick="openDetail(${v.id})"><div class="tl"><small>${fl?fl.flagge:''} ${ligaInfo[v.liga]||v.liga} · ${v.zeit}</small><b>${v.heim} – ${v.gast}</b>
-  <div class="vsub">${v.quote?`${v.tipp} @ <b>${k(v.quote)}</b> · ${v.buchmacher} · fair ${k(v.fair)}`:`${v.gruppe} <b>${v.tipp}</b> · Modelle ${k(v.p_modelle)}% · Markt ${k(v.p_markt)}% · Markt ≈ <b>${k(v.fair)}</b>`}</div></div>
-  <div class="tr">${mk}${md}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine Values an diesem Tag${S.vf!="alle"?" in diesem Filter":""}.</p></div>`)}
+  <div class="vsub">${v.tipp} @ <b>${kom(v.quote)}</b> · Betfair · fair ${kom(v.fair)}</div></div>
+  <div class="tr">${mk}${md}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine Values an diesem Tag in diesem Filter.</p></div>`)}
+/* SARIMAX: OVER/UNDER-Values gegen Betfair, Pinnacle und Hoechstquote */
+function renderSarimax(){const id="modell_sarimax",m=M2(id);
+ const l=D.spiele.filter(s=>s.datum==S.tag&&s.prog[id]&&s.prog[id].ouv).map(s=>[s,s.prog[id].ouv]).sort((a,b)=>b[1].zeilen[0].ev-a[1].zeilen[0].ev);
+ $("vlist").innerHTML=`<p class="hint"><b>SARIMAX</b>: OVER/UNDER 2,5 – das Modell (gemischt mit der fairen Pinnacle-Chance, wie im Backtest kalibriert) gegen drei Quoten-Quellen. Grün = Value nach der Regel des Modells.</p>
+ <h3>📈 SARIMAX O/U <span>${l.length} Spiele</span></h3>`+(!m?`<div class="card"><p class="msub">Modell SARIMAX nicht vorhanden.</p></div>`:l.length?`<div class="card" style="padding:4px 14px">${l.map(([s,o])=>{const fl=D.laender.find(x=>x.ligen.some(g=>g.code==s.liga)),r=res(s);
+  return `<div class="trow" onclick="openDetail(${s.id})" style="display:block"><div class="tl"><small>${fl?fl.flagge:''} ${ligaInfo[s.liga]||s.liga} · ${r?s.ergebnis:s.zeit} · Modell OVER ${kom(o.p)}% · Pinnacle ${kom(o.fair)}%</small><b>${s.heim} – ${s.gast}</b></div>
+  ${o.zeilen.map(z=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:13px;${z.value?'':'opacity:.55'}"><span>${z.tipp} · ${z.quelle} @ <b class="mono">${kom(z.quote)}</b></span><span class="vbad ${z.value?'mk':'no'}">${z.ev>0?'+':''}${kom(z.ev)}%${z.value?' ✓':''}</span></div>`).join("")}</div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine SARIMAX-Values an diesem Tag.</p></div>`)}
 
 function renderTopVorteil(){const mk=VT_KEY[S.markt],tag=D.spiele.filter(s=>s.datum==S.tag),done=tag.length&&tag[0].ergebnis!=null;
  const l=tag.filter(s=>P(s).vt&&P(s).vt[mk]).map(s=>[s,P(s).vt[mk]]).sort((a,b)=>b[1][3]-a[1][3]);
@@ -553,7 +551,7 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  const fertig=S.btag?alle.filter(s=>s.datum==S.btag):alle;
  const chipsQ=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
  if(isQ(S.modell))return renderBilanzQ(alle,fertig,chipsQ,von,bis);
- const MK=[["1x2","Spielausgang"],["ht","Halbzeit"],["ou","Über/Unter 2,5"],["bts","Beide treffen"],["htft","HZ/ES"],["cs","Correct Score"]];
+ const MK=[["1x2","Spielausgang"],["ht","1. Halbzeit"],["ou","OVER/UNDER 2,5"],["bts","Beide treffen"],["ht2","2. Halbzeit"]];
  const stat=(list,k,mid=S.modell)=>{let w=0,n=0;for(const s of list){const h=hit(k,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
  const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
  const all=MK.map(([k])=>stat(fertig,k)),W=all.reduce((a,x)=>a+x[0],0),L=all.reduce((a,x)=>a+x[1],0);
@@ -563,19 +561,27 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  const ranking=rk.map((x,i)=>`<div class="rkrow${x.m.id==S.modell?' on':''}" style="--c:${x.m.farbe1}" onclick="S.modell='${x.m.id}';render()">
   <span class="rkn${i==0?' gold':i==1?' silver':i==2?' bronze':''}">${i+1}</span>
   <span class="swi" style="background:linear-gradient(140deg,${x.m.farbe1},${x.m.farbe2});width:34px;height:34px;font-size:15px">${x.m.icon}</span>
-  <div class="rkm"><b>${x.m.name}</b><div class="rkmk">${MK.slice(0,4).map(([k,n],j)=>{const r=rate(x.st[j]);return `<span>${["1X2","HZ","Ü/U","BTS"][j]} <em class="${r==null?'':r>=50?'ok':'no'}">${r==null?'–':r+'%'}</em></span>`}).join("")}<span>RPS <em>${x.rps==null?'–':x.rps.toFixed(3).replace(".",",")}</em></span></div>
+  <div class="rkm"><b>${x.m.name}</b><div class="rkmk">${MK.slice(0,4).map(([k,n],j)=>{const r=rate(x.st[j]);return `<span>${["1X2","HZ1","O/U","BTS"][j]} <em class="${r==null?'':r>=50?'ok':'no'}">${r==null?'–':r+'%'}</em></span>`}).join("")}<span>RPS <em>${x.rps==null?'–':x.rps.toFixed(3).replace(".",",")}</em></span></div>
   <div class="track"><i style="width:${Math.round(x.g*100)}%;background:linear-gradient(90deg,${x.m.farbe1},${x.m.farbe2})"></i></div></div>
   <b class="rkp" style="color:${x.m.farbe1}">${Math.round(x.g*100)}%</b></div>`).join("");
  $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Prognosen, die vor den Spielen feststanden, gegen die echten Ergebnisse.</p>
  <h3>🏆 Modell-Ranking <span>${fertig.length} Spiele</span></h3><div class="card" style="padding:6px 12px">${ranking}</div>
+ ${besteTabelle()}
  <h3>Details <span>${M().kurz}</span></h3>
  <div class="bcard"><div class="bh"><span class="swi" style="background:linear-gradient(140deg,${M().farbe1},${M().farbe2});width:40px;height:40px;font-size:18px">${M().icon}</span><div style="flex:1"><b>${M().name}</b><small>${fertig.length} Spiele · ${W+L} Tipps</small></div><b class="big">${W+L?Math.round(W/(W+L)*100):0}%</b></div>
  <div class="wl"><span class="won">${W} Richtig</span><span class="lost">${L} Falsch</span></div>
  <div class="mbl">TREFFER JE WETTMARKT</div>
- <div class="grid2">${MK.map(([k,n],i)=>{const[w,l]=all[i],r=w+l?Math.round(w/(w+l)*100):0;return `<div class="mt"><b>${n}</b><div><span>Richtig</span><em class="ok">${w}</em></div><div><span>Falsch</span><em class="no">${l}</em></div><div class="rate"><div class="track"><i style="width:${r}%;background:${r>=(k=="cs"?10:k=="htft"?25:50)?'linear-gradient(90deg,var(--cy),var(--vi))':'var(--rd)'}"></i></div><strong>${w+l?r+'%':'–'}</strong></div></div>`}).join("")}</div></div>
+ <div class="grid2">${MK.map(([k,n],i)=>{const[w,l]=all[i],r=w+l?Math.round(w/(w+l)*100):0;return `<div class="mt"><b>${n}</b><div><span>Richtig</span><em class="ok">${w}</em></div><div><span>Falsch</span><em class="no">${l}</em></div><div class="rate"><div class="track"><i style="width:${r}%;background:${r>=(k=="ht"||k=="ht2"?40:50)?'linear-gradient(90deg,var(--cy),var(--vi))':'var(--rd)'}"></i></div><strong>${w+l?r+'%':'–'}</strong></div></div>`}).join("")}</div></div>
  ${valueBilanz(fertig)}
- <p class="hint" style="margin-top:10px">Zur Einordnung: Correct Score trifft selbst bei Profis nur in etwa 10–13 % der Fälle, HZ/ES in etwa 20–30 %. Tippe im Ranking auf ein Modell, um seine Details zu sehen. RPS misst, wie gut die 1X2-Wahrscheinlichkeiten insgesamt waren, nicht nur der Favorit: kleiner ist besser, ein Münzwurf-Niveau liegt bei etwa 0,23.</p>`}
+ <p class="hint" style="margin-top:10px">Zur Einordnung: Halbzeit-Tipps treffen seltener als 1X2, weil das Remis zur Pause sehr häufig ist. Tippe im Ranking auf ein Modell, um seine Details zu sehen. RPS misst, wie gut die 1X2-Wahrscheinlichkeiten insgesamt waren, nicht nur der Favorit: kleiner ist besser, ein Münzwurf-Niveau liegt bei etwa 0,23.</p>`}
 
+/* ★ Beste: welches Modell schlaegt Pinnacle in welchem Markt (Backtest) */
+function besteTabelle(){const b=D.beste;if(!b)return"";const nm=id=>id=="pinnacle"?"Pinnacle":(M2(id)||{}).kurz||id;
+ return `<h3>★ Bester je Markt <span>Backtest ab ${dm(b.ab)}</span></h3><div class="card" style="padding:6px 14px">${Object.entries(b.maerkte).map(([k,x])=>{
+  const mods=Object.entries(x.modelle).sort((a,c)=>a[1].diff-c[1].diff);
+  return `<div class="trow" style="cursor:default;display:block"><div style="display:flex;justify-content:space-between;align-items:center"><b>${x.name}</b><span class="vbad ${x.wahl=="pinnacle"?'md':'mk'}">★ ${nm(x.wahl)}</span></div>
+  <div class="vsub" style="color:var(--mu)">${mods.length?mods.map(([id,v])=>`${nm(id)} <b style="color:${v.diff<0?'var(--gr)':'var(--rd)'}">${v.diff>0?'+':''}${kom(v.diff)}%</b>`).join(" · "):"zu wenige Spiele"}</div></div>`}).join("")}</div>
+ <p class="hint">Fehler-Maß (Log-Loss) im Vergleich zu Pinnacle auf denselben Spielen: <b style="color:var(--gr)">minus = besser als der Markt</b>, plus = schlechter. ★ zeigt die Quelle, die das Modell „★ Beste“ für diesen Markt nimmt.</p>`}
 /* Value-Bilanz: Vorteil-Tipps des Modells gegen echte Ergebnisse, 1 Einheit Einsatz je Tipp */
 function valueBilanz(list){let gw=0,gn=0,gp=0,geschaetzt=false;
  const zeilen=VTM.map(([k,n])=>{let w=0,c=0,pr=0;for(const s of list){const v=P(s).vt&&P(s).vt[k],r=res(s);if(!v||!r)continue;const h=vhit(k,v[0],r);if(h==null)continue;const[q,echt]=vquote(s,k,v);if(!echt)geschaetzt=true;c++;if(h){w++;pr+=q-1}else pr-=1}
@@ -584,7 +590,7 @@ function valueBilanz(list){let gw=0,gn=0,gp=0,geschaetzt=false;
  return `<h3>💰 Value-Bilanz <span>${M().kurz} · ${gn} Tipps</span></h3><div class="card" style="padding:6px 14px">
  <div class="trow" style="cursor:default"><div class="tl"><b>Gesamt</b><small>${gw} von ${gn} getroffen · Gewinn ${kom(gp.toFixed(1))} Einheiten</small></div><div class="tr"><span class="vbad ${gp>=0?'mk':'md'}">ROI ${roi(gp,gn)}</span></div></div>
  ${zeilen.map(([n,w,c,pr])=>`<div class="trow" style="cursor:default"><div class="tl"><b>${n}</b><small>${c?`${w} / ${c} getroffen · ${kom(pr.toFixed(1))} Einh.`:"keine Vorteil-Tipps"}</small></div><div class="tr"><b class="mono" style="font-size:13px">${roi(pr,c)}</b></div></div>`).join("")}</div>
- <p class="hint">Einsatz je Tipp 1 Einheit. 1X2 und Über/Unter mit echter Quote${geschaetzt?", BTTS/Halbzeit/HZ/ES/Correct Score mit geschätzter Markt-Quote ohne Marge (echte Quoten liegen etwas darunter)":""}. Eine Woche ist wenig – aussagekräftig erst über viele Wochen.</p>`}
+ <p class="hint">Einsatz je Tipp 1 Einheit. 1X2 und OVER/UNDER mit echter Quote${geschaetzt?", BTTS und Halbzeiten mit geschätzter Markt-Quote ohne Marge (echte Quoten liegen etwas darunter)":""}. Eine Woche ist wenig – aussagekräftig erst über viele Wochen.</p>`}
 
 /* ---------- Matrix-Code-Regen ---------- */
 const MXZ="01アイウエオカキクケコサシスセソ<>{}=+*#ΣλØ01";
