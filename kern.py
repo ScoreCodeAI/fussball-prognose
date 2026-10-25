@@ -108,20 +108,53 @@ def waehle_abhaengigkeit(x, y, lh, la, w):
 
 
 # ---------- Maerkte aus der Matrix ----------
+HTFT_LABELS = ["1/1", "1/X", "1/2", "X/1", "X/X", "X/2", "2/1", "2/X", "2/2"]
+HZ_ANTEIL = 0.45          # Anteil der Tore in Halbzeit 1, falls ein Modell keine Halbzeit liefert
+CSG_MAX = 5               # Correct-Score-Raster 0..5 fuer den Markt-Vergleich
+
+
+def _diff_vert(M):
+    """Verteilung der Tordifferenz (Heim - Gast) einer Ergebnis-Matrix -> {diff: p}"""
+    out = {}
+    for a in range(M.shape[0]):
+        for b in range(M.shape[1]):
+            out[a - b] = out.get(a - b, 0.0) + float(M[a, b])
+    return out
+
+
+def htft(ft, ht=None):
+    """Halbzeit/Endstand (9 Varianten). Halbzeit 1 aus der HT-Matrix, Halbzeit 2 als Poisson
+    mit den restlichen erwarteten Toren (Endstand minus Halbzeit)."""
+    xh, xa = erwartete_tore(ft)
+    if ht is None:
+        ht = matrix_unabhaengig(max(xh * HZ_ANTEIL, 0.02), max(xa * HZ_ANTEIL, 0.02))
+    hh, ha = erwartete_tore(ht)
+    zweite = matrix_unabhaengig(max(xh - hh, 0.05), max(xa - ha, 0.05))
+    d1, d2 = _diff_vert(ht), _diff_vert(zweite)
+    erg = {k: 0.0 for k in HTFT_LABELS}
+    for a, pa in d1.items():
+        h = "1" if a > 0 else "2" if a < 0 else "X"
+        for b, pb in d2.items():
+            e = a + b
+            erg[f"{h}/{'1' if e > 0 else '2' if e < 0 else 'X'}"] += pa * pb
+    s = sum(erg.values()) or 1.0
+    return [erg[k] / s for k in HTFT_LABELS]
+
+
 def maerkte(ft, ht=None):
     M = ft
     idx = np.add.outer(np.arange(M.shape[0]), np.arange(M.shape[1]))
     unter = M[idx <= 2].sum()
     i, j = np.unravel_index(M.argmax(), M.shape)
-    ph, pa = M.sum(axis=1), M.sum(axis=0)
     zellen = sorted(((M[a, b], f"{a}:{b}") for a in range(M.shape[0]) for b in range(M.shape[1])), reverse=True)[:5]
+    g = min(CSG_MAX, M.shape[0] - 1, M.shape[1] - 1)
     return {"1": float(np.tril(M, -1).sum()), "X": float(np.trace(M)), "2": float(np.triu(M, 1).sum()),
             "Ü2.5": float(1 - unter), "U2.5": float(unter),
             "BTS": float(1 - M[0, :].sum() - M[:, 0].sum() + M[0, 0]), "tipp": f"{i}:{j}",
             "HT": None if ht is None else [float(np.tril(ht, -1).sum()), float(np.trace(ht)), float(np.triu(ht, 1).sum())],
-            "TH": [float(ph[0]), float(ph[1]), float(ph[2]), float(1 - ph[:3].sum())],
-            "TA": [float(pa[0]), float(pa[1]), float(pa[2]), float(1 - pa[:3].sum())],
-            "CS": [[k, float(v)] for v, k in zellen]}
+            "HTFT": htft(ft, ht),
+            "CS": [[k, float(v)] for v, k in zellen],
+            "CSG": [[float(M[a, b]) for b in range(g + 1)] for a in range(g + 1)]}
 
 
 def erwartete_tore(M):

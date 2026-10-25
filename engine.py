@@ -24,6 +24,8 @@ ORDNER = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ORDNER)
 import daten
 import kern
+import markt
+import values
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
 # ---------- Grundeinstellungen ----------
@@ -45,6 +47,7 @@ MAERKTE = {"1": ["AvgH", "B365H"], "X": ["AvgD", "B365D"], "2": ["AvgA", "B365A"
            "Ü2.5": ["Avg>2.5", "B365>2.5"], "U2.5": ["Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
 MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "Über 2,5", "U2.5": "Unter 2,5"}
+EXTRA_QUOTEN = ["PSH", "PSD", "PSA", "P>2.5", "P<2.5", "MaxH", "MaxD", "MaxA", "Max>2.5", "Max<2.5"]  # nur fuer Markt-Vergleich
 K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
 heute = pd.Timestamp.today().normalize()
 
@@ -71,7 +74,7 @@ def modelle_laden():
 # ---------- Daten ----------
 def quoten_spiele():
     teile = []
-    spalten = sorted({c for v in MAERKTE.values() for c in v})
+    spalten = sorted({c for v in MAERKTE.values() for c in v} | set(EXTRA_QUOTEN))
     quellen = [(s, liga) for s in SAISONS_QUOTEN for liga in daten.ALLE_LIGEN if liga not in EXTRA_LIGEN]
     quellen += [("neu", liga) for liga in EXTRA_LIGEN if liga in daten.ALLE_LIGEN]
     for s, liga in quellen:
@@ -284,7 +287,8 @@ def prog_eintrag(p, xg, q, par):
     return {"p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
             "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"], "xg": xg,
             "ht": None if p["HT"] is None else [r(x * 100, 0) for x in p["HT"]],
-            "th": [r(x * 100, 0) for x in p["TH"]], "ta": [r(x * 100, 0) for x in p["TA"]],
+            "htft": [r(x * 100, 1) for x in p["HTFT"]],
+            "_csg": [[r(x * 100, 2) for x in z] for z in p["CSG"]],
             "cs": [[k, r(v * 100, 1)] for k, v in p["CS"]], "value": value_liste(p, q, par)}
 
 
@@ -392,6 +396,35 @@ def main():
     for i, e in enumerate(liste):
         e["id"] = i
     ergebnis["spiele"] = liste
+
+    # Markt-Vergleich: was erwarten die Buchmacher? -> Vorteile je Modell und Markt
+    zeilen = {}
+    for _, z in q.iterrows():
+        zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["Home"], z["Away"])] = z
+    for _, z in fx.iterrows():
+        if not pd.isna(z["Date"]):
+            zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+    n_mk = 0
+    for e in liste:
+        try:
+            mk = markt.block(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            mk = None
+        if mk:
+            n_mk += 1
+            e["markt"] = {k: v for k, v in mk.items() if k != "csg"}
+        for pr in e["prog"].values():
+            pr["vt"] = markt.vorteile(pr, mk)
+    log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
+    try:   # Zusatz: Wettquoten-Values (veraendert keine Modelle)
+        ergebnis["values"] = values.berechne(liste, fx, ergebnis["modelle"])
+        log(f"Values: {len(ergebnis['values'])} gefunden")
+    except Exception as ex:
+        ergebnis["values"] = []
+        log("Values konnten nicht berechnet werden:", ex)
+    for e in liste:
+        for pr in e["prog"].values():
+            pr.pop("_csg", None)
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:
