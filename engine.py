@@ -25,6 +25,7 @@ sys.path.insert(0, ORDNER)
 import daten
 import kern
 import markt
+import quoten_modell
 import values
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
@@ -425,6 +426,18 @@ def main():
     for e in liste:
         for pr in e["prog"].values():
             pr.pop("_csg", None)
+
+    # Modell Q · Quoten-Analyse (Georgis Berechnung auf den Hoechstquoten)
+    ergebnis["modelle"].append(dict(quoten_modell.MODELL_INFO))
+    n_q = 0
+    for e in liste:
+        try:
+            qe = quoten_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            qe = None
+        e["prog"]["quoten"] = qe
+        n_q += qe is not None
+    log(f"Quoten-Analyse: {n_q} von {len(liste)} Spielen")
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:
