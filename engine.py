@@ -24,6 +24,7 @@ ORDNER = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ORDNER)
 import daten
 import kern
+import beste
 import markt
 import quoten_modell
 import values
@@ -44,10 +45,10 @@ GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
 FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
            "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Griechenland": "🇬🇷", "Schottland": "🇬🇧",
            "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Türkei": "🇹🇷"}
-MAERKTE = {"1": ["AvgH", "B365H"], "X": ["AvgD", "B365D"], "2": ["AvgA", "B365A"],
-           "Ü2.5": ["Avg>2.5", "B365>2.5"], "U2.5": ["Avg<2.5", "B365<2.5"]}
+MAERKTE = {"1": ["PSH", "AvgH", "B365H"], "X": ["PSD", "AvgD", "B365D"], "2": ["PSA", "AvgA", "B365A"],   # Pinnacle zuerst
+           "Ü2.5": ["P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["P<2.5", "Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
-MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "Über 2,5", "U2.5": "Unter 2,5"}
+MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "OVER 2,5", "U2.5": "UNDER 2,5"}
 EXTRA_QUOTEN = ["PSH", "PSD", "PSA", "P>2.5", "P<2.5", "MaxH", "MaxD", "MaxA", "Max>2.5", "Max<2.5"]  # nur fuer Markt-Vergleich
 K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
 heute = pd.Timestamp.today().normalize()
@@ -288,9 +289,8 @@ def prog_eintrag(p, xg, q, par):
     return {"p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
             "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"], "xg": xg,
             "ht": None if p["HT"] is None else [r(x * 100, 0) for x in p["HT"]],
-            "htft": [r(x * 100, 1) for x in p["HTFT"]],
-            "_csg": [[r(x * 100, 2) for x in z] for z in p["CSG"]],
-            "cs": [[k, r(v * 100, 1)] for k, v in p["CS"]], "value": value_liste(p, q, par)}
+            "ht2": None if p.get("HT2") is None else [r(x * 100, 0) for x in p["HT2"]],
+            "value": value_liste(p, q, par)}
 
 
 # ---------- Hauptprogramm ----------
@@ -330,6 +330,7 @@ def main():
     groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
     reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
     qual_roh = {}
+    bt = {}     # Backtest-Spiele je Modell (fuer den Vergleich mit Pinnacle / ★ Beste)
 
     for key, mod in modelle.items():
         tm = time.time()
@@ -353,6 +354,7 @@ def main():
             live += lv
             log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
         K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
+        bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "HT", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
         W_test = wetten_waehlen(K, par_test)
@@ -413,19 +415,47 @@ def main():
             mk = None
         if mk:
             n_mk += 1
-            e["markt"] = {k: v for k, v in mk.items() if k != "csg"}
+            e["markt"] = mk
         for pr in e["prog"].values():
             pr["vt"] = markt.vorteile(pr, mk)
+        if mk:   # Modell P · Pinnacle
+            e["prog"]["pinnacle"] = markt.als_prognose(mk)
     log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
-    try:   # Zusatz: Wettquoten-Values (veraendert keine Modelle)
-        ergebnis["values"] = values.berechne(liste, fx, ergebnis["modelle"])
+    echte = list(ergebnis["modelle"])
+    kurz = {m["id"]: m["kurz"] for m in echte}
+    kurz["pinnacle"] = "Pinnacle"
+    liste = [e for e in liste if "pinnacle" in e["prog"]]      # Spiele ganz ohne Quoten fallen weg
+    for i, e in enumerate(liste):
+        e["id"] = i
+    ergebnis["spiele"] = liste
+
+    # Backtest-Vergleich mit Pinnacle -> ★ Beste
+    tb = time.time()
+    try:
+        vg = beste.vergleich(bt, zeilen, kurz)
+    except Exception as ex:
+        log("Vergleich mit Pinnacle fehlgeschlagen:", ex)
+        vg = {"maerkte": {k: {"name": n, "wahl": "pinnacle", "modelle": {}} for k, n in beste.MAERKTE}}
+    vg["ab"] = BACKTEST_START
+    ergebnis["beste"] = vg
+    wahl = {k: v["wahl"] for k, v in vg["maerkte"].items()}
+    log("★ Beste je Markt: " + ", ".join(f"{k}={kurz.get(w, w)}" for k, w in wahl.items()) + f" ({time.time() - tb:.0f} s)")
+    for e in liste:
+        bp = beste.beste_prog(e, wahl, kurz)
+        if bp:
+            bp["vt"] = markt.vorteile(bp, e.get("markt"))
+            e["prog"]["beste"] = bp
+
+    try:   # Zusatz: Betfair-Values (nur echte Modelle)
+        ergebnis["values"] = values.berechne(liste, fx, echte)
         log(f"Values: {len(ergebnis['values'])} gefunden")
     except Exception as ex:
         ergebnis["values"] = []
         log("Values konnten nicht berechnet werden:", ex)
-    for e in liste:
-        for pr in e["prog"].values():
-            pr.pop("_csg", None)
+    try:
+        log(f"SARIMAX OVER/UNDER-Values: {values.sarimax_ou(liste, fx, echte)} Spiele")
+    except Exception as ex:
+        log("SARIMAX-Values fehlgeschlagen:", ex)
 
     # Modell Q · Quoten-Analyse (Georgis Berechnung auf den Hoechstquoten)
     ergebnis["modelle"].append(dict(quoten_modell.MODELL_INFO))
@@ -438,6 +468,12 @@ def main():
         e["prog"]["quoten"] = qe
         n_q += qe is not None
     log(f"Quoten-Analyse: {n_q} von {len(liste)} Spielen")
+    # Reihenfolge in der Modell-Leiste: P, V, ★, dann die anderen, Q zuletzt
+    pseudo = [dict(beste.INFO_P), dict(beste.INFO_B)]
+    rest = [m for m in ergebnis["modelle"] if m["id"] not in ("modell_verlauf", "quoten")]
+    v = [m for m in ergebnis["modelle"] if m["id"] == "modell_verlauf"]
+    qm = [m for m in ergebnis["modelle"] if m["id"] == "quoten"]
+    ergebnis["modelle"] = [pseudo[0]] + v + [pseudo[1]] + rest + qm
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:

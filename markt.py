@@ -1,11 +1,11 @@
 # ===== MARKT: was erwarten die Buchmacher? =====
-# Aus den Quoten (Pinnacle, sonst Durchschnitt/bet365) fuer 1X2 und Ueber/Unter 2,5 werden die
+# Aus den Quoten (Pinnacle, sonst Durchschnitt/bet365) fuer 1X2 und OVER/UNDER 2,5 werden die
 # erwarteten Tore des MARKTES zurueckgerechnet. Daraus folgen Markt-Wahrscheinlichkeiten fuer
-# ALLE Maerkte - auch fuer BTTS, Halbzeit, HZ/ES und Correct Score, fuer die es keine Quoten gibt.
+# alle Maerkte - auch fuer BTTS, 1. und 2. Halbzeit, fuer die es keine Quoten gibt.
 #
 # "Vorteil" = Modell-Wahrscheinlichkeit / Markt-Wahrscheinlichkeit - 1
 #   -> zeigt, wo ein Modell ANDERS denkt als der Markt, statt einfach den Favoriten zu tippen.
-# Veraendert KEIN Modell und KEINEN Backtest.
+# Wird auch fuer das Modell "P · Pinnacle" verwendet. Veraendert KEIN anderes Modell.
 import math
 
 import numpy as np
@@ -18,7 +18,7 @@ QUELLEN_OU = [("P", "Pinnacle"), ("Avg", "Durchschnitt"), ("B365", "bet365")]
 
 # Markt -> (Mindest-Wahrscheinlichkeit Modell in %, Mindest-Vorteil, Hoechst-Vorteil)
 REGELN = {"1x2": (20, 0.15, 0.60), "ou": (30, 0.12, 0.50), "bts": (30, 0.12, 0.50),
-          "ht": (20, 0.15, 0.60), "htft": (8, 0.25, 1.00), "cs": (6, 0.30, 1.00)}
+          "ht": (20, 0.15, 0.60), "ht2": (20, 0.15, 0.60)}
 
 
 def _f(v):
@@ -52,14 +52,15 @@ def _hole(row, quellen, suffixe):
 def _fit(p1, px, p2, pue):
     def fehler(x):
         lh, la = np.exp(x)
-        M = kern.matrix_dixon_coles(lh, la, -0.05)
-        m = kern.maerkte(M)
-        e = (m["1"] - p1) ** 2 + (m["X"] - px) ** 2 + (m["2"] - p2) ** 2
+        M = kern.matrix_dixon_coles(lh, la, -0.05, g=10)
+        a, d, b = kern._1x2(M)
+        e = (a - p1) ** 2 + (d - px) ** 2 + (b - p2) ** 2
         if pue is not None:
-            e += (m["Ü2.5"] - pue) ** 2
+            idx = np.add.outer(np.arange(11), np.arange(11))
+            e += (1 - M[idx <= 2].sum() - pue) ** 2
         return e
     res = minimize(fehler, np.log([1.45, 1.15]), method="Nelder-Mead",
-                   options={"xatol": 1e-4, "fatol": 1e-9, "maxiter": 400})
+                   options={"xatol": 1e-3, "fatol": 1e-8, "maxiter": 200})
     return [float(v) for v in np.exp(res.x)]
 
 
@@ -70,35 +71,39 @@ def block(row):
     p, q1 = _hole(row, QUELLEN_1X2, ["H", "D", "A"])
     if p is None:
         return None
-    ou, q2 = _hole(row, QUELLEN_OU, [">2.5", "<2.5"])
+    ou, _ = _hole(row, QUELLEN_OU, [">2.5", "<2.5"])
     lh, la = _fit(p[0], p[1], p[2], ou[0] if ou else None)
     ft = kern.matrix_dixon_coles(lh, la, -0.05)
     ht = kern.matrix_unabhaengig(lh * kern.HZ_ANTEIL, la * kern.HZ_ANTEIL)
     m = kern.maerkte(ft, ht)
     r = lambda x: round(float(x) * 100, 1)
-    return {"quelle": q1, "xg": [round(lh, 2), round(la, 2)],
+    return {"quelle": q1, "xg": [round(lh, 2), round(la, 2)], "tipp": m["tipp"],
             "1x2": [r(x) for x in p],                                   # direkt aus den Quoten
             "ou": [r(ou[0]), r(ou[1])] if ou else [r(m["Ü2.5"]), r(m["U2.5"])],
             "bts": [r(m["BTS"]), r(1 - m["BTS"])],
             "ht": [r(x) for x in m["HT"]],
-            "htft": [r(x) for x in m["HTFT"]],
-            "csg": [[r(x) for x in zeile] for zeile in m["CSG"]]}
+            "ht2": [r(x) for x in m["HT2"]]}
+
+
+def als_prognose(mk):
+    """Markt-Block -> Prognose-Eintrag im Format der Modelle (fuer Modell P · Pinnacle)."""
+    g = lambda x: int(round(x))      # ganze Prozent wie bei den anderen Modellen
+    return {"p1": g(mk["1x2"][0]), "px": g(mk["1x2"][1]), "p2": g(mk["1x2"][2]), "ue25": g(mk["ou"][0]),
+            "bts": g(mk["bts"][0]), "ht": [g(x) for x in mk["ht"]], "ht2": [g(x) for x in mk["ht2"]],
+            "tipp": mk["tipp"], "xg": mk["xg"],
+            "value": [], "vt": {}, "quelle_markt": mk["quelle"]}
 
 
 def _optionen(prog, mk):
     """(Markt, Label, Modell-%, Markt-%) fuer alle Ausgaenge"""
     out = [("1x2", "1", prog["p1"], mk["1x2"][0]), ("1x2", "X", prog["px"], mk["1x2"][1]),
            ("1x2", "2", prog["p2"], mk["1x2"][2]),
-           ("ou", "Über 2,5", prog["ue25"], mk["ou"][0]), ("ou", "Unter 2,5", 100 - prog["ue25"], mk["ou"][1]),
+           ("ou", "OVER 2,5", prog["ue25"], mk["ou"][0]), ("ou", "UNDER 2,5", 100 - prog["ue25"], mk["ou"][1]),
            ("bts", "Ja", prog["bts"], mk["bts"][0]), ("bts", "Nein", 100 - prog["bts"], mk["bts"][1])]
     if prog.get("ht"):
-        out += [("ht", "HZ " + k, prog["ht"][i], mk["ht"][i]) for i, k in enumerate(["1", "X", "2"])]
-    if prog.get("htft"):
-        out += [("htft", k, prog["htft"][i], mk["htft"][i]) for i, k in enumerate(kern.HTFT_LABELS)]
-    csg = prog.get("_csg")
-    if csg:
-        g = min(len(csg), len(mk["csg"]))
-        out += [("cs", f"{a}:{b}", csg[a][b], mk["csg"][a][b]) for a in range(g) for b in range(g)]
+        out += [("ht", "HZ1 " + k, prog["ht"][i], mk["ht"][i]) for i, k in enumerate(["1", "X", "2"])]
+    if prog.get("ht2"):
+        out += [("ht2", "HZ2 " + k, prog["ht2"][i], mk["ht2"][i]) for i, k in enumerate(["1", "X", "2"])]
     return out
 
 

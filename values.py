@@ -1,33 +1,31 @@
-# ===== VALUES - Wettquoten-Vergleich fuer kommende Spiele =====
+# ===== VALUES - Betfair-Exchange-Quoten gegen faire Pinnacle-Wahrscheinlichkeit =====
 # Eigenstaendiger Zusatz: veraendert KEIN Modell und KEINEN Backtest.
-# Wird am Ende von engine.py aufgerufen und schreibt die Liste "values" in daten.json.
 #
-# Zwei Arten von Value:
-#   1) Markt-Value:  ein Buchmacher zahlt mehr als die faire Quote (Pinnacle ohne Marge).
-#   2) Modell-Value: die Modelle sehen eine hoehere Chance als der Markt - gegen die BESTE Quote.
+#   Markt-Value:  Betfair zahlt mehr als die faire Quote (Pinnacle ohne Marge).
+#   Modell-Value: mind. MIN_MODELLE Modelle sehen nach ihrer kalibrierten Regel Value
+#                 gegen die Betfair-Quote.
+# Maerkte: 1X2 und OVER/UNDER 2,5. Sortiert: groesster Vorteil zuerst.
 #
-# Alle Buchmacher-Spalten aus fixtures.csv werden automatisch erkannt.
+# Zusaetzlich: SARIMAX-Values fuer OVER/UNDER 2,5 gegen drei Quellen (Betfair, Pinnacle, Hoechstquote).
 import math
-import statistics
 
 import numpy as np
 import pandas as pd
 
+import markt
+
 # ---------- Einstellungen ----------
-MIN_EV_MARKT = 0.03       # Markt-Value ab +3 %
+MIN_EV_MARKT = 0.02       # Markt-Value ab +2 %
 MIN_MODELLE = 2           # so viele Modelle muessen nach IHRER kalibrierten Regel Value sehen
 QUOTE_MIN, QUOTE_MAX = 1.30, 8.0
 MAX_EV = 0.40             # unrealistisch hohe Werte (Datenfehler) ausblenden
-MIN_BUCHMACHER = 3        # fuer Konsens, falls Pinnacle fehlt
+BETFAIR = "BFE"           # Betfair Exchange (Back-Quote, ohne Kommission)
 
-BUCHMACHER = {            # Spalten-Praefix -> Anzeigename
-    "B365": "bet365", "BW": "Bwin", "PS": "Pinnacle", "WH": "William Hill", "1XB": "1xBet",
-    "BFE": "Betfair Exch.", "BF": "Betfair", "IW": "Interwetten", "VC": "BetVictor", "LB": "Ladbrokes",
-    "BV": "BetVictor", "GB": "Gamebookers", "SJ": "Stan James", "BS": "Blue Square", "SB": "Sportingbet",
-    "CL": "Coral", "Max": "Höchstquote", "P": "Pinnacle",
-}
-NICHT_VERGLEICHEN = {"Avg"}          # Durchschnitt ist kein buchbarer Buchmacher
-SCHARF_1X2, SCHARF_OU = "PS", "P"    # Pinnacle-Spalten
+MAERKTE = [  # (Gruppe, Spalten-Suffixe, Ausgaenge, Prognose-Feld, Pinnacle-Quellen)
+    ("1X2", ["H", "D", "A"], ["Heimsieg", "Remis", "Auswärtssieg"], ["p1", "px", "p2"], markt.QUELLEN_1X2),
+    ("OU", [">2.5", "<2.5"], ["OVER 2,5", "UNDER 2,5"], ["ue25", "-ue25"], markt.QUELLEN_OU),
+]
+OU_QUELLEN = [("BFE", "Betfair"), ("P", "Pinnacle"), ("Max", "Höchstquote")]
 
 
 def _f(v):
@@ -38,69 +36,6 @@ def _f(v):
     return v if not math.isnan(v) and v > 1.0 else None
 
 
-def marge_entfernen(quoten):
-    """Power-Methode: (1/q)^k mit Summe 1 - beruecksichtigt den Favoriten-Aussenseiter-Effekt."""
-    imp = [1 / q for q in quoten]
-    lo, hi = 0.5, 3.0
-    for _ in range(60):
-        k = (lo + hi) / 2
-        lo, hi = (k, hi) if sum(p ** k for p in imp) > 1 else (lo, k)
-    p = [x ** ((lo + hi) / 2) for x in imp]
-    s = sum(p)
-    return [x / s for x in p]
-
-
-def _praefixe(spalten, suffixe):
-    """Alle Praefixe, fuer die jede Ausgangs-Spalte existiert (z. B. B365H/B365D/B365A)."""
-    out = []
-    for c in spalten:
-        s0 = suffixe[0]
-        if c.endswith(s0):
-            pre = c[: -len(s0)]
-            if pre and all(pre + s in spalten for s in suffixe):
-                if pre.endswith("C") and pre[:-1] + s0 in spalten:     # Schlussquoten (z. B. PSCH) auslassen
-                    continue
-                out.append(pre)
-    return out
-
-
-def _markt(row, praefixe, suffixe, scharf):
-    """-> (faire Wahrscheinlichkeiten, Referenz, {Praefix: [Quoten]})"""
-    quoten = {}
-    for pre in praefixe:
-        q = [_f(row.get(pre + s)) for s in suffixe]
-        if all(q):
-            quoten[pre] = q
-    if scharf in quoten:
-        return marge_entfernen(quoten[scharf]), "Pinnacle", quoten
-    einzeln = [q for p, q in quoten.items() if p not in NICHT_VERGLEICHEN and p != "Max"]
-    if len(einzeln) >= MIN_BUCHMACHER:
-        pr = [marge_entfernen(q) for q in einzeln]
-        med = [statistics.median(x[i] for x in pr) for i in range(len(suffixe))]
-        s = sum(med)
-        return [m / s for m in med], f"Konsens {len(einzeln)} Buchm.", quoten
-    return None, None, quoten
-
-
-def _beste(quoten, i):
-    """Beste buchbare Quote fuer Ausgang i -> (Quote, Name, Anzahl Buchmacher)"""
-    best, name, n = None, None, 0
-    for pre, q in quoten.items():
-        if pre in NICHT_VERGLEICHEN:
-            continue
-        n += pre != "Max"
-        if best is None or q[i] > best + 1e-9 or (abs(q[i] - best) < 1e-9 and name == "Höchstquote"):
-            best, name = q[i], BUCHMACHER.get(pre, pre)
-    return best, name, n
-
-
-MAERKTE = [  # (Gruppe, Spalten-Suffixe, Pinnacle-Praefix, Ausgaenge, Prognose-Feld)
-    ("1X2", ["H", "D", "A"], SCHARF_1X2, ["1", "X", "2"], ["p1", "px", "p2"]),
-    ("Tore", [">2.5", "<2.5"], SCHARF_OU, ["Über 2,5", "Unter 2,5"], ["ue25", "-ue25"]),
-]
-TIPP_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg"}
-
-
 def _modell_p(prog, feld):
     v = prog.get(feld.lstrip("-"))
     if v is None:
@@ -109,19 +44,24 @@ def _modell_p(prog, feld):
     return 1 - v if feld.startswith("-") else v
 
 
-def berechne(liste, fx, modelle):
-    """liste: Spiele aus engine.py, fx: fixtures-DataFrame, modelle: Modell-Infos."""
-    spalten = set(fx.columns)
-    zeilen = {}
+def _zeilen(fx):
+    z = {}
     for _, row in fx.iterrows():
-        if pd.isna(row.get("Date")):
-            continue
-        zeilen[(row["Div"], row["Date"].strftime("%Y-%m-%d"), row.get("HomeTeam"), row.get("AwayTeam"))] = row
+        if not pd.isna(row.get("Date")):
+            z[(row["Div"], row["Date"].strftime("%Y-%m-%d"), row.get("HomeTeam"), row.get("AwayTeam"))] = row
+    return z
 
-    ids = [m["id"] for m in modelle]
+
+def _regeln(modelle):
+    return {m["id"]: m.get("einstellung_live") or {"mischung": 0.5, "min_value": 0.10,
+                                                  "quote_min": 1.5, "quote_max": 5.0} for m in modelle}
+
+
+def berechne(liste, fx, modelle):
+    """liste: Spiele aus engine.py, fx: fixtures-DataFrame, modelle: echte Modelle (mit Backtest)."""
+    zeilen = _zeilen(fx)
     kurz = {m["id"]: m["kurz"] for m in modelle}
-    regel = {m["id"]: m.get("einstellung_live") or {"mischung": 0.5, "min_value": 0.10,
-                                                    "quote_min": 1.5, "quote_max": 5.0} for m in modelle}
+    regel = _regeln(modelle)
     out = []
     for sp in liste:
         if sp.get("ergebnis"):
@@ -129,23 +69,22 @@ def berechne(liste, fx, modelle):
         row = zeilen.get((sp["liga"], sp["datum"], sp["heim"], sp["gast"]))
         if row is None:
             continue
-        for gruppe, suffixe, scharf, ausgaenge, felder in MAERKTE:
-            praef = _praefixe(spalten, suffixe)
-            fair, ref, quoten = _markt(row, praef, suffixe, scharf)
-            if fair is None:
+        for gruppe, suffixe, ausgaenge, felder, quellen in MAERKTE:
+            fair, ref = markt._hole(row, quellen, suffixe)
+            bf = [_f(row.get(BETFAIR + s)) for s in suffixe]
+            if fair is None or not all(bf):
                 continue
             for i, (aus, feld) in enumerate(zip(ausgaenge, felder)):
-                q, buch, n_buch = _beste(quoten, i)
-                if q is None or not (QUOTE_MIN <= q <= QUOTE_MAX):
+                q = bf[i]
+                if not (QUOTE_MIN <= q <= QUOTE_MAX):
                     continue
                 ev_markt = q * fair[i] - 1
-                mp = {mid: _modell_p(sp["prog"][mid], feld) for mid in ids if mid in sp["prog"]}
-                mp = {k: v for k, v in mp.items() if v is not None}
-                p_mod = float(np.mean(list(mp.values()))) if mp else None
-                # Jedes Modell nach seiner eigenen, im Backtest kalibrierten Regel (wie in engine.py),
-                # aber gegen die BESTE verfuegbare Quote und die faire Pinnacle-Wahrscheinlichkeit
-                ja, edges = [], []
-                for mid, pm in mp.items():
+                ja, edges, pm_all = [], [], []
+                for mid in kurz:
+                    pm = _modell_p(sp["prog"].get(mid) or {}, feld)
+                    if pm is None:
+                        continue
+                    pm_all.append(pm)
                     r = regel[mid]
                     e = (r["mischung"] * pm + (1 - r["mischung"]) * fair[i]) * q - 1
                     if r["quote_min"] <= q <= r["quote_max"] and r["min_value"] < e < MAX_EV:
@@ -158,51 +97,49 @@ def berechne(liste, fx, modelle):
                     continue
                 out.append({
                     "id": sp["id"], "liga": sp["liga"], "datum": sp["datum"], "zeit": sp["zeit"],
-                    "heim": sp["heim"], "gast": sp["gast"], "gruppe": gruppe,
-                    "tipp": TIPP_NAME.get(aus, aus), "quote": round(q, 2), "buchmacher": buch,
-                    "n_buch": n_buch, "fair": round(1 / fair[i], 2), "p_markt": round(fair[i] * 100, 1),
-                    "ev_markt": round(ev_markt * 100, 1), "referenz": ref,
-                    "p_modelle": None if p_mod is None else round(p_mod * 100, 1),
+                    "heim": sp["heim"], "gast": sp["gast"], "gruppe": gruppe, "tipp": aus,
+                    "quote": round(q, 2), "buchmacher": "Betfair", "fair": round(1 / fair[i], 2),
+                    "p_markt": round(fair[i] * 100, 1), "ev_markt": round(ev_markt * 100, 1), "referenz": ref,
+                    "p_modelle": round(float(np.mean(pm_all)) * 100, 1) if pm_all else None,
                     "ev_modelle": None if ev_mod is None else round(ev_mod * 100, 1),
-                    "modelle_ja": ja, "modelle_n": len(mp),
-                    "art": "beide" if markt_ok and modell_ok else "markt" if markt_ok else "modell",
-                })
-    out += _ohne_quoten(liste, kurz)
-    rang = {"beide": 0, "markt": 1, "modell": 2}
-    out.sort(key=lambda v: (v["datum"], rang[v["art"]], -max(v["ev_markt"], v["ev_modelle"] or -99)))
+                    "modelle_ja": ja, "modelle_n": len(pm_all),
+                    "art": "beide" if markt_ok and modell_ok else "markt" if markt_ok else "modell"})
+    out.sort(key=lambda v: -max(v["ev_markt"], v["ev_modelle"] if v["ev_modelle"] is not None else -99))
     return out
 
 
-# ---------- Maerkte ohne Buchmacher-Quoten (BTTS, Halbzeit, HZ/ES, Correct Score) ----------
-# Vergleich Modell gegen MARKT-Erwartung (aus Pinnacle 1X2 + Ueber/Unter berechnet, siehe markt.py).
-# Ein Tipp kommt in die Liste, wenn mind. MIN_MODELLE Modelle denselben Ausgang als Vorteil sehen.
-MAERKTE_OHNE = {"bts": "BTTS", "ht": "Halbzeit", "htft": "HZ/ES", "cs": "Correct Score"}
-MIN_MODELLE_OHNE = 3      # strenger, weil hier keine echte Buchmacher-Quote vorliegt
-
-
-def _ohne_quoten(liste, kurz):
-    out = []
+def sarimax_ou(liste, fx, modelle, mid="modell_sarimax"):
+    """SARIMAX OVER/UNDER 2,5: Vorteil gegen Betfair, Pinnacle und Hoechstquote.
+    Rechnung wie die Value-Box des Modells (kalibrierte Mischung mit der fairen Pinnacle-Chance)."""
+    m = next((x for x in modelle if x["id"] == mid), None)
+    if m is None:
+        return 0
+    r = _regeln([m])[mid]
+    zeilen = _zeilen(fx)
+    n = 0
     for sp in liste:
-        if sp.get("ergebnis") or not sp.get("markt"):
+        pr = sp["prog"].get(mid)
+        if sp.get("ergebnis") or not pr:
             continue
-        for mk, name in MAERKTE_OHNE.items():
-            stimmen = {}
-            for mid, pr in sp["prog"].items():
-                v = (pr.get("vt") or {}).get(mk)
-                if v:
-                    stimmen.setdefault(v[0], []).append((mid, v))
-            for lab, liste_m in stimmen.items():
-                if len(liste_m) < MIN_MODELLE_OHNE:
+        row = zeilen.get((sp["liga"], sp["datum"], sp["heim"], sp["gast"]))
+        if row is None:
+            continue
+        fair, _ = markt._hole(row, markt.QUELLEN_OU, [">2.5", "<2.5"])
+        if fair is None:
+            continue
+        pm = [pr["ue25"] / 100, 1 - pr["ue25"] / 100]
+        zeilen_out = []
+        for i, aus in enumerate(["OVER 2,5", "UNDER 2,5"]):
+            pf = r["mischung"] * pm[i] + (1 - r["mischung"]) * fair[i]
+            for pre, name in OU_QUELLEN:
+                q = _f(row.get(pre + (">2.5" if i == 0 else "<2.5")))
+                if not q:
                     continue
-                pm = float(np.mean([v[1] for _, v in liste_m]))
-                pk = liste_m[0][1][2]
-                out.append({
-                    "id": sp["id"], "liga": sp["liga"], "datum": sp["datum"], "zeit": sp["zeit"],
-                    "heim": sp["heim"], "gast": sp["gast"], "gruppe": name, "tipp": lab,
-                    "quote": None, "buchmacher": None, "n_buch": 0,
-                    "fair": round(100 / pk, 2), "p_markt": pk, "ev_markt": 0.0, "referenz": "Markt berechnet",
-                    "p_modelle": round(pm, 1), "ev_modelle": round((pm / pk - 1) * 100, 1),
-                    "fair_modell": round(100 / pm, 2),
-                    "modelle_ja": [kurz[m] for m, _ in liste_m], "modelle_n": len(sp["prog"]),
-                    "art": "modell"})
-    return out
+                e = pf * q - 1
+                zeilen_out.append({"tipp": aus, "quelle": name, "quote": round(q, 2), "ev": round(e * 100, 1),
+                                   "value": bool(r["min_value"] < e < MAX_EV and QUOTE_MIN <= q <= QUOTE_MAX)})
+        if any(z["value"] for z in zeilen_out):
+            zeilen_out.sort(key=lambda z: -z["ev"])
+            pr["ouv"] = {"p": round(pm[0] * 100, 1), "fair": round(fair[0] * 100, 1), "zeilen": zeilen_out}
+            n += 1
+    return n
