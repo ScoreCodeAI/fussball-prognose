@@ -445,7 +445,7 @@ def main():
     log(f"Fertig in {time.time() - t0:.0f} s -> {pfad} ({os.path.getsize(pfad) / 1024:.0f} KB, {len(liste)} Spiele)")
 
     print(f"\n===== MODELL-RANKING (Qualität ab {vergleich_ab.date()}, kleiner = besser) =====")
-    for m in sorted(ergebnis["modelle"], key=lambda m: m["qualitaet"].get("rps") or 9):
+    for m in sorted([m for m in ergebnis["modelle"] if "qualitaet" in m], key=lambda m: m["qualitaet"].get("rps") or 9):
         qq, s = m["qualitaet"], m["saison"]
         print(f"{m['name']}")
         print(f"   RPS {qq.get('rps')} | LogLoss 1X2 {qq.get('logloss_1x2')} | Ü/U {qq.get('logloss_ou')} | "
