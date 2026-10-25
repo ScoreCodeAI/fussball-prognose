@@ -167,6 +167,16 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .trow{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:11px 0;border-bottom:1px solid #ffffff0d;cursor:pointer}.trow:last-child{border:0}
 .tl small{font-size:10.5px;color:var(--mu)}.tl b{display:block;font-size:13.5px;margin-top:2px}
 .tr{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:3px}.tr b{font-family:Orbitron;font-size:14px;color:var(--cy)}.tr small{font-size:11px;color:var(--mu)}
+/* Modell Q */
+.qsw{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 10px}
+.qsw div{padding:10px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-size:13px;color:var(--mu);text-align:center;font-family:Orbitron;cursor:pointer}
+.qsw div.on{color:#fff;border-color:transparent;background:linear-gradient(135deg,#f5b82b33,#ff7a4544);box-shadow:inset 0 0 0 1px #f5b82b99,0 0 18px #f5b82b33}
+.qe{font-family:Orbitron;font-size:12px;color:var(--gr);background:#2bf5a014;border:1px solid var(--gr);padding:3px 8px;border-radius:8px;font-weight:700}
+.qban{border-radius:18px;padding:14px 16px;margin-bottom:10px;background:linear-gradient(180deg,#2bf5a01a,#2bf5a00a);border:1px solid #2bf5a066;box-shadow:0 0 22px #2bf5a01f;color:var(--gr)}
+.qban small{display:block;font-size:12px;color:var(--mu);letter-spacing:.05em}
+.qban .big{font-family:Orbitron;font-size:22px;color:var(--gr);text-shadow:0 0 14px #2bf5a066}
+.qer{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid #2bf5a033;font-size:15px;color:var(--tx)}
+.qer b{font-family:Orbitron;font-size:17px;color:var(--gr)}
 /* Values */
 .vsub{font-size:11.5px;color:var(--mu);margin-top:3px}.vsub b{color:var(--tx);font-family:Orbitron;font-size:12px}
 .vbad{font-family:Orbitron;font-size:12px;padding:3px 8px;border-radius:8px;white-space:nowrap}
@@ -381,6 +391,46 @@ function vquote(s,mk,v){const q=s.quoten||{};if(mk=="1x2"&&q[v[0]])return[q[v[0]
  if(mk=="ou"){const k=v[0].startsWith("Über")?"Ü2.5":"U2.5";if(q[k])return[q[k],1]}return[+(100/v[2]).toFixed(2),0]}
 const VTM=[["1x2","🏆 1X2"],["ou","⚽ Über/Unter"],["bts","🤝 BTTS"],["ht","⏱ Halbzeit"],["htft","🔀 HZ/ES"],["cs","🎯 Correct Score"]];
 const kom=x=>String(x).replace(".",",");
+/* ---------- Modell Q · Quoten-Analyse ---------- */
+const isQ=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="quoten";
+const QLAB={"1":"1","X":"X","2":"2","O":"OVER 2,5","U":"UNDER 2,5"},QKURZ={"1":"1","X":"X","2":"2","O":"OVER","U":"UNDER"};
+const QLANG={"1":"Heimsieg","X":"Remis","2":"Auswärtssieg","O":"","U":""};
+const QDC={"1X":"1X · Heim oder Remis","X2":"X2 · Remis oder Auswärts","12":"12 · Heim oder Auswärts","1X2":"1X2 · alle drei gleich"};
+function qEv(m,q,lang){const e=["1","X","2","O","U"].filter(k=>q.ev.includes(k));
+ if(m=="x"){if(e.length==1)return lang?e[0]+(QLANG[e[0]]?" · "+QLANG[e[0]]:""):e[0];const k=e.join("");return lang?QDC[k]:k}
+ return e.length==2?"OVER + UNDER":(lang?QLAB:QKURZ)[e[0]]}
+function qWin(k,r){const t=r.h+r.a;return k=="O"?t>2:k=="U"?t<=2:k==sg(r.h,r.a)}
+function qEvHit(q,r){return q.ev.some(k=>qWin(k,r))}
+function qEvQuote(q){return q.ev.length==1?q.q[q.ev[0]]:+(1/q.ev.reduce((a,k)=>a+1/q.q[k],0)).toFixed(2)}
+function qSwitch(cb){S.qm=S.qm||"x";return `<div class="qsw"><div class="${S.qm=="x"?"on":""}" onclick="S.qm='x';${cb}">1X2</div><div class="${S.qm=="ou"?"on":""}" onclick="S.qm='ou';${cb}">OVER / UNDER 2,5</div></div>`}
+function qRow(s){const q=(P(s)||{})[S.qm||"x"],r=res(s);
+ const left=`<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${r?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>`;
+ if(!q)return left+`<div class="rtip"><span class="ou">keine Quoten</span></div></div>`;
+ const t=r?qWin(q.tipp,r):null,e=r?qEvHit(q,r):null;
+ return left+`<div class="rtip"><span class="tp">${QKURZ[q.tipp]} · ${kom(q.q[q.tipp].toFixed(2))}${t!=null?(t?" ✓":" ✕"):""}</span><span class="qe">EV ${qEv(S.qm,q)}${e!=null?(e?" ✓":" ✕"):""}</span></div></div>`}
+function qCard(s,p){const m=S.qm||"x",q=p&&p[m];
+ if(!q)return `<div class="pcard">${qSwitch("renderDetail()")}<div class="card"><p class="msub">Für diesen Markt liegen keine Quoten vor.</p></div></div>`;
+ const r=res(s),t=r?qWin(q.tipp,r):null,e=r?qEvHit(q,r):null;
+ return `<div class="pcard"><div class="pct">QUOTEN · ANALYSE · HÖCHSTQUOTE</div>${qSwitch("renderDetail()")}
+ <div class="qban" style="display:flex;justify-content:space-between;align-items:center"><div><small>TIPP</small><div class="big">${QLAB[q.tipp]}${QLANG[q.tipp]?` <span style="font-size:14px">· ${QLANG[q.tipp]}</span>`:""}${t!=null?(t?" ✓":" ✕"):""}</div></div>
+ <div style="text-align:right"><small>HÖCHSTQUOTE</small><div class="big">${kom(q.q[q.tipp].toFixed(2))}</div></div></div>
+ <div class="qban"><div style="display:flex;justify-content:space-between;align-items:center"><div><small>EV-TIPP</small><div class="big" style="font-size:19px">${qEv(m,q,1)}${e!=null?(e?" ✓":" ✕"):""}</div></div><small>${q.ev.length} ${q.ev.length==1?"Haken":"Haken"}</small></div>
+ ${q.ev.map(k=>`<div class="qer"><span>${QLAB[k]} @ ${kom(q.q[k].toFixed(2))}</span><b>${kom(q.evw[k])} % ✓</b></div>`).join("")}</div></div>`}
+function renderTopQ(){if($("tmode"))$("tmode").innerHTML="";$("mchips").innerHTML="";
+ const tag=D.spiele.filter(s=>s.datum==S.tag&&P(s)&&P(s)[S.qm||"x"]).sort((a,b)=>a.zeit.localeCompare(b.zeit));
+ $("toplist").innerHTML=qSwitch("renderTop()")+`<p class="hint">Modell <b>Quoten</b>: Tipp und EV-Tipp aus den Höchstquoten, für alle Spiele des Tages.</p><h3>${S.qm=="ou"?"OVER / UNDER 2,5":"1X2"} <span>${tag.length} Spiele</span></h3>`+
+ (tag.length?`<div class="card" style="padding:4px 14px">${tag.map(qRow).join("")}</div>`:`<div class="card"><p class="msub">Keine Spiele mit Quoten an diesem Tag.</p></div>`)}
+function renderBilanzQ(alle,fertig,chips,von,bis){
+ const stat=m=>{let tw=0,tn=0,tp=0,ew=0,en=0,ep=0,eg=false;for(const s of fertig){const q=(P(s)||{})[m],r=res(s);if(!q||!r)continue;
+  tn++;if(qWin(q.tipp,r)){tw++;tp+=q.q[q.tipp]-1}else tp-=1;
+  const eq=qEvQuote(q);if(q.ev.length>1)eg=true;en++;if(qEvHit(q,r)){ew++;ep+=eq-1}else ep-=1}return{tw,tn,tp,ew,en,ep,eg}};
+ const roi=(p,n)=>n?(p>=0?"+":"")+Math.round(p/n*100)+"%":"–",pc2=(w,n)=>n?Math.round(w/n*100)+"%":"–";
+ const box=(t,w,n,p)=>`<div class="mt"><b>${t}</b><div><span>Richtig</span><em class="ok">${w}</em></div><div><span>Falsch</span><em class="no">${n-w}</em></div><div><span>Gewinn</span><em class="${p>=0?'ok':'no'}">${kom(p.toFixed(1))}</em></div><div class="rate"><div class="track"><i style="width:${n?Math.round(w/n*100):0}%;background:linear-gradient(90deg,var(--cy),var(--vi))"></i></div><strong>${pc2(w,n)}</strong></div><div><span>ROI</span><em>${roi(p,n)}</em></div></div>`;
+ const x=stat("x"),o=stat("ou");
+ $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Tipps des Modells <b>Quoten</b> gegen die echten Ergebnisse, Einsatz 1 Einheit, Gewinn mit der Höchstquote.</p>
+ <h3>📊 1X2 <span>${x.tn} Spiele</span></h3><div class="grid2">${box("Tipp",x.tw,x.tn,x.tp)}${box("EV-Tipp",x.ew,x.en,x.ep)}</div>
+ <h3>📊 OVER / UNDER 2,5 <span>${o.tn} Spiele</span></h3><div class="grid2">${box("Tipp",o.tw,o.tn,o.tp)}${box("EV-Tipp",o.ew,o.en,o.ep)}</div>
+ <p class="hint" style="margin-top:10px">${x.eg?"Bei Doppelter Chance (1X, X2, 12) ist die Quote aus den beiden Höchstquoten geschätzt. ":""}Für das Ranking der anderen Modelle oben ein anderes Modell wählen.</p>`}
 const best=(arr,lab)=>{const m=Math.max(...arr);return[lab[arr.indexOf(m)],m]};
 
 /* ---------- Kopf: Tage + Modelle ---------- */
@@ -392,6 +442,8 @@ function renderSwitch(){$("mswitch").innerHTML=`<span class="msl">MODELL</span>`
 
 /* ---------- Seite: Spiele (Liga-Akkordeon) ---------- */
 function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.length&&tag[0].ergebnis!=null;
+ if(isQ(S.modell)){const n=tag.filter(s=>P(s)&&P(s)[S.qm||"x"]).length;$("sumrow").innerHTML=`<div style="width:100%">${qSwitch("renderSpiele()")}<div style="display:flex;justify-content:space-between"><span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${n} mit Quoten-Tipp</b></div></div>`}
+ else
  if(vorbei){const ok=tag.filter(s=>hit("1x2",P(s),res(s))).length;$("sumrow").innerHTML=`<span>📊 Prognose-Check</span><b>${ok} / ${tag.length} Tipps richtig</b>`}
  else{const v=tag.filter(s=>P(s).value.length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${v} mit Value</b>`}
  let html="";
@@ -400,7 +452,7 @@ function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.
   <div class="accb">${o?sp.map(row).join(""):""}</div></div>`}
  $("ligen").innerHTML=html||`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`}
 function toggle(c){S.offen.has(c)?S.offen.delete(c):S.offen.add(c);renderSpiele()}
-function row(s){const p=P(s),[f,fp]=fav(p),r=res(s);
+function row(s){if(isQ(S.modell))return qRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
  if(r){const ok=hit("1x2",p,r),ou=hit("ou",p,r);
   return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono"><b>${s.ergebnis}</b></div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
   <div class="rchk"><span class="ck ${ok?'y':'n'}">${f} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'Ü':'U'}2,5 ${ou?'✓':'✕'}</span></div></div>`}
@@ -417,7 +469,7 @@ function renderDetail(){const s=D.spiele.find(x=>x.id==S.detail),q=s.quoten,r=re
  <div class="oddsrow"><div><small>1</small><b>${q["1"]??"–"}</b></div><div><small>X</small><b>${q["X"]??"–"}</b></div><div><small>2</small><b>${q["2"]??"–"}</b></div></div>`;
  const tabs=D.modelle.map(m=>[m.id,m.icon+" "+m.kurz,m.farbe1]);
  $("dtabs").innerHTML=tabs.map(t=>`<div class="dt${S.dtab==t[0]?' on':''}" ${t[2]?`style="--c:${t[2]}"`:''} onclick="S.dtab='${t[0]}';renderDetail();setTimeout(mxStart,30)">${t[1]}</div>`).join("");
-$("dbody").innerHTML=probCard(s,P(s,S.dtab));}
+$("dbody").innerHTML=isQ(S.dtab)?qCard(s,P(s,S.dtab)):probCard(s,P(s,S.dtab));}
 function mrow(team,x){const h=x.heim?team:x.gegner,a=x.heim?x.gegner:team;
  return `<div class="frow"><span class="fd mono">${dm(x.datum)}</span><span class="wdl ${x.wdl}">${x.wdl}</span><span class="fh${x.heim?' me':''}">${h}</span><b class="mono">${x.ergebnis.replace(":"," : ")}</b><span class="fa${x.heim?'':' me'}">${a}</span></div>`}
 function formBlock(t,l){return `<h3>Letzte Spiele · <b style="color:var(--yl)">${t}</b> <span>${l.filter(x=>x.wdl=="S").length}S ${l.filter(x=>x.wdl=="U").length}U ${l.filter(x=>x.wdl=="N").length}N</span></h3><div class="card">${l.length?l.map(x=>mrow(t,x)).join(""):'<p class="msub">Keine Daten.</p>'}</div>`}
@@ -450,7 +502,7 @@ function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]);if(!l.l
 /* ---------- Top-Tipps ---------- */
 const MARKTE=[["tore","⚽ Über / Unter 2,5"],["bts","🤝 Beide treffen"],["1x2","🏆 Spielausgang"],["ht","⏱ Halbzeit"],["htft","🔀 HZ/ES"],["cs","🎯 Correct Score"]];
 const VT_KEY={tore:"ou",bts:"bts","1x2":"1x2",ht:"ht",htft:"htft",cs:"cs"};
-function renderTop(){S.tmode=S.tmode||"vt";
+function renderTop(){if(isQ(S.modell))return renderTopQ();S.tmode=S.tmode||"vt";
  if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
  $("tmode").innerHTML=[["vt","💰 Größter Vorteil"],["sicher","🛡 Sicherste"]].map(m=>`<div class="chip${S.tmode==m[0]?' on':''}" onclick="S.tmode='${m[0]}';renderTop()">${m[1]}</div>`).join("");
  $("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.markt==m[0]?' on':''}" onclick="S.markt='${m[0]}';renderTop()">${m[1]}</div>`).join("");
@@ -499,13 +551,15 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  const tage=[...new Set(alle.map(s=>s.datum))].sort(),von=tage[0],bis=tage[tage.length-1];
  if(S.btag&&!tage.includes(S.btag))S.btag=null;
  const fertig=S.btag?alle.filter(s=>s.datum==S.btag):alle;
+ const chipsQ=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
+ if(isQ(S.modell))return renderBilanzQ(alle,fertig,chipsQ,von,bis);
  const MK=[["1x2","Spielausgang"],["ht","Halbzeit"],["ou","Über/Unter 2,5"],["bts","Beide treffen"],["htft","HZ/ES"],["cs","Correct Score"]];
  const stat=(list,k,mid=S.modell)=>{let w=0,n=0;for(const s of list){const h=hit(k,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
  const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
  const all=MK.map(([k])=>stat(fertig,k)),W=all.reduce((a,x)=>a+x[0],0),L=all.reduce((a,x)=>a+x[1],0);
  const chips=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+
   tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
- const rk=D.modelle.map(m=>{const st=MK.map(([k])=>stat(fertig,k,m.id)),w=st.reduce((a,x)=>a+x[0],0),l=st.reduce((a,x)=>a+x[1],0);let rs=0,rn=0;for(const s of fertig){const p=P(s,m.id),r=res(s);if(!p||!r)continue;const o=r.h>r.a?0:r.h==r.a?1:2,a1=p.p1/100,ax=p.px/100;rs+=((a1-(o==0))**2+(a1+ax-(o<=1))**2)/2;rn++}return{m,st,g:w+l?w/(w+l):0,rps:rn?rs/rn:null}}).sort((a,b)=>b.g-a.g);
+ const rk=D.modelle.filter(m=>m.typ!="quoten").map(m=>{const st=MK.map(([k])=>stat(fertig,k,m.id)),w=st.reduce((a,x)=>a+x[0],0),l=st.reduce((a,x)=>a+x[1],0);let rs=0,rn=0;for(const s of fertig){const p=P(s,m.id),r=res(s);if(!p||!r)continue;const o=r.h>r.a?0:r.h==r.a?1:2,a1=p.p1/100,ax=p.px/100;rs+=((a1-(o==0))**2+(a1+ax-(o<=1))**2)/2;rn++}return{m,st,g:w+l?w/(w+l):0,rps:rn?rs/rn:null}}).sort((a,b)=>b.g-a.g);
  const ranking=rk.map((x,i)=>`<div class="rkrow${x.m.id==S.modell?' on':''}" style="--c:${x.m.farbe1}" onclick="S.modell='${x.m.id}';render()">
   <span class="rkn${i==0?' gold':i==1?' silver':i==2?' bronze':''}">${i+1}</span>
   <span class="swi" style="background:linear-gradient(140deg,${x.m.farbe1},${x.m.farbe2});width:34px;height:34px;font-size:15px">${x.m.icon}</span>
