@@ -53,6 +53,11 @@ def analyse(row, m):
         out["q"].append(round(q, 2))
         out["ev"].append(round(ev * 100, 1))
         out["value"].append(bool(MIN_EV <= ev <= MAX_EV and q <= MAX_QUOTE))
+    # Durchschnitt je Spalte (mit Marge): mittlere Wahrscheinlichkeit -> Quote -> x faire Chance
+    avg_p = [statistics.mean(1 / z[i] for z in zeilen) for i in range(len(fair))]
+    out["avg_p"] = [round(x * 100, 1) for x in avg_p]
+    out["avg_q"] = [round(1 / x, 2) for x in avg_p]
+    out["avg_check"] = [round(f / x * 100, 2) for f, x in zip(fair, avg_p)]
     # Spalten-Check: hoechste Quote x faire Wahrscheinlichkeit (ueber 100 % = Value)
     out["check"] = [round(q * f * 100, 2) for q, f in zip(out["q"], fair)]
     # Quoten-Analyse (frueher Modell Q) auf den hoechsten Quoten der Spalten

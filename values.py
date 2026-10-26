@@ -19,7 +19,7 @@ MIN_EV_MARKT = 0.02       # Markt-Value ab +2 %
 MIN_MODELLE = 2           # so viele Modelle muessen nach IHRER kalibrierten Regel Value sehen
 QUOTE_MIN, QUOTE_MAX = 1.30, 8.0
 MAX_EV = 0.40             # unrealistisch hohe Werte (Datenfehler) ausblenden
-BETFAIR = "BFE"           # Betfair Exchange (Back-Quote, ohne Kommission)
+ALLE = ["Max", "B365", "BW", "PS", "P", "WH", "1XB", "BFE", "BF", "IW", "VC", "LB", "BV", "CL"]  # beste Quote aller Buchmacher
 
 MAERKTE = [  # (Gruppe, Spalten-Suffixe, Ausgaenge, Prognose-Feld, Pinnacle-Quellen)
     ("1X2", ["H", "D", "A"], ["Heimsieg", "Remis", "Auswärtssieg"], ["p1", "px", "p2"], markt.QUELLEN_1X2),
@@ -71,7 +71,7 @@ def berechne(liste, fx, modelle):
             continue
         for gruppe, suffixe, ausgaenge, felder, quellen in MAERKTE:
             fair, ref = markt._hole(row, quellen, suffixe)
-            bf = [_f(row.get(BETFAIR + s)) for s in suffixe]
+            bf = [max([v for v in (_f(row.get(b + s)) for b in ALLE) if v] or [0]) or None for s in suffixe]
             if fair is None or not all(bf):
                 continue
             for i, (aus, feld) in enumerate(zip(ausgaenge, felder)):
@@ -98,7 +98,7 @@ def berechne(liste, fx, modelle):
                 out.append({
                     "id": sp["id"], "liga": sp["liga"], "datum": sp["datum"], "zeit": sp["zeit"],
                     "heim": sp["heim"], "gast": sp["gast"], "gruppe": gruppe, "tipp": aus,
-                    "quote": round(q, 2), "buchmacher": "Betfair", "fair": round(1 / fair[i], 2),
+                    "quote": round(q, 2), "buchmacher": "beste Quote", "fair": round(1 / fair[i], 2),
                     "p_markt": round(fair[i] * 100, 1), "ev_markt": round(ev_markt * 100, 1), "referenz": ref,
                     "p_modelle": round(float(np.mean(pm_all)) * 100, 1) if pm_all else None,
                     "ev_modelle": None if ev_mod is None else round(ev_mod * 100, 1),
