@@ -432,18 +432,6 @@ def main():
     except Exception as ex:
         log("SARIMAX-Values fehlgeschlagen:", ex)
 
-    # Modell Q · Quoten-Analyse (Georgis Berechnung auf den Hoechstquoten)
-    ergebnis["modelle"].append(dict(quoten_modell.MODELL_INFO))
-    n_q = 0
-    for e in liste:
-        try:
-            qe = quoten_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
-        except Exception:
-            qe = None
-        e["prog"]["quoten"] = qe
-        n_q += qe is not None
-    log(f"Quoten-Analyse: {n_q} von {len(liste)} Spielen")
-
     # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
     ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))
     n_sv = 0
@@ -455,6 +443,18 @@ def main():
         e["prog"]["sv"] = se
         n_sv += se is not None
     log(f"Spalten-Value: {n_sv} von {len(liste)} Spielen")
+
+    # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
+    ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",
+                                            "kurz": "O/U Best", "icon": "🎯", "farbe1": "#2bf5a0", "farbe2": "#ffd84d",
+                                            "beschreibung": "Je Spiel der höchste OVER/UNDER-Vorteil aus allen Modellen"})
+    n_ou = 0
+    for e in liste:
+        alle = [(m["kurz"], (e["prog"].get(m["id"]) or {}).get("vt", {}).get("ou")) for m in echte]
+        alle = sorted([(k, v) for k, v in alle if v], key=lambda x: -x[1][3])
+        e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
+        n_ou += bool(alle)
+    log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:

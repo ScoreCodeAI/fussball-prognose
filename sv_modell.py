@@ -9,6 +9,7 @@ import math
 import statistics
 
 import markt
+import quoten_modell
 
 MODELL_INFO = {"id": "sv", "typ": "sv", "name": "SV · Spalten-Value", "kurz": "Spalten", "icon": "SV",
                "farbe1": "#ff4d7d", "farbe2": "#ff2bd6",
@@ -52,6 +53,16 @@ def analyse(row, m):
         out["q"].append(round(q, 2))
         out["ev"].append(round(ev * 100, 1))
         out["value"].append(bool(MIN_EV <= ev <= MAX_EV and q <= MAX_QUOTE))
+    # Spalten-Check: hoechste Quote x faire Wahrscheinlichkeit (ueber 100 % = Value)
+    out["check"] = [round(q * f * 100, 2) for q, f in zip(out["q"], fair)]
+    # Quoten-Analyse (frueher Modell Q) auf den hoechsten Quoten der Spalten
+    odds = dict(zip(LABELS[m], out["q"]))
+    matches, payout, marge, ev = quoten_modell.run_analysis(odds)
+    treffer = [k for k, v in matches.items() if round(v, 2) == round(payout, 2)]
+    tq = treffer[0] if treffer else min(matches, key=lambda k: abs(matches[k] - payout))
+    ev_ok = [k for k, v in ev.items() if round(abs(v), 2) == round(marge, 2)] or \
+        [min(ev, key=lambda k: abs(abs(ev[k]) - marge))]
+    out["qa"] = {"tipp": tq, "ev": ev_ok, "evw": {k: ev[k] for k in ev_ok}, "payout": payout, "marge": marge}
     best = [i for i, v in enumerate(out["value"]) if v]
     out["tipp"] = LABELS[m][max(best, key=lambda i: out["ev"][i])] if best else None
     out["labels"] = LABELS[m]
