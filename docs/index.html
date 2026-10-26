@@ -305,6 +305,20 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .mswitch::-webkit-scrollbar,.dtabs::-webkit-scrollbar,.bdays::-webkit-scrollbar,.days::-webkit-scrollbar{display:none}
 .mswitch .mchip,.mswitch .msl{flex:none}
 .mswitch:after{content:"";flex:none;width:4px}
+/* ===== Glitch staerker + haeufiger (gilt fuer alle .tg / .gx) ===== */
+@keyframes tF{0%,84%,100%{transform:none;filter:none}85%{transform:skewX(-22deg) translateX(-4px) scaleY(1.08);filter:brightness(2.4) drop-shadow(0 0 10px var(--cy))}87%{transform:skewX(16deg) translateX(4px);filter:hue-rotate(60deg) brightness(1.8)}89%{transform:skewX(-8deg) translateX(-2px) scale(1.04)}91%{transform:none;filter:brightness(1.6)}93%{transform:translateX(3px) skewX(6deg)}95%{transform:none;filter:none}}
+@keyframes tA{0%,84%,95%,100%{opacity:0;transform:none;clip-path:inset(0)}85%{opacity:1;transform:translate(-11px,-2px) skewX(-10deg);clip-path:inset(0 0 62% 0)}87%{opacity:.95;transform:translate(10px,2px);clip-path:inset(58% 0 4% 0)}89%{opacity:.85;transform:translate(-6px,0);clip-path:inset(28% 0 42% 0)}91%{opacity:.9;transform:translate(8px,-1px);clip-path:inset(70% 0 10% 0)}93%{opacity:.7;transform:translate(-4px,1px);clip-path:inset(12% 0 70% 0)}}
+@keyframes tB{0%,84%,95%,100%{opacity:0;transform:none;clip-path:inset(0)}85%{opacity:1;transform:translate(11px,2px) skewX(10deg);clip-path:inset(48% 0 12% 0)}87%{opacity:.95;transform:translate(-10px,-2px);clip-path:inset(4% 0 66% 0)}89%{opacity:.85;transform:translate(6px,0);clip-path:inset(44% 0 26% 0)}91%{opacity:.9;transform:translate(-8px,1px);clip-path:inset(20% 0 60% 0)}93%{opacity:.7;transform:translate(4px,-1px);clip-path:inset(62% 0 18% 0)}}
+.tg:before,.tg:after{animation-duration:3.4s!important}.tg{animation:tF 3.4s infinite,flick 5s infinite!important}
+.pgh span.tg,.opt .tg{line-height:inherit}
+.opt.win .tipk{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-family:Orbitron;font-size:8.5px;letter-spacing:.18em;color:#05060f;opacity:.85}
+.opt.win{padding-top:8px}
+.opt.win span.tg,.opt.win strong.tg{color:#05060f}
+.opt.sv{color:#fff;border-color:#ff4d7d;background:linear-gradient(110deg,#ff2b55,#ff4d7d,#ff2bd6,#ff2b55);background-size:220% 100%;animation:flow 2.4s linear infinite,svp 1.6s ease-in-out infinite;box-shadow:0 0 22px #ff4d7d88}
+.opt.sv strong,.opt.sv span{color:#fff}
+.opt.sv .tipk{color:#fff}
+@keyframes svp{50%{box-shadow:0 0 38px #ff4d7dcc,0 0 70px #ff2bd655}}
+.sve{font-family:Orbitron;font-size:12px;color:#fff;background:linear-gradient(90deg,#ff2b55,#ff2bd6);padding:4px 9px;border-radius:8px;font-weight:700;box-shadow:0 0 12px #ff4d7d77}
 </style></head><body>
 <div class="phone"><div class="wrap">
 <div class="top"><span id="stand">LADE …</span><span class="live"><i></i>AUTO-UPDATE</span></div>
@@ -387,6 +401,40 @@ function vquote(s,mk,v){const q=s.quoten||{};if(mk=="1x2"&&q[v[0]])return[q[v[0]
  if(mk=="ou"){const k=v[0].startsWith("OVER")?"Ü2.5":"U2.5";if(q[k])return[q[k],1]}return[+(100/v[2]).toFixed(2),0]}
 const VTM=[["1x2","🏆 1X2"],["ou","⚽ OVER / UNDER"],["bts","🤝 BTTS"],["ht","⏱ 1. Halbzeit"],["ht2","⏱ 2. Halbzeit"]];
 const kom=x=>String(x).replace(".",",");
+/* ---------- Modell SV · Spalten-Value ---------- */
+const isSV=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="sv";
+const SVL={"1":"1","X":"X","2":"2","O":"OVER","U":"UNDER"};
+function svBest(s){const p=P(s)||{},o=[];for(const m of["x","ou"]){const a=p[m];if(a&&a.tipp){const i=a.labels.indexOf(a.tipp);o.push({m,lab:a.tipp,ev:a.ev[i],q:a.q[i],fair:a.fair[i]})}}return o.sort((a,b)=>b.ev-a.ev)}
+function svWin(lab,r){const t=r.h+r.a;return lab=="O"?t>2:lab=="U"?t<=2:lab==sg(r.h,r.a)}
+function svRow(s){const r=res(s),b=svBest(s);
+ const left=`<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${r?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>`;
+ if(!P(s))return left+`<div class="rtip"><span class="ou">keine Quoten</span></div></div>`;
+ if(!b.length)return left+`<div class="rtip"><span class="ou">kein Value</span></div></div>`;
+ return left+`<div class="rtip">${b.map(x=>{const h=r?svWin(x.lab,r):null;return `<span class="sve">${SVL[x.lab]} +${kom(x.ev)}%${h!=null?(h?" ✓":" ✕"):""}</span>`}).join("")}</div></div>`}
+function svCard(s,p){const r=res(s);if(!p)return `<div class="pcard"><div class="card"><p class="msub">Für dieses Spiel liegen nicht genug Quoten vor.</p></div></div>`;
+ const blk=(a,titel,labs)=>a?markt(titel,labs.map((l,i)=>[l,a.fair[i]]),a.value.map((v,i)=>v?a.ev[i]:0)):"";
+ const chk=r?`<div class="checkrow">${svBest(s).map(x=>{const h=svWin(x.lab,r);return `<span class="ck ${h?'y':'n'}">${SVL[x.lab]} ${h?'✓':'✕'}</span>`}).join("")}</div>`:"";
+ return `<div class="pcard"><div class="pct">SPALTEN-VALUE · JEDER AUSGANG EINZELN</div>${chk}
+ <p class="hint">Balken = faire Chance aus dem Konsens aller Buchmacher. <b style="color:#ff4d7d">Rot</b> = in dieser Spalte zahlt mindestens ein Anbieter mehr als fair.</p>
+ ${blk(p.x,"Spielausgang",["1","X","2"])}${blk(p.ou,"OVER / UNDER 2,5",["OVER","UNDER"])}
+ ${!svBest(s).length?`<div class="card"><p class="msub">In keiner Spalte Value – alle Quoten liegen unter fair.</p></div>`:""}</div>`}
+function renderTopSV(){S.tmode=S.tmode||"vt";
+ if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
+ $("tmode").innerHTML=[["vt","💰 Größter Vorteil"],["sicher","🛡 Sicherste"]].map(m=>`<div class="chip${S.tmode==m[0]?' on':''}" onclick="S.tmode='${m[0]}';renderTop()">${m[1]}</div>`).join("");$("mchips").innerHTML="";
+ const l=D.spiele.filter(s=>s.datum==S.tag&&P(s)).map(s=>[s,svBest(s)[0]]).filter(x=>x[1]).sort((a,b)=>S.tmode=="vt"?b[1].ev-a[1].ev:b[1].fair-a[1].fair);
+ $("toplist").innerHTML=`<p class="hint">${S.tmode=="vt"?"<b>Größter Vorteil</b>: die Spalten mit dem höchsten Value zuerst.":"<b>Sicherste</b>: Value-Spalten mit der höchsten fairen Chance zuerst."}</p><h3>SV · Spalten-Value <span>${l.length} Spiele</span></h3>`+
+ (l.length?`<div class="card" style="padding:4px 14px">${l.slice(0,20).map(([s,x])=>{const r=res(s),h=r?svWin(x.lab,r):null,fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
+  return `<div class="trow" onclick="openDetail(${s.id})"><div class="tl"><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]} · ${r?s.ergebnis:s.zeit}</small><b>${s.heim} – ${s.gast}</b><div class="vsub">faire Chance ${kom(x.fair)}% · beste Quote ${kom(x.q)}</div></div>
+  <div class="tr"><b class="mono">${SVL[x.lab]}</b><span class="sve">+${kom(x.ev)}%</span>${h!=null?`<span class="ck ${h?'y':'n'}">${h?'✓':'✕'}</span>`:""}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine Value-Spalten an diesem Tag.</p></div>`)}
+function renderBilanzSV(fertig,chips,von,bis){let w=0,n=0,pr=0;const mk={x:[0,0,0],ou:[0,0,0]};
+ for(const s of fertig){const r=res(s);if(!r)continue;for(const x of svBest(s)){const h=svWin(x.lab,r);n++;mk[x.m][1]++;if(h){w++;pr+=x.q-1;mk[x.m][0]++;mk[x.m][2]+=x.q-1}else{pr-=1;mk[x.m][2]-=1}}}
+ const roi=(p,c)=>c?(p>=0?"+":"")+Math.round(p/c*100)+"%":"–";
+ const box=(t,[a,c,p])=>`<div class="mt"><b>${t}</b><div><span>Richtig</span><em class="ok">${a}</em></div><div><span>Falsch</span><em class="no">${c-a}</em></div><div><span>Gewinn</span><em class="${p>=0?'ok':'no'}">${kom(p.toFixed(1))}</em></div><div><span>ROI</span><em>${roi(p,c)}</em></div></div>`;
+ $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: alle Value-Spalten des Modells SV, 1 Einheit Einsatz, Gewinn mit der höchsten Quote der Spalte.</p>
+ <div class="bcard"><div class="bh"><div style="flex:1"><b>SV · Spalten-Value</b><small>${n} Value-Tipps</small></div><b class="big">${roi(pr,n)}</b></div><div class="wl"><span class="won">${w} Richtig</span><span class="lost">${n-w} Falsch</span></div></div>
+ <div class="grid2" style="margin-top:12px">${box("1X2",mk.x)}${box("OVER / UNDER",mk.ou)}</div>
+ <p class="hint">Gewinn in Einheiten mit der höchsten Quote je Spalte (ohne Betfair-Kommission). Eine Woche ist wenig – erst über viele Wochen aussagekräftig.</p>`}
+
 /* ---------- Modell Q · Quoten-Analyse ---------- */
 const isQ=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="quoten";
 const QLAB={"1":"1","X":"X","2":"2","O":"OVER 2,5","U":"UNDER 2,5"},QKURZ={"1":"1","X":"X","2":"2","O":"OVER","U":"UNDER"};
@@ -438,7 +486,8 @@ function renderSwitch(){$("mswitch").innerHTML=`<span class="msl">MODELL</span>`
 
 /* ---------- Seite: Spiele (Liga-Akkordeon) ---------- */
 function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.length&&tag[0].ergebnis!=null;
- if(isQ(S.modell)){const n=tag.filter(s=>P(s)&&P(s)[S.qm||"x"]).length;$("sumrow").innerHTML=`<div style="width:100%">${qSwitch("renderSpiele()")}<div style="display:flex;justify-content:space-between"><span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${n} mit Quoten-Tipp</b></div></div>`}
+ if(isSV(S.modell)){const n=tag.filter(s=>P(s)&&svBest(s).length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:#ff4d7d">${n} mit Value-Spalte</b>`}
+ else if(isQ(S.modell)){const n=tag.filter(s=>P(s)&&P(s)[S.qm||"x"]).length;$("sumrow").innerHTML=`<div style="width:100%">${qSwitch("renderSpiele()")}<div style="display:flex;justify-content:space-between"><span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${n} mit Quoten-Tipp</b></div></div>`}
  else
  if(vorbei){const ok=tag.filter(s=>hit("1x2",P(s),res(s))).length;$("sumrow").innerHTML=`<span>📊 Prognose-Check</span><b>${ok} / ${tag.length} Tipps richtig</b>`}
  else{const v=tag.filter(s=>P(s).value.length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${v} mit Value</b>`}
@@ -448,7 +497,7 @@ function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.
   <div class="accb">${o?sp.map(row).join(""):""}</div></div>`}
  $("ligen").innerHTML=html||`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`}
 function toggle(c){S.offen.has(c)?S.offen.delete(c):S.offen.add(c);renderSpiele()}
-function row(s){if(isQ(S.modell))return qRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
+function row(s){if(isQ(S.modell))return qRow(s);if(isSV(S.modell))return svRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
  if(r){const ok=hit("1x2",p,r),ou=hit("ou",p,r);
   return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono"><b>${s.ergebnis}</b></div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
   <div class="rchk"><span class="ck ${ok?'y':'n'}">${f} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'OVER':'UNDER'} ${ou?'✓':'✕'}</span></div></div>`}
@@ -465,23 +514,23 @@ function renderDetail(){const s=D.spiele.find(x=>x.id==S.detail),q=s.quoten,r=re
  <div class="oddsrow"><div><small>1</small><b>${q["1"]??"–"}</b></div><div><small>X</small><b>${q["X"]??"–"}</b></div><div><small>2</small><b>${q["2"]??"–"}</b></div></div>`;
  const tabs=D.modelle.map(m=>[m.id,m.icon+" "+m.kurz,m.farbe1]);
  $("dtabs").innerHTML=tabs.map(t=>`<div class="dt${S.dtab==t[0]?' on':''}" ${t[2]?`style="--c:${t[2]}"`:''} onclick="S.dtab='${t[0]}';renderDetail();setTimeout(mxStart,30)">${t[1]}</div>`).join("");
-$("dbody").innerHTML=isQ(S.dtab)?qCard(s,P(s,S.dtab)):probCard(s,P(s,S.dtab));}
+$("dbody").innerHTML=isQ(S.dtab)?qCard(s,P(s,S.dtab)):isSV(S.dtab)?svCard(s,P(s,S.dtab)):probCard(s,P(s,S.dtab));}
 function mrow(team,x){const h=x.heim?team:x.gegner,a=x.heim?x.gegner:team;
  return `<div class="frow"><span class="fd mono">${dm(x.datum)}</span><span class="wdl ${x.wdl}">${x.wdl}</span><span class="fh${x.heim?' me':''}">${h}</span><b class="mono">${x.ergebnis.replace(":"," : ")}</b><span class="fa${x.heim?'':' me'}">${a}</span></div>`}
 function formBlock(t,l){return `<h3>Letzte Spiele · <b style="color:var(--yl)">${t}</b> <span>${l.filter(x=>x.wdl=="S").length}S ${l.filter(x=>x.wdl=="U").length}U ${l.filter(x=>x.wdl=="N").length}N</span></h3><div class="card">${l.length?l.map(x=>mrow(t,x)).join(""):'<p class="msub">Keine Daten.</p>'}</div>`}
 function wave(){return `<svg class="wv" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="M0 30 Q50 5 100 30 T200 30 T300 30 T400 30 T500 30 T600 30 T700 30 T800 30 V60 H0Z"/><path class="w2" d="M0 35 Q50 55 100 35 T200 35 T300 35 T400 35 T500 35 T600 35 T700 35 T800 35 V60 H0Z"/></svg>`}
-function markt(titel,opts){const best=Math.max(...opts.map(o=>o[1]));const tip=opts.find(o=>o[1]==best);
- return `<div class="pg"><div class="pgh"><span>${titel}</span><b>Tipp <em>${tip[0]}</em></b></div>
- <div class="pgb">${opts.map(o=>`<div class="opt${o[1]==best?' win':''}" style="flex:${Math.max(o[1],14)}"><span>${o[0]}</span><strong>${o[1]}%</strong></div>`).join("")}</div></div>`}
+function markt(titel,opts,sv){const best=Math.max(...opts.map(o=>o[1]));
+ return `<div class="pg"><div class="pgh"><span class="tg" data-t="${titel}">${titel}</span></div>
+ <div class="pgb">${opts.map((o,i)=>{const w=!sv&&o[1]==best,v=sv&&sv[i];const lab=v?`VALUE +${kom(v)}%`:"TIPP";
+  return `<div class="opt${w?' win':''}${v?' sv':''}" style="flex:${Math.max(o[1],14)}">${w||v?`<i class="tipk">${lab}</i>`:""}<span${w||v?` class="tg" data-t="${o[0]}"`:""}>${o[0]}</span><strong${w||v?` class="tg" data-t="${kom(o[1])}%"`:""}>${kom(o[1])}%</strong></div>`}).join("")}</div></div>`}
 function probCard(s,p){const r=res(s);
  const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"],["bts","Beide treffen"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
  const herk=p.quelle?`<p class="hint">★ Zusammengesetzt: 1X2 <b>${p.quelle["1x2"]}</b> · OVER/UNDER <b>${p.quelle.ou}</b> · BTTS <b>${p.quelle.bts}</b> · 1. HZ <b>${p.quelle.ht}</b> · 2. HZ <b>${p.quelle.ht2}</b></p>`:p.quelle_markt?`<p class="hint">Aus den Quoten von <b>${p.quelle_markt}</b>, Marge herausgerechnet.</p>`:"";
- return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${herk}${chk}
+ return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${herk}${chk}${vtBlock(s,p)}
  ${markt("Spielausgang",[["1",p.p1],["X",p.px],["2",p.p2]])}
  ${markt("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",Math.round((100-p.ue25)*10)/10]])}
  ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",100-p.bts]])}
  ${p.ht?markt("1. Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]])+(p.ht2?markt("2. Halbzeit",[["1",p.ht2[0]],["X",p.ht2[1]],["2",p.ht2[2]]]):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
- ${vtBlock(s,p)}
  ${p.value.map(v=>`<div class="val"><div><div style="font-size:12px;font-weight:600">⚡ Value: ${v.markt} @ ${String(v.quote).replace(".",",")}</div><div style="font-size:11px;color:var(--mu)">Modell sieht mehr Chance als die Quote</div></div><b>+${v.edge}%</b></div>`).join("")}
  </div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
@@ -495,7 +544,7 @@ function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]).sort((a
 /* ---------- Top-Tipps ---------- */
 const MARKTE=[["tore","⚽ OVER / UNDER 2,5"]];
 const VT_KEY={tore:"ou"};
-function renderTop(){if(isQ(S.modell))return renderTopQ();S.tmode=S.tmode||"vt";S.markt="tore";
+function renderTop(){if(isQ(S.modell))return renderTopQ();if(isSV(S.modell))return renderTopSV();S.tmode=S.tmode||"vt";S.markt="tore";
  if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
  $("tmode").innerHTML=[["vt","💰 Größter Vorteil"],["sicher","🛡 Sicherste"]].map(m=>`<div class="chip${S.tmode==m[0]?' on':''}" onclick="S.tmode='${m[0]}';renderTop()">${m[1]}</div>`).join("");
  $("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.markt==m[0]?' on':''}" onclick="S.markt='${m[0]}';renderTop()">${m[1]}</div>`).join("");
@@ -551,13 +600,14 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  const fertig=S.btag?alle.filter(s=>s.datum==S.btag):alle;
  const chipsQ=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
  if(isQ(S.modell))return renderBilanzQ(alle,fertig,chipsQ,von,bis);
+ if(isSV(S.modell))return renderBilanzSV(fertig,chipsQ,von,bis);
  const MK=[["1x2","Spielausgang"],["ht","1. Halbzeit"],["ou","OVER/UNDER 2,5"],["bts","Beide treffen"],["ht2","2. Halbzeit"]];
  const stat=(list,k,mid=S.modell)=>{let w=0,n=0;for(const s of list){const h=hit(k,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
  const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
  const all=MK.map(([k])=>stat(fertig,k)),W=all.reduce((a,x)=>a+x[0],0),L=all.reduce((a,x)=>a+x[1],0);
  const chips=`<div class="bdays"><div class="bday${!S.btag?' on':''}" onclick="S.btag=null;renderBilanz()"><b>WOCHE</b><span>${dm(von)}–${dm(bis)}</span></div>`+
   tage.map(d=>`<div class="bday${S.btag==d?' on':''}" onclick="S.btag='${d}';renderBilanz()"><b>${wd(d)}</b><span>${dm(d)}</span><i>${alle.filter(s=>s.datum==d).length}</i></div>`).join("")+`</div>`;
- const rk=D.modelle.filter(m=>m.typ!="quoten").map(m=>{const st=MK.map(([k])=>stat(fertig,k,m.id)),w=st.reduce((a,x)=>a+x[0],0),l=st.reduce((a,x)=>a+x[1],0);let rs=0,rn=0;for(const s of fertig){const p=P(s,m.id),r=res(s);if(!p||!r)continue;const o=r.h>r.a?0:r.h==r.a?1:2,a1=p.p1/100,ax=p.px/100;rs+=((a1-(o==0))**2+(a1+ax-(o<=1))**2)/2;rn++}return{m,st,g:w+l?w/(w+l):0,rps:rn?rs/rn:null}}).sort((a,b)=>b.g-a.g);
+ const rk=D.modelle.filter(m=>!m.typ).map(m=>{const st=MK.map(([k])=>stat(fertig,k,m.id)),w=st.reduce((a,x)=>a+x[0],0),l=st.reduce((a,x)=>a+x[1],0);let rs=0,rn=0;for(const s of fertig){const p=P(s,m.id),r=res(s);if(!p||!r)continue;const o=r.h>r.a?0:r.h==r.a?1:2,a1=p.p1/100,ax=p.px/100;rs+=((a1-(o==0))**2+(a1+ax-(o<=1))**2)/2;rn++}return{m,st,g:w+l?w/(w+l):0,rps:rn?rs/rn:null}}).sort((a,b)=>b.g-a.g);
  const ranking=rk.map((x,i)=>`<div class="rkrow${x.m.id==S.modell?' on':''}" style="--c:${x.m.farbe1}" onclick="S.modell='${x.m.id}';render()">
   <span class="rkn${i==0?' gold':i==1?' silver':i==2?' bronze':''}">${i+1}</span>
   <span class="swi" style="background:linear-gradient(140deg,${x.m.farbe1},${x.m.farbe2});width:34px;height:34px;font-size:15px">${x.m.icon}</span>
@@ -566,7 +616,6 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
   <b class="rkp" style="color:${x.m.farbe1}">${Math.round(x.g*100)}%</b></div>`).join("");
  $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Prognosen, die vor den Spielen feststanden, gegen die echten Ergebnisse.</p>
  <h3>🏆 Modell-Ranking <span>${fertig.length} Spiele</span></h3><div class="card" style="padding:6px 12px">${ranking}</div>
- ${besteTabelle()}
  <h3>Details <span>${M().kurz}</span></h3>
  <div class="bcard"><div class="bh"><span class="swi" style="background:linear-gradient(140deg,${M().farbe1},${M().farbe2});width:40px;height:40px;font-size:18px">${M().icon}</span><div style="flex:1"><b>${M().name}</b><small>${fertig.length} Spiele · ${W+L} Tipps</small></div><b class="big">${W+L?Math.round(W/(W+L)*100):0}%</b></div>
  <div class="wl"><span class="won">${W} Richtig</span><span class="lost">${L} Falsch</span></div>
@@ -575,13 +624,6 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  ${valueBilanz(fertig)}
  <p class="hint" style="margin-top:10px">Zur Einordnung: Halbzeit-Tipps treffen seltener als 1X2, weil das Remis zur Pause sehr häufig ist. Tippe im Ranking auf ein Modell, um seine Details zu sehen. RPS misst, wie gut die 1X2-Wahrscheinlichkeiten insgesamt waren, nicht nur der Favorit: kleiner ist besser, ein Münzwurf-Niveau liegt bei etwa 0,23.</p>`}
 
-/* ★ Beste: welches Modell schlaegt Pinnacle in welchem Markt (Backtest) */
-function besteTabelle(){const b=D.beste;if(!b)return"";const nm=id=>id=="pinnacle"?"Pinnacle":(M2(id)||{}).kurz||id;
- return `<h3>★ Bester je Markt <span>Backtest ab ${dm(b.ab)}</span></h3><div class="card" style="padding:6px 14px">${Object.entries(b.maerkte).map(([k,x])=>{
-  const mods=Object.entries(x.modelle).sort((a,c)=>a[1].diff-c[1].diff);
-  return `<div class="trow" style="cursor:default;display:block"><div style="display:flex;justify-content:space-between;align-items:center"><b>${x.name}</b><span class="vbad ${x.wahl=="pinnacle"?'md':'mk'}">★ ${nm(x.wahl)}</span></div>
-  <div class="vsub" style="color:var(--mu)">${mods.length?mods.map(([id,v])=>`${nm(id)} <b style="color:${v.diff<0?'var(--gr)':'var(--rd)'}">${v.diff>0?'+':''}${kom(v.diff)}%</b>`).join(" · "):"zu wenige Spiele"}</div></div>`}).join("")}</div>
- <p class="hint">Fehler-Maß (Log-Loss) im Vergleich zu Pinnacle auf denselben Spielen: <b style="color:var(--gr)">minus = besser als der Markt</b>, plus = schlechter. ★ zeigt die Quelle, die das Modell „★ Beste“ für diesen Markt nimmt.</p>`}
 /* Value-Bilanz: Vorteil-Tipps des Modells gegen echte Ergebnisse, 1 Einheit Einsatz je Tipp */
 function valueBilanz(list){let gw=0,gn=0,gp=0,geschaetzt=false;
  const zeilen=VTM.map(([k,n])=>{let w=0,c=0,pr=0;for(const s of list){const v=P(s).vt&&P(s).vt[k],r=res(s);if(!v||!r)continue;const h=vhit(k,v[0],r);if(h==null)continue;const[q,echt]=vquote(s,k,v);if(!echt)geschaetzt=true;c++;if(h){w++;pr+=q-1}else pr-=1}
