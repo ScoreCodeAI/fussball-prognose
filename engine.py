@@ -25,9 +25,10 @@ sys.path.insert(0, ORDNER)
 import daten
 import kern
 import markt
+import ecken_modell
 import quoten_modell
 import sv_modell
-import values
+import xgb_modell
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
 # ---------- Grundeinstellungen ----------
@@ -407,6 +408,17 @@ def main():
     for _, z in fx.iterrows():
         if not pd.isna(z["Date"]):
             zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+    # Modell X · XGBoost (Markt + Schuesse), wird wie ein normales Prognose-Modell behandelt
+    try:
+        xp = xgb_modell.berechne(spiele, q, liste, zeilen, log)
+    except Exception as ex:
+        xp = {}
+        log("XGBoost fehlgeschlagen:", ex)
+    if xp:
+        ergebnis["modelle"].append(dict(xgb_modell.INFO))
+        for i, e in enumerate(liste):
+            if i in xp:
+                e["prog"]["xgb"] = xp[i]
     n_mk = 0
     for e in liste:
         try:
@@ -421,17 +433,6 @@ def main():
     log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
     echte = list(ergebnis["modelle"])
 
-    try:   # Zusatz: Betfair-Values (nur echte Modelle)
-        ergebnis["values"] = values.berechne(liste, fx, echte)
-        log(f"Values: {len(ergebnis['values'])} gefunden")
-    except Exception as ex:
-        ergebnis["values"] = []
-        log("Values konnten nicht berechnet werden:", ex)
-    try:
-        log(f"SARIMAX OVER/UNDER-Values: {values.sarimax_ou(liste, fx, echte)} Spiele")
-    except Exception as ex:
-        log("SARIMAX-Values fehlgeschlagen:", ex)
-
     # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
     ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))
     n_sv = 0
@@ -443,6 +444,13 @@ def main():
         e["prog"]["sv"] = se
         n_sv += se is not None
     log(f"Spalten-Value: {n_sv} von {len(liste)} Spielen")
+
+    # Modell E · Ecken
+    try:
+        ecken_modell.berechne(spiele, liste, log)
+        ergebnis["modelle"].append(dict(ecken_modell.INFO))
+    except Exception as ex:
+        log("Ecken-Prognose fehlgeschlagen:", ex)
 
     # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
     ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",
