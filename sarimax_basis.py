@@ -22,6 +22,8 @@ MAX_LAENGE = 250       # Rechenzeit-Grenze je Zeitreihe (ca. 15 Saisons Heim- bz
 MIN_LAENGE = 15        # darunter: Durchschnitt statt ARIMA
 EWMA_ALPHA = 0.15      # Plus: wie schnell sich die Gegentor-Neigung anpasst (Annahme)
 GRENZEN = {"ft": (0.05, 6.0), "ht": (0.02, 4.0)}
+GITTER_BETA = [0.0, 0.25, 0.5, 0.75, 1.0]   # Gewicht der Gegnerstaerke (automatisch je Land gewaehlt)
+VALID_TAGE = 120
 
 
 def auto_arima(y, X=None, xf=None):
@@ -73,9 +75,48 @@ def trainiere(df, heute, plus):
     m = {"d": d, "plus": plus, "ht_ok": ht_ok, "cache": {},
          "mittel": {"HG": letzte["HG"].mean(), "AG": letzte["AG"].mean(),
                     "HTHG": letzte["HTHG"].mean(), "HTAG": letzte["HTAG"].mean()}}
-    if plus:
-        _gegner_neigung(m)
+    _gegner_neigung(m)          # Gegentor-Neigung je Team (auch fuer das Original, als Gegnerstaerke)
+    m["beta"] = 0.0 if plus else _waehle_beta(m, heute)
+    m["abh"] = _waehle_abh(letzte, m["mittel"])
     return m
+
+
+def _waehle_beta(m, heute):
+    """Wie stark zaehlt die Abwehr des Gegners? Auswahl ueber die letzten VALID_TAGE (schneller Ersatz-Schaetzer)."""
+    d = m["d"]
+    va = d[d["Date"] >= heute - pd.Timedelta(days=VALID_TAGE)]
+    if len(va) < 60:
+        return 0.0
+    mit = m["mittel"]
+    best, best_ll = 0.5, -np.inf
+    form_h = d.groupby("Home")["HG"].apply(lambda x: x.shift().rolling(10, min_periods=3).mean())
+    form_a = d.groupby("Away")["AG"].apply(lambda x: x.shift().rolling(10, min_periods=3).mean())
+    fh = pd.Series(form_h.reset_index(level=0, drop=True)).reindex(va.index).fillna(mit["HG"]).to_numpy()
+    fa = pd.Series(form_a.reset_index(level=0, drop=True)).reindex(va.index).fillna(mit["AG"]).to_numpy()
+    oh = (va["ex_h_ft"] / mit["HG"]).to_numpy()
+    oa = (va["ex_a_ft"] / mit["AG"]).to_numpy()
+    yh, ya = va["HG"].to_numpy(float), va["AG"].to_numpy(float)
+    lls = {}
+    for b in GITTER_BETA:
+        lh = np.clip(fh * oh ** b, 0.05, 6)
+        la = np.clip(fa * oa ** b, 0.05, 6)
+        lls[b] = np.sum(yh * np.log(lh) - lh + ya * np.log(la) - la)
+    best = max(lls, key=lls.get)
+    # nur uebernehmen, wenn die Verbesserung deutlich ist (sonst Original-Verhalten ohne Gegnerstaerke)
+    return best if lls[best] - lls[0.0] > 0.01 * len(va) else 0.0
+
+
+def _waehle_abh(d, mit):
+    """Abhaengigkeit Heim/Gast (unabhaengig, Dixon-Coles oder Frank-Copula) automatisch per Likelihood."""
+    try:
+        d = d.dropna(subset=["HG", "AG"])
+        if len(d) < 200:
+            return ("unabhaengig", 0.0)
+        n = len(d)
+        return kern.waehle_abhaengigkeit(d["HG"].to_numpy(int), d["AG"].to_numpy(int),
+                                         np.full(n, mit["HG"]), np.full(n, mit["AG"]), np.ones(n))
+    except Exception:
+        return ("unabhaengig", 0.0)
 
 
 def _gegner_neigung(m):
@@ -136,7 +177,13 @@ def _lambda(m, team, gegner, ort, ziel):
 def vorhersage(m, heim, gast):
     lh = _lambda(m, heim, gast, "heim", "ft")
     la = _lambda(m, gast, heim, "aus", "ft")
-    out = {"ft": kern.matrix_unabhaengig(lh, la), "ht": None, "xg": [lh, la]}
+    b = m.get("beta", 0.0)
+    if b:   # Gegnerstaerke: kassiert der Gegner viel, steigen die erwarteten Tore
+        mit = m["mittel"]
+        lh *= (m["zust"].get((gast, "aus", "ft"), mit["HG"]) / mit["HG"]) ** b
+        la *= (m["zust"].get((heim, "heim", "ft"), mit["AG"]) / mit["AG"]) ** b
+        lh, la = float(np.clip(lh, *GRENZEN["ft"])), float(np.clip(la, *GRENZEN["ft"]))
+    out = {"ft": kern.matrix(lh, la, m.get("abh", ("unabhaengig", 0.0))), "ht": None, "xg": [lh, la]}
     if m["ht_ok"]:
         hh = _lambda(m, heim, gast, "heim", "ht")
         ha = _lambda(m, gast, heim, "aus", "ht")

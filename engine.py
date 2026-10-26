@@ -24,9 +24,9 @@ ORDNER = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, ORDNER)
 import daten
 import kern
-import beste
 import markt
 import quoten_modell
+import sv_modell
 import values
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
@@ -49,7 +49,9 @@ MAERKTE = {"1": ["PSH", "AvgH", "B365H"], "X": ["PSD", "AvgD", "B365D"], "2": ["
            "Ü2.5": ["P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["P<2.5", "Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
 MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "OVER 2,5", "U2.5": "UNDER 2,5"}
-EXTRA_QUOTEN = ["PSH", "PSD", "PSA", "P>2.5", "P<2.5", "MaxH", "MaxD", "MaxA", "Max>2.5", "Max<2.5"]  # nur fuer Markt-Vergleich
+EXTRA_QUOTEN = [b + s for b in ("PS", "Max", "B365", "BW", "WH", "1XB", "BFE", "BF", "IW", "VC", "LB", "BV", "CL") for s in ("H", "D", "A")] + \
+               [b + s for b in ("P", "Max", "B365", "BFE", "BF", "1XB", "WH", "BW", "BV", "VC", "LB", "CL") for s in (">2.5", "<2.5")]
+# nur fuer Markt-Vergleich, Modell SV und Quoten-Analyse (der Backtest nutzt weiter MAERKTE)
 K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
 heute = pd.Timestamp.today().normalize()
 
@@ -330,7 +332,6 @@ def main():
     groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
     reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
     qual_roh = {}
-    bt = {}     # Backtest-Spiele je Modell (fuer den Vergleich mit Pinnacle / ★ Beste)
 
     for key, mod in modelle.items():
         tm = time.time()
@@ -354,7 +355,6 @@ def main():
             live += lv
             log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
         K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
-        bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "HT", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
         W_test = wetten_waehlen(K, par_test)
@@ -418,33 +418,8 @@ def main():
             e["markt"] = mk
         for pr in e["prog"].values():
             pr["vt"] = markt.vorteile(pr, mk)
-        if mk:   # Modell P · Pinnacle
-            e["prog"]["pinnacle"] = markt.als_prognose(mk)
     log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
     echte = list(ergebnis["modelle"])
-    kurz = {m["id"]: m["kurz"] for m in echte}
-    kurz["pinnacle"] = "Pinnacle"
-    liste = [e for e in liste if "pinnacle" in e["prog"]]      # Spiele ganz ohne Quoten fallen weg
-    for i, e in enumerate(liste):
-        e["id"] = i
-    ergebnis["spiele"] = liste
-
-    # Backtest-Vergleich mit Pinnacle -> ★ Beste
-    tb = time.time()
-    try:
-        vg = beste.vergleich(bt, zeilen, kurz)
-    except Exception as ex:
-        log("Vergleich mit Pinnacle fehlgeschlagen:", ex)
-        vg = {"maerkte": {k: {"name": n, "wahl": "pinnacle", "modelle": {}} for k, n in beste.MAERKTE}}
-    vg["ab"] = BACKTEST_START
-    ergebnis["beste"] = vg
-    wahl = {k: v["wahl"] for k, v in vg["maerkte"].items()}
-    log("★ Beste je Markt: " + ", ".join(f"{k}={kurz.get(w, w)}" for k, w in wahl.items()) + f" ({time.time() - tb:.0f} s)")
-    for e in liste:
-        bp = beste.beste_prog(e, wahl, kurz)
-        if bp:
-            bp["vt"] = markt.vorteile(bp, e.get("markt"))
-            e["prog"]["beste"] = bp
 
     try:   # Zusatz: Betfair-Values (nur echte Modelle)
         ergebnis["values"] = values.berechne(liste, fx, echte)
@@ -468,12 +443,18 @@ def main():
         e["prog"]["quoten"] = qe
         n_q += qe is not None
     log(f"Quoten-Analyse: {n_q} von {len(liste)} Spielen")
-    # Reihenfolge in der Modell-Leiste: P, V, ★, dann die anderen, Q zuletzt
-    pseudo = [dict(beste.INFO_P), dict(beste.INFO_B)]
-    rest = [m for m in ergebnis["modelle"] if m["id"] not in ("modell_verlauf", "quoten")]
-    v = [m for m in ergebnis["modelle"] if m["id"] == "modell_verlauf"]
-    qm = [m for m in ergebnis["modelle"] if m["id"] == "quoten"]
-    ergebnis["modelle"] = [pseudo[0]] + v + [pseudo[1]] + rest + qm
+
+    # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
+    ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))
+    n_sv = 0
+    for e in liste:
+        try:
+            se = sv_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            se = None
+        e["prog"]["sv"] = se
+        n_sv += se is not None
+    log(f"Spalten-Value: {n_sv} von {len(liste)} Spielen")
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:

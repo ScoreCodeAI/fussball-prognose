@@ -30,8 +30,8 @@ BESCHREIBUNG = "Gemeinsame Verteilung von Heim- und Gasttoren, Heim/Auswärts ge
 
 DATEN_JAHRE = 4
 VALID_TAGE = 120
-GITTER_XI = [0.0015, 0.003, 0.005, 0.008]     # Halbwertszeit ca. 460 / 230 / 140 / 87 Tage
-GITTER_SPLIT = [1.0, 4.0, 16.0]               # schwach / mittel / stark zusammengezogen
+GITTER_XI = [0.0008, 0.0015, 0.003, 0.005, 0.008]   # Halbwertszeit ca. 870 / 460 / 230 / 140 / 87 Tage (automatisch gewaehlt)
+GITTER_SPLIT = [1.0, 4.0, 16.0, 40.0]                # Heim/Auswaerts: kaum / mittel / stark / sehr stark zusammengezogen
 LAM_BASIS = 0.5
 STANDARD = (0.003, 4.0)
 _TUNING = {}

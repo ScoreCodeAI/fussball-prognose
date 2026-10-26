@@ -17,3 +17,8 @@ def trainiere(df, heute):
 
 def vorhersage(modell, heim, gast):
     return sarimax_basis.vorhersage(modell, heim, gast)
+
+
+def diagnose(modell):
+    typ, par = modell.get("abh", ("unabhaengig", 0.0))
+    return f"Gegnerstärke {modell.get('beta', 0):.2f} (automatisch), Abhängigkeit {typ} ({par:+.3f})"
