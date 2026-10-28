@@ -87,7 +87,7 @@ def trainiere(df, heute):
 def vorhersage(m, heim, gast):
     lh = float(np.exp(m["mu"] + m["h"] + m["A"].get(heim, 0) - m["D"].get(gast, 0)))
     la = float(np.exp(m["mu"] - m["h"] + m["A"].get(gast, 0) - m["D"].get(heim, 0)))
-    ft = kern.matrix_dixon_coles(lh, la, -0.05)
+    ft = kern.matrix_dixon_coles(lh, la, kern.REMIS_RHO)
     ht = kern.matrix_unabhaengig(lh * m["ht"], la * m["ht"])
     return {"ft": ft, "ht": ht, "xg": [lh, la]}
 

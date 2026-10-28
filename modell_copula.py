@@ -110,7 +110,7 @@ def vorhersage(m, heim, gast):
     out = {"ft": kern.matrix(lh, la, m["ft"]["abh"]), "ht": None, "xg": [lh, la]}
     if m["ht"] is not None:
         hh, ha = _lambdas(m["ht"], heim, gast)
-        out["ht"] = kern.matrix(float(hh[0]), float(ha[0]), m["ht"]["abh"])
+        out["ht"] = kern.matrix(float(hh[0]), float(ha[0]), m["ht"]["abh"], endstand=False)
     return out
 
 

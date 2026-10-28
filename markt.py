@@ -17,8 +17,8 @@ QUELLEN_1X2 = [("PS", "Pinnacle"), ("Avg", "Durchschnitt"), ("B365", "bet365")]
 QUELLEN_OU = [("P", "Pinnacle"), ("Avg", "Durchschnitt"), ("B365", "bet365")]
 
 # Markt -> (Mindest-Wahrscheinlichkeit Modell in %, Mindest-Vorteil, Hoechst-Vorteil)
-REGELN = {"1x2": (20, 0.15, 0.60), "ou": (30, 0.12, 0.50), "bts": (30, 0.12, 0.50),
-          "ht": (20, 0.15, 0.60), "ht2": (20, 0.15, 0.60)}
+REGELN = {"1x2": (25, 0.15, 0.60), "ou": (30, 0.12, 0.50), "bts": (30, 0.12, 0.50),
+          "ht": (25, 0.15, 0.60), "ht2": (25, 0.15, 0.60)}
 
 
 def _f(v):
@@ -117,6 +117,6 @@ def vorteile(prog, mk):
             continue
         min_p, min_v, max_v = REGELN[markt]
         v = pm / pk - 1
-        if pm >= min_p and min_v <= v <= max_v and (markt not in best or v > best[markt][3] / 100):
+        if pm >= min_p and pk >= min_p and min_v <= v <= max_v and (markt not in best or v > best[markt][3] / 100):
             best[markt] = [lab, round(pm, 1), round(pk, 1), round(v * 100, 1)]
     return best
