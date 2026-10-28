@@ -211,6 +211,7 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .pgh em{font-style:normal;font-family:Orbitron;font-size:13px;color:var(--cy);margin-left:4px;text-shadow:0 0 10px color-mix(in srgb,var(--cy) 60%,transparent)}
 .pgb{display:flex;gap:4px;height:42px}
 .opt{position:relative;overflow:hidden;border-radius:11px;background:#ffffff0d;border:1px solid #ffffff14;display:flex;justify-content:space-between;align-items:center;padding:0 10px;font-size:12px;color:var(--mu);min-width:0}
+.opt span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0;margin-right:6px}
 .opt strong{font-family:Orbitron;font-size:13px;color:var(--tx)}
 .opt.win{color:#05060f;border-color:transparent;background:linear-gradient(110deg,var(--cy),var(--vi),var(--cy));background-size:220% 100%;animation:flow 3.2s linear infinite;box-shadow:0 0 18px color-mix(in srgb,var(--cy) 45%,transparent)}
 .opt.win strong{color:#05060f}.opt.win span{font-weight:700}
@@ -382,7 +383,7 @@ const ligaInfo={};
 const P=(s,id=S.modell)=>s.prog[id];
 function res(s){if(!s.ergebnis)return null;const[a,b]=s.ergebnis.split(":").map(Number);let hh=null,ha=null;if(s.ergebnis_ht){[hh,ha]=s.ergebnis_ht.split(":").map(Number)}return{h:a,a:b,hh,ha,txt:s.ergebnis}}
 function fav(p){return p.p1>=p.px&&p.p1>=p.p2?["1",p.p1]:p.p2>=p.px?["2",p.p2]:["X",p.px]}
-function hit(mk,p,r){const t=r.h+r.a;switch(mk){
+function hit(mk,p,r){if(!r||!p)return null;const t=r.h+r.a;switch(mk){
  case"1x2":{const f=fav(p)[0];return f=="1"?r.h>r.a:f=="2"?r.h<r.a:r.h==r.a}
  case"ou":return p.ue25>=50?t>2:t<=2;
  case"bts":return p.bts>=50?(r.h>0&&r.a>0):!(r.h>0&&r.a>0);
@@ -514,6 +515,8 @@ function renderBilanzQ(alle,fertig,chips,von,bis){
  <h3>📊 1X2 <span>${x.tn} Spiele</span></h3><div class="grid2">${box("Tipp",x.tw,x.tn,x.tp)}${box("EV-Tipp",x.ew,x.en,x.ep)}</div>
  <h3>📊 OVER / UNDER 2,5 <span>${o.tn} Spiele</span></h3><div class="grid2">${box("Tipp",o.tw,o.tn,o.tp)}${box("EV-Tipp",o.ew,o.en,o.ep)}</div>
  <p class="hint" style="margin-top:10px">${x.eg?"Bei Doppelter Chance (1X, X2, 12) ist die Quote aus den beiden Höchstquoten geschätzt. ":""}Für das Ranking der anderen Modelle oben ein anderes Modell wählen.</p>`}
+/* 1 / X / 2 -> Teamname */
+function tn(s,lab){const m=String(lab).match(/^(HZ[12] )?([1X2])$/);if(!m)return lab;const t=m[2]=="1"?s.heim:m[2]=="2"?s.gast:"Remis";return (m[1]?m[1]:"")+t}
 const best=(arr,lab)=>{const m=Math.max(...arr);return[lab[arr.indexOf(m)],m]};
 
 /* ---------- Kopf: Tage + Modelle ---------- */
@@ -529,8 +532,9 @@ function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.
  else if(isSV(S.modell)){const n=tag.filter(s=>P(s)&&svBest(s).length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:#ff4d7d">${n} mit Value-Spalte</b>`}
  else if(isQ(S.modell)){const n=tag.filter(s=>P(s)&&P(s)[S.qm||"x"]).length;$("sumrow").innerHTML=`<div style="width:100%">${qSwitch("renderSpiele()")}<div style="display:flex;justify-content:space-between"><span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${n} mit Quoten-Tipp</b></div></div>`}
  else
- if(isE(S.modell)){const n=tag.filter(s=>s.prog.ecken).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:#ffb02b">${n} mit Ecken-Prognose</b>`}
- else if(vorbei){const mit=tag.filter(s=>P(s)),ok=mit.filter(s=>hit("1x2",P(s),res(s))).length;$("sumrow").innerHTML=`<span>📊 Prognose-Check</span><b>${ok} / ${mit.length} Tipps richtig</b>`}
+ if(isL(S.modell)){const n=tag.filter(s=>P(s)&&P(s).tipps.length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:#7cf5ff">${n} mit Linien-Tipp</b>`}
+ else if(isE(S.modell)){const n=tag.filter(s=>s.prog.ecken).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:#ffb02b">${n} mit Ecken-Prognose</b>`}
+ else if(vorbei){const mit=tag.filter(s=>P(s)&&s.ergebnis),ok=mit.filter(s=>hit("1x2",P(s),res(s))).length;$("sumrow").innerHTML=`<span>📊 Prognose-Check</span><b>${ok} / ${mit.length} Tipps richtig</b>`}
  else{const v=tag.filter(s=>P(s)&&P(s).value.length).length;$("sumrow").innerHTML=`<span>⚡ ${tag.length} Spiele</span><b style="color:var(--gr)">${v} mit Value</b>`}
  let html="";
  for(const l of D.laender)for(const g of l.ligen){const sp=tag.filter(s=>s.liga==g.code).sort((a,b)=>a.zeit.localeCompare(b.zeit));if(!sp.length)continue;const o=S.offen.has(g.code);
@@ -538,12 +542,12 @@ function renderSpiele(){const tag=D.spiele.filter(s=>s.datum==S.tag),vorbei=tag.
   <div class="accb">${o?sp.map(row).join(""):""}</div></div>`}
  $("ligen").innerHTML=html||`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`}
 function toggle(c){S.offen.has(c)?S.offen.delete(c):S.offen.add(c);renderSpiele()}
-function row(s){if(isE(S.modell))return eRow(s);if(isOU(S.modell))return ouRow(s);if(!P(s))return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${s.ergebnis?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div><div class="rtip"><span class="ou">keine Prognose</span></div></div>`;if(isQ(S.modell))return qRow(s);if(isSV(S.modell))return svRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
+function row(s){if(isL(S.modell))return lRow(s);if(isE(S.modell))return eRow(s);if(isOU(S.modell))return ouRow(s);if(!P(s))return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${s.ergebnis?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div><div class="rtip"><span class="ou">keine Prognose</span></div></div>`;if(isQ(S.modell))return qRow(s);if(isSV(S.modell))return svRow(s);const p=P(s),[f,fp]=fav(p),r=res(s);
  if(r){const ok=hit("1x2",p,r),ou=hit("ou",p,r);
   return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono"><b>${s.ergebnis}</b></div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
-  <div class="rchk"><span class="ck ${ok?'y':'n'}">${f} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'OVER':'UNDER'} ${ou?'✓':'✕'}</span></div></div>`}
+  <div class="rchk"><span class="ck ${ok?'y':'n'}">${tn(s,f)} ${ok?'✓':'✕'}</span><span class="ck sm ${ou?'y':'n'}">${p.ue25>=50?'OVER':'UNDER'} ${ou?'✓':'✕'}</span></div></div>`}
  return `<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>
- ${(()=>{const o=optionen(p).sort((a,b)=>b[2]-a[2])[0];return `<div class="rtip"><span class="tp">${{ht:"HZ1 ",ht2:"HZ2 ",bts:"BTTS "}[o[3]]||""}${o[1]} · ${Math.round(o[2])}%</span><span class="ou">${o[0]}</span>${valBadge(p)}</div></div>`})()}`}
+ ${(()=>{const o=optionen(p).sort((a,b)=>b[2]-a[2])[0];return `<div class="rtip"><span class="tp">${{ht:"HZ1 ",ht2:"HZ2 ",bts:"BTTS "}[o[3]]||""}${tn(s,o[1])} · ${Math.round(o[2])}%</span><span class="ou">${o[0]}</span>${valBadge(p)}</div></div>`})()}`}
 
 /* ---------- Detail ---------- */
 function openDetail(id){S.detail=id;S.dtab=S.modell;S.seite="detail";render();scrollTo(0,0)}
@@ -555,23 +559,23 @@ function renderDetail(){const s=D.spiele.find(x=>x.id==S.detail),q=s.quoten,r=re
  <div class="oddsrow"><div><small>1</small><b>${q["1"]??"–"}</b></div><div><small>X</small><b>${q["X"]??"–"}</b></div><div><small>2</small><b>${q["2"]??"–"}</b></div></div>`;
  const tabs=D.modelle.map(m=>[m.id,m.icon+" "+m.kurz,m.farbe1]);
  $("dtabs").innerHTML=tabs.map(t=>`<div class="dt${S.dtab==t[0]?' on':''}" ${t[2]?`style="--c:${t[2]}"`:''} onclick="S.dtab='${t[0]}';renderDetail();setTimeout(mxStart,30)">${t[1]}</div>`).join("");
-$("dbody").innerHTML=isE(S.dtab)?eCard(s,P(s,S.dtab)):!P(s,S.dtab)?`<div class="pcard"><div class="card"><p class="msub">Für dieses Spiel liegen keine Quoten vor – das Modell rechnet nur mit Quote.</p></div></div>`:isOU(S.dtab)?ouCard(s,P(s,S.dtab)):isQ(S.dtab)?qCard(s,P(s,S.dtab)):isSV(S.dtab)?svCard(s,P(s,S.dtab)):probCard(s,P(s,S.dtab));}
+$("dbody").innerHTML=isL(S.dtab)?lCard(s,P(s,S.dtab)):isE(S.dtab)?eCard(s,P(s,S.dtab)):!P(s,S.dtab)?`<div class="pcard"><div class="card"><p class="msub">Für dieses Spiel liegen keine Quoten vor – das Modell rechnet nur mit Quote.</p></div></div>`:isOU(S.dtab)?ouCard(s,P(s,S.dtab)):isQ(S.dtab)?qCard(s,P(s,S.dtab)):isSV(S.dtab)?svCard(s,P(s,S.dtab)):probCard(s,P(s,S.dtab));}
 function mrow(team,x){const h=x.heim?team:x.gegner,a=x.heim?x.gegner:team;
  return `<div class="frow"><span class="fd mono">${dm(x.datum)}</span><span class="wdl ${x.wdl}">${x.wdl}</span><span class="fh${x.heim?' me':''}">${h}</span><b class="mono">${x.ergebnis.replace(":"," : ")}</b><span class="fa${x.heim?'':' me'}">${a}</span></div>`}
 function formBlock(t,l){return `<h3>Letzte Spiele · <b style="color:var(--yl)">${t}</b> <span>${l.filter(x=>x.wdl=="S").length}S ${l.filter(x=>x.wdl=="U").length}U ${l.filter(x=>x.wdl=="N").length}N</span></h3><div class="card">${l.length?l.map(x=>mrow(t,x)).join(""):'<p class="msub">Keine Daten.</p>'}</div>`}
 function wave(){return `<svg class="wv" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="M0 30 Q50 5 100 30 T200 30 T300 30 T400 30 T500 30 T600 30 T700 30 T800 30 V60 H0Z"/><path class="w2" d="M0 35 Q50 55 100 35 T200 35 T300 35 T400 35 T500 35 T600 35 T700 35 T800 35 V60 H0Z"/></svg>`}
-function markt(titel,opts,sv){const best=Math.max(...opts.map(o=>o[1]));
+function markt(titel,opts,sv){const best=Math.max(...opts.map(o=>o[1])),bi=opts.findIndex(o=>o[1]==best);
  return `<div class="pg"><div class="pgh"><span>${titel}</span></div>
- <div class="pgb">${opts.map((o,i)=>{const w=!sv&&o[1]==best,v=sv&&sv[i];const lab=v?`VALUE +${kom(v)}%`:"TIPP";
+ <div class="pgb">${opts.map((o,i)=>{const w=!sv&&i==bi,v=sv&&sv[i];const lab=v?`VALUE +${kom(v)}%`:"TIPP";
   return `<div class="opt${w?' win':''}${v?' sv':''}" style="flex:${Math.max(o[1],14)}">${w||v?`<i class="tipk">${lab}</i>`:""}<span>${o[0]}</span><strong>${kom(o[1])}%</strong></div>`}).join("")}</div></div>`}
 function probCard(s,p){const r=res(s);
  const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"],["bts","Beide treffen"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
  const herk=p.quelle?`<p class="hint">★ Zusammengesetzt: 1X2 <b>${p.quelle["1x2"]}</b> · OVER/UNDER <b>${p.quelle.ou}</b> · BTTS <b>${p.quelle.bts}</b> · 1. HZ <b>${p.quelle.ht}</b> · 2. HZ <b>${p.quelle.ht2}</b></p>`:p.quelle_markt?`<p class="hint">Aus den Quoten von <b>${p.quelle_markt}</b>, Marge herausgerechnet.</p>`:"";
  return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${herk}${chk}${besteAlle(s)}${vtBlock(s,p)}
- ${markt("Spielausgang",[["1",p.p1],["X",p.px],["2",p.p2]])}
+ ${markt("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]])}
  ${markt("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",Math.round((100-p.ue25)*10)/10]])}
  ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",100-p.bts]])}
- ${p.ht?markt("1. Halbzeit",[["1",p.ht[0]],["X",p.ht[1]],["2",p.ht[2]]])+(p.ht2?markt("2. Halbzeit",[["1",p.ht2[0]],["X",p.ht2[1]],["2",p.ht2[2]]]):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
+ ${p.ht?markt("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]])+(p.ht2?markt("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]]):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
  ${p.value.map(v=>`<div class="val"><div><div style="font-size:12px;font-weight:600">⚡ Value: ${v.markt} @ ${String(v.quote).replace(".",",")}</div><div style="font-size:11px;color:var(--mu)">Modell sieht mehr Chance als die Quote</div></div><b>+${v.edge}%</b></div>`).join("")}
  </div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
@@ -584,12 +588,12 @@ function besteAlle(s){const l=[];for(const m of D.modelle.filter(m=>!m.typ)){con
  if(!l.length)return"";l.sort((a,b)=>b[2]-a[2]);const b=l[0],r=res(s);
  const ok=r?vhit(b[3],b[3]=="ou"?b[1]+" 2,5":b[3]=="ht"?"HZ1 "+b[1]:b[3]=="ht2"?"HZ2 "+b[1]:b[1],r):null;
  return `<div class="qban" style="margin-top:4px"><small>🏆 HÖCHSTE WAHRSCHEINLICHKEIT · ALLE MODELLE</small>
- <div style="display:flex;justify-content:space-between;align-items:center"><div><div class="big" style="font-size:19px">${b[0]}: ${b[1]}${ok!=null?(ok?" ✓":" ✕"):""}</div><div style="font-size:12px;color:var(--mu)">Modell ${b[4]}</div></div><div class="big">${kom(Math.round(b[2]))}%</div></div>
- ${l.slice(1,3).map(x=>`<div class="qer"><span>${x[0]}: <b style="color:var(--tx);font-family:inherit;font-size:14px">${x[1]}</b> · ${x[4]}</span><b>${kom(Math.round(x[2]))}%</b></div>`).join("")}</div>`}
+ <div style="display:flex;justify-content:space-between;align-items:center"><div><div class="big" style="font-size:19px">${b[0]}: ${tn(s,b[1])}${ok!=null?(ok?" ✓":" ✕"):""}</div><div style="font-size:12px;color:var(--mu)">Modell ${b[4]}</div></div><div class="big">${kom(Math.round(b[2]))}%</div></div>
+ ${l.slice(1,3).map(x=>`<div class="qer"><span>${x[0]}: <b style="color:var(--tx);font-family:inherit;font-size:14px">${tn(s,x[1])}</b> · ${x[4]}</span><b>${kom(Math.round(x[2]))}%</b></div>`).join("")}</div>`}
 function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]).sort((a,b)=>vt[b[0]][3]-vt[a[0]][3]);if(!l.length)return"";
  return `<div class="pg"><div class="pgh"><span>💡 Vorteil gegenüber dem Markt</span><b>${s.markt?s.markt.quelle:""}</b></div>`+
  l.map(([k,n])=>{const v=vt[k],[q,echt]=vquote(s,k,v),r=res(s),h=vhit(k,v[0],r);
-  return `<div class="val" style="margin-top:8px"><div><div style="font-size:12px;font-weight:600">${n}: <b>${v[0]}</b></div><div style="font-size:11px;color:var(--mu)">Modell ${kom(v[1])}% · Markt ${kom(v[2])}% · ${echt?"Quote":"Markt-Quote ≈"} ${kom(q)} · fair ${kom((100/v[1]).toFixed(2))}</div></div><b>+${kom(v[3])}%${h!=null?` ${h?'✓':'✕'}`:""}</b></div>`}).join("")+`</div>`}
+  return `<div class="val" style="margin-top:8px"><div><div style="font-size:12px;font-weight:600">${n}: <b>${tn(s,v[0])}</b></div><div style="font-size:11px;color:var(--mu)">Modell ${kom(v[1])}% · Markt ${kom(v[2])}% · ${echt?"Quote":"Markt-Quote ≈"} ${kom(q)} · fair ${kom((100/v[1]).toFixed(2))}</div></div><b>+${kom(v[3])}%${h!=null?` ${h?'✓':'✕'}`:""}</b></div>`}).join("")+`</div>`}
 
 /* ---------- Top-Tipps ---------- */
 const MARKTE=[["tore","⚽ OVER / UNDER 2,5"]];
@@ -601,7 +605,7 @@ function renderTopAlle(){if($("tmode"))$("tmode").innerHTML="";$("mchips").inner
  const done=l.length&&l[0][0].ergebnis!=null;let ok=0,n=0;
  const rows=l.map(([s,b])=>{const r=res(s),h=r?vhit(b[3],lab(b),r):null;if(h!=null){n++;if(h)ok++}const fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
   return `<div class="trow" onclick="openDetail(${s.id})"><div class="tl"><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]} · ${r?s.ergebnis:s.zeit}</small><b>${s.heim} – ${s.gast}</b><div class="vsub">${b[0]} · Modell ${b[4]}</div></div>
-  <div class="tr"><b class="mono">${b[1]}</b><span class="vbad mk">${Math.round(b[2])}%</span>${h!=null?`<span class="ck ${h?'y':'n'}">${h?'✓':'✕'}</span>`:""}</div></div>`}).join("");
+  <div class="tr"><b class="mono">${tn(s,b[1])}</b><span class="vbad mk">${Math.round(b[2])}%</span>${h!=null?`<span class="ck ${h?'y':'n'}">${h?'✓':'✕'}</span>`:""}</div></div>`}).join("");
  $("toplist").innerHTML=`<p class="hint">Je Spiel die <b>höchste Wahrscheinlichkeit aus allen Modellen und allen Märkten</b> – jedes Spiel nur einmal, stärkste zuerst.</p>
  <h3>🏆 Top-Wahrscheinlichkeiten <span>${done?`${ok} / ${n} richtig`:`${l.length} Spiele`}</span></h3>`+(l.length?`<div class="card" style="padding:4px 14px">${rows}</div>`:`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`)}
 function renderTopAlt(){if(isOU(S.modell))return renderTopOU();if(isQ(S.modell))return renderTopQ();if(isSV(S.modell))return renderTopSV();S.tmode=S.tmode||"vt";S.markt="tore";
@@ -621,40 +625,64 @@ function renderTopAlt(){if(isOU(S.modell))return renderTopOU();if(isQ(S.modell))
   <div class="tr"><b class="mono">${lab?lab+' · ':''}${pr}%</b>${q?`<small>@ ${String(q).replace(".",",")}</small>`:""}${ok!=null?`<span class="ck ${ok?'y':'n'}">${ok?'✓':'✕'}</span>`:""}</div></div>`}).join("")}</div>`:`<div class="card"><p class="msub">Keine klaren Tipps in diesem Markt.</p></div>`)}).join("")}
 
 /* ---------- Values: Wettquoten-Vergleich aus allen Modellen ---------- */
+/* ---------- Linie · Quotenbewegung (alle Modelle, nur Tipps) ---------- */
+const isL=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="linie";
+const lName=(s,t)=>t.m=="x"?tn(s,t.tipp):t.tipp+" 2,5";
+function lWin(t,r){const g=r.h+r.a;return t.m=="ou"?(t.tipp=="OVER"?g>2:g<=2):t.tipp==sg(r.h,r.a)}
+function lGruppen(p){const g={};for(const t of p.tipps){const k=t.m+t.tipp;(g[k]=g[k]||{...t,mods:[]}).mods.push(t.modell)}return Object.values(g).sort((a,b)=>b.mods.length-a.mods.length||b.v-a.v)}
+function lRow(s){const p=P(s),r=res(s);
+ const left=`<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${r?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>`;
+ if(!p||!p.tipps.length)return left+`<div class="rtip"><span class="ou">kein Tipp</span></div></div>`;
+ return left+`<div class="rtip">${lGruppen(p).slice(0,2).map(t=>{const h=r?lWin(t,r):null;return `<span class="tp">📉 ${lName(s,t)}${h!=null?(h?" ✓":" ✕"):""}</span><span class="ou">${t.mods.join(" · ")}</span>`}).join("")}</div></div>`}
+function lCard(s,p){const r=res(s),st=D.linie||{};
+ const tipps=p&&p.tipps.length?lGruppen(p).map(t=>{const h=r?lWin(t,r):null;return `<div class="qban"><small>${t.m=="x"?"SPIELAUSGANG":"OVER / UNDER"}</small><div class="big">📉 ${lName(s,t)}${h!=null?(h?" ✓":" ✕"):""}</div><div style="font-size:12px;color:var(--mu)">${t.mods.length} Modell${t.mods.length>1?"e":""}: ${t.mods.join(" · ")}</div></div>`}).join(""):`<div class="card"><p class="msub">Kein Tipp für dieses Spiel.</p></div>`;
+ const info=Object.values(st).map(x=>`<div class="qer"><span>${x.kurz}</span><b style="font-size:12px;font-family:inherit"><span style="color:${x.x.aktiv?'var(--gr)':'var(--mu)'}">1X2 ${x.x.aktiv?"✓":"–"}</span> · <span style="color:${x.ou.aktiv?'var(--gr)':'var(--mu)'}">O/U ${x.ou.aktiv?"✓":"–"}</span></b></div>`).join("");
+ return `<div class="pcard"><div class="pct">LINIE · QUOTENBEWEGUNG · ALLE MODELLE</div>${tipps}
+ <div class="qban" style="background:#ffffff08;border-color:#ffffff22;box-shadow:none;color:var(--tx)"><small>WELCHE MODELLE DÜRFEN TIPPEN (SELBSTPRÜFUNG)</small>${info||'<p class="msub">Noch keine Prüfung.</p>'}</div>
+ <p class="hint">Ein Modell gibt hier nur Tipps in den Märkten, in denen es im Rückblick die Bewegung der Pinnacle-Quote bis zum Anpfiff richtig vorhergesehen hat (✓). Die Prüfung läuft bei jedem Update neu.</p></div>`}
+function renderBilanzL(fertig,chips,von,bis){const st=D.linie||{};let w=0,n=0;
+ for(const s of fertig){const p=P(s),r=res(s);if(!p||!r)continue;for(const t of lGruppen(p)){n++;if(lWin(t,r))w++}}
+ const z=(x,m)=>{const v=x[m];return `<div class="trow" style="cursor:default"><div class="tl"><b>${x.kurz} · ${m=="x"?"1X2":"OVER / UNDER"}</b><small>${v.n} Fälle${v.n?` · Quote fällt ${kom(v.faellt)}% · ROI ${v.roi>0?"+":""}${kom(v.roi)}%`:""}</small></div><div class="tr"><span class="vbad ${v.aktiv?'mk':'no'}">CLV ${v.clv==null?"–":(v.clv>0?"+":"")+kom(v.clv)+"%"}</span><small>${v.aktiv?"darf tippen":"aus"}</small></div></div>`};
+ $("bilanz").innerHTML=`${chips}<p class="hint"><b>Selbstprüfung</b> je Modell: Hat es im Rückblick die Bewegung der Pinnacle-Quote bis zum Anpfiff vorhergesehen? <b>CLV über 0</b> = ja, dann darf es tippen.</p>
+ <h3>📉 Letzte Spielwoche <span>${n} Tipps</span></h3><div class="bcard"><div class="bh"><div style="flex:1"><b>Treffer</b><small>${w} richtig · ${n-w} falsch</small></div><b class="big">${n?Math.round(w/n*100)+"%":"–"}</b></div></div>
+ <h3>Rückblick je Modell</h3><div class="card" style="padding:4px 14px">${Object.values(st).sort((a,b)=>(b.x.clv??-99)-(a.x.clv??-99)).map(x=>z(x,"x")+z(x,"ou")).join("")||'<p class="msub">Keine Daten.</p>'}</div>`}
+
 /* ---------- Ecken ---------- */
 const isE=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="ecken";
-function eOpt(e){const o=[["Mehr Ecken","1 · Heim",e.mehr[0],"m1"],["Mehr Ecken","X · gleich",e.mehr[1],"mx"],["Mehr Ecken","2 · Gast",e.mehr[2],"m2"]];
- for(const[l,p]of Object.entries(e.heim))o.push(["Ecken Heim","OVER "+kom(l),p,"h+"+l],["Ecken Heim","UNDER "+kom(l),Math.round((100-p)*10)/10,"h-"+l]);
- for(const[l,p]of Object.entries(e.gast))o.push(["Ecken Gast","OVER "+kom(l),p,"a+"+l],["Ecken Gast","UNDER "+kom(l),Math.round((100-p)*10)/10,"a-"+l]);
+function eOpt(e,s){const o=[],H=s?s.heim:"Heim",A=s?s.gast:"Gast";
  for(const[l,p]of Object.entries(e.gesamt))o.push(["Ecken gesamt","OVER "+kom(l),p,"t+"+l],["Ecken gesamt","UNDER "+kom(l),Math.round((100-p)*10)/10,"t-"+l]);
+ for(const[l,p]of Object.entries(e.heim))o.push([`Ecken ${H}`,"OVER "+kom(l),p,"h+"+l],[`Ecken ${H}`,"UNDER "+kom(l),Math.round((100-p)*10)/10,"h-"+l]);
+ for(const[l,p]of Object.entries(e.gast))o.push([`Ecken ${A}`,"OVER "+kom(l),p,"a+"+l],[`Ecken ${A}`,"UNDER "+kom(l),Math.round((100-p)*10)/10,"a-"+l]);
  return o}
 function eHit(code,c){if(!c)return null;const[h,a]=c;if(code=="m1")return h>a;if(code=="mx")return h==a;if(code=="m2")return h<a;
  const typ=code[0],over=code[1]=="+",l=+code.slice(2),v=typ=="h"?h:typ=="a"?a:h+a;return over?v>l:v<l}
-function eBest(e){return eOpt(e).filter(o=>o[2]<97).sort((a,b)=>b[2]-a[2])[0]}
+function eBest(e,s){return eOpt(e,s).filter(o=>o[2]<97).sort((a,b)=>b[2]-a[2])[0]}
 function eRow(s){const e=s.prog.ecken,r=res(s);
  const left=`<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${r?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>`;
  if(!e)return left+`<div class="rtip"><span class="ou">keine Ecken-Daten</span></div></div>`;
- const b=eBest(e),h=eHit(b[3],s.ecken);
+ const b=eBest(e,s),h=eHit(b[3],s.ecken);
  return left+`<div class="rtip"><span class="tp">${b[1]} · ${Math.round(b[2])}%</span><span class="ou">${b[0]} · Ø ${kom(e.xt)}${s.ecken?` · ${s.ecken[0]}:${s.ecken[1]}`:""}${h!=null?(h?" ✓":" ✕"):""}</span></div></div>`}
 function eCard(s,e){if(!e)return `<div class="pcard"><div class="card"><p class="msub">Für diese Liga gibt es keine Ecken-Daten.</p></div></div>`;
  const c=s.ecken,L=o=>Object.entries(o);
  return `<div class="pcard"><div class="pct">ECKEN · PROGNOSE</div>
  <div class="qban" style="display:flex;justify-content:space-between;align-items:center"><div><small>ERWARTETE ECKEN</small><div class="big">${kom(e.xh)} : ${kom(e.xa)}</div></div><div style="text-align:right"><small>GESAMT</small><div class="big">${kom(e.xt)}</div>${c?`<div style="font-size:12px;color:var(--mu)">Ergebnis ${c[0]}:${c[1]}</div>`:""}</div></div>
- ${markt("Mehr Ecken",[["1",e.mehr[0]],["X",e.mehr[1]],["2",e.mehr[2]]])}
- ${L(e.gesamt).map(([l,p])=>markt("Ecken gesamt "+kom(l),[["OVER",p],["UNDER",Math.round((100-p)*10)/10]])).join("")}
- ${L(e.heim).map(([l,p])=>markt(`Ecken ${s.heim} ${kom(l)}`,[["OVER",p],["UNDER",Math.round((100-p)*10)/10]])).join("")}
- ${L(e.gast).map(([l,p])=>markt(`Ecken ${s.gast} ${kom(l)}`,[["OVER",p],["UNDER",Math.round((100-p)*10)/10]])).join("")}
- <p class="hint">Am verlässlichsten: <b>Mehr Ecken</b> und <b>Ecken je Team</b> (im Test 66 % Treffer bei „Mehr Ecken“). Die Gesamtzahl ist kaum genauer als der Liga-Durchschnitt.</p></div>`}
+ <div class="pg"><div class="pgh"><span>🚩 Ecken gesamt</span></div></div>
+ ${L(e.gesamt).map(([l,p])=>markt("OVER / UNDER "+kom(l),[["OVER",p],["UNDER",Math.round((100-p)*10)/10]])).join("")}
+ ${eTeam(s.heim,"🏠",e.heim,e.xh,c?c[0]:null,"#22e4ff")}${eTeam(s.gast,"✈️",e.gast,e.xa,c?c[1]:null,"#ff4d7d")}
+ <p class="hint">Am verlässlichsten sind die <b>Ecken je Team</b>. Die Gesamtzahl ist kaum genauer als der Liga-Durchschnitt.</p></div>`}
+function eTeam(name,ico,lin,x,echt,farbe){return `<div style="border:1px solid ${farbe}66;border-radius:16px;padding:12px 12px 2px;margin:12px 0;background:linear-gradient(180deg,${farbe}14,transparent);box-shadow:0 0 18px ${farbe}1f">
+ <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><b style="color:${farbe};font-size:15px">${ico} ${name}</b><span style="font-family:Orbitron;font-size:13px">Ø ${kom(x)}${echt!=null?` · echt ${echt}`:""}</span></div>
+ ${Object.entries(lin).map(([l,p])=>markt("Ecken OVER / UNDER "+kom(l),[["OVER",p],["UNDER",Math.round((100-p)*10)/10]])).join("")}</div>`}
 function renderValues(){$("vchips").innerHTML="";
- const l=D.spiele.filter(s=>s.datum==S.tag&&s.prog.ecken).map(s=>[s,eBest(s.prog.ecken)]).sort((a,b)=>b[1][2]-a[1][2]);let ok=0,n=0;
+ const l=D.spiele.filter(s=>s.datum==S.tag&&s.prog.ecken).map(s=>[s,eBest(s.prog.ecken,s)]).sort((a,b)=>b[1][2]-a[1][2]);let ok=0,n=0;
  const rows=l.map(([s,b])=>{const r=res(s),h=eHit(b[3],s.ecken);if(h!=null){n++;if(h)ok++}const fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
   return `<div class="trow" onclick="S.dtab='ecken';openDetail(${s.id});S.dtab='ecken';renderDetail()"><div class="tl"><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]} · ${r?s.ergebnis:s.zeit}</small><b>${s.heim} – ${s.gast}</b><div class="vsub">${b[0]} · erwartet ${kom(s.prog.ecken.xh)} : ${kom(s.prog.ecken.xa)}${s.ecken?` · Ecken ${s.ecken[0]}:${s.ecken[1]}`:""}</div></div>
-  <div class="tr"><b class="mono">${b[1]}</b><span class="vbad mk">${Math.round(b[2])}%</span>${h!=null?`<span class="ck ${h?'y':'n'}">${h?'✓':'✕'}</span>`:""}</div></div>`}).join("");
+  <div class="tr"><b class="mono">${tn(s,b[1])}</b><span class="vbad mk">${Math.round(b[2])}%</span>${h!=null?`<span class="ck ${h?'y':'n'}">${h?'✓':'✕'}</span>`:""}</div></div>`}).join("");
  $("vlist").innerHTML=`<p class="hint">Je Spiel die <b>stärkste Ecken-Prognose</b> – jedes Spiel nur einmal, höchste Wahrscheinlichkeit zuerst.</p>
  <h3>🚩 Top Ecken <span>${n?`${ok} / ${n} richtig`:`${l.length} Spiele`}</span></h3>`+(l.length?`<div class="card" style="padding:4px 14px">${rows}</div>`:`<div class="card"><p class="msub">Keine Ecken-Prognosen an diesem Tag.</p></div>`)}
 function renderBilanzE(fertig,chips,von,bis){const st={};let w=0,n=0;
- for(const s of fertig){const e=s.prog.ecken;if(!e||!s.ecken)continue;const b=eBest(e),h=eHit(b[3],s.ecken);n++;if(h)w++;
-  for(const o of eOpt(e)){const g=o[0]+(o[3][0]=="m"?"":" "+o[1].split(" ")[1]);const x=st[g]=st[g]||[0,0];if(o[2]>=50){x[1]++;if(eHit(o[3],s.ecken))x[0]++}}}
+ for(const s of fertig){const e=s.prog.ecken;if(!e||!s.ecken)continue;const b=eBest(e,s),h=eHit(b[3],s.ecken);n++;if(h)w++;
+  for(const o of eOpt(e)){const g=o[0]+" "+o[1].split(" ")[1];const x=st[g]=st[g]||[0,0];if(o[2]>=50){x[1]++;if(eHit(o[3],s.ecken))x[0]++}}}
  $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Ecken-Prognosen gegen die echten Ecken.</p>
  <div class="bcard"><div class="bh"><div style="flex:1"><b>🚩 Top-Ecken-Tipp je Spiel</b><small>${n} Spiele</small></div><b class="big">${n?Math.round(w/n*100):0}%</b></div><div class="wl"><span class="won">${w} Richtig</span><span class="lost">${n-w} Falsch</span></div></div>
  <h3>Treffer je Markt <span>Tipp = Seite über 50 %</span></h3><div class="card" style="padding:4px 14px">${Object.entries(st).map(([k,[a,c]])=>`<div class="trow" style="cursor:default"><div class="tl"><b>${k}</b><small>${a} / ${c} richtig</small></div><div class="tr"><b class="mono">${c?Math.round(a/c*100)+"%":"–"}</b></div></div>`).join("")}</div>`}
@@ -678,6 +706,7 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  if(isSV(S.modell))return renderBilanzSV(fertig,chipsQ,von,bis);
  if(isOU(S.modell))return renderBilanzOU(fertig,chipsQ,von,bis);
  if(isE(S.modell))return renderBilanzE(fertig,chipsQ,von,bis);
+ if(isL(S.modell))return renderBilanzL(fertig,chipsQ,von,bis);
  const MK=[["1x2","Spielausgang"],["ht","1. Halbzeit"],["ou","OVER/UNDER 2,5"],["bts","Beide treffen"],["ht2","2. Halbzeit"]];
  const stat=(list,k,mid=S.modell)=>{let w=0,n=0;for(const s of list){if(!P(s,mid))continue;const h=hit(k,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
  const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
