@@ -26,6 +26,7 @@ import daten
 import kern
 import markt
 import ecken_modell
+import kalibrierung
 import linie_modell
 import quoten_modell
 import sv_modell
@@ -46,7 +47,9 @@ GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
 
 FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
            "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Griechenland": "🇬🇷", "Schottland": "🇬🇧",
-           "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Türkei": "🇹🇷"}
+           "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Österreich": "🇦🇹",
+           "Schweiz": "🇨🇭", "Polen": "🇵🇱", "Rumänien": "🇷🇴", "Irland": "🇮🇪", "Russland": "🇷🇺", "USA": "🇺🇸",
+           "Mexiko": "🇲🇽", "Brasilien": "🇧🇷", "Argentinien": "🇦🇷", "Japan": "🇯🇵", "China": "🇨🇳"}
 MAERKTE = {"1": ["PSH", "AvgH", "B365H"], "X": ["PSD", "AvgD", "B365D"], "2": ["PSA", "AvgA", "B365A"],   # Pinnacle zuerst
            "Ü2.5": ["P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["P<2.5", "Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
@@ -359,6 +362,11 @@ def main():
             live += lv
             log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
         K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
+        par_kal, kal_info = kalibrierung.walk_forward(alle_spiele)      # Platt-Kalibrierung (ehrlich, Woche fuer Woche)
+        for lv in live:
+            lv["p"] = kalibrierung.anwenden(lv["p"], par_kal)
+        log("   Kalibrierung Rückblick (LogLoss roh -> kalibriert, Spiele): " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
+        log(f"   Kalibrierung live: {', '.join(par_kal) if par_kal else 'aus (Rohwerte)'}")
         bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
