@@ -17,7 +17,7 @@ INFO = {"id": "ecken", "typ": "ecken", "name": "Ecken · Prognose", "kurz": "Eck
 K, SCHUSS, PRO_SCHUSS = 0.05, 0.3, 0.38
 G = 25
 LINIEN_GESAMT = [8.5, 9.5, 10.5]
-LINIEN_TEAM = [3.5, 4.5, 5.5]
+LINIEN_TEAM = [5.5]
 
 
 def _key(div, date, h, a):

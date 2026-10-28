@@ -26,6 +26,7 @@ import daten
 import kern
 import markt
 import ecken_modell
+import linie_modell
 import quoten_modell
 import sv_modell
 import xgb_modell
@@ -51,7 +52,8 @@ MAERKTE = {"1": ["PSH", "AvgH", "B365H"], "X": ["PSD", "AvgD", "B365D"], "2": ["
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
 MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "OVER 2,5", "U2.5": "UNDER 2,5"}
 EXTRA_QUOTEN = [b + s for b in ("PS", "Max", "B365", "BW", "WH", "1XB", "BFE", "BF", "IW", "VC", "LB", "BV", "CL") for s in ("H", "D", "A")] + \
-               [b + s for b in ("P", "Max", "B365", "BFE", "BF", "1XB", "WH", "BW", "BV", "VC", "LB", "CL") for s in (">2.5", "<2.5")]
+               [b + s for b in ("P", "Max", "B365", "BFE", "BF", "1XB", "WH", "BW", "BV", "VC", "LB", "CL") for s in (">2.5", "<2.5")] + \
+               ["PSCH", "PSCD", "PSCA", "PC>2.5", "PC<2.5"]   # Pinnacle-Schlussquoten (Modell Linie)
 # nur fuer Markt-Vergleich, Modell SV und Quoten-Analyse (der Backtest nutzt weiter MAERKTE)
 K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
 heute = pd.Timestamp.today().normalize()
@@ -333,6 +335,7 @@ def main():
     groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
     reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
     qual_roh = {}
+    bt = {}     # Backtest-Prognosen je Modell (fuer den Rueckblick des Modells Linie)
 
     for key, mod in modelle.items():
         tm = time.time()
@@ -356,6 +359,7 @@ def main():
             live += lv
             log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
         K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
+        bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
         W_test = wetten_waehlen(K, par_test)
@@ -451,6 +455,15 @@ def main():
         ergebnis["modelle"].append(dict(ecken_modell.INFO))
     except Exception as ex:
         log("Ecken-Prognose fehlgeschlagen:", ex)
+
+    # Modell L · Linie (Quotenbewegung, prueft sich selbst im Rueckblick)
+    try:
+        if any(m["id"] == "xgb" for m in echte):
+            bt["xgb"] = xgb_modell.rueckblick(spiele, q, zeilen, BACKTEST_START, log)
+        ergebnis["linie"] = linie_modell.berechne(bt, liste, zeilen, [{"id": m["id"], "kurz": m["kurz"]} for m in echte], log)
+        ergebnis["modelle"].append(dict(linie_modell.INFO))
+    except Exception as ex:
+        log("Linie fehlgeschlagen:", ex)
 
     # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
     ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",

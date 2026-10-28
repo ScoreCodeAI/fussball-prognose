@@ -163,3 +163,32 @@ def berechne(spiele, q, liste, zeilen, log=print):
                   "tipp": f"{a}:{b}", "xg": [round(f["lh"], 2), round(f["la"], 2)], "value": []}
     log(f"XGBoost: {len(T)} Trainingsspiele, {len(modelle)} Märkte, {len(out)} Prognosen")
     return out
+
+
+def rueckblick(spiele, q, zeilen, ab, log=print):
+    """Ehrlicher Rueckblick fuer das Modell Linie: Training nur mit Spielen VOR 'ab',
+    Prognose fuer alle Spiele ab 'ab' -> Liste wie die Backtest-Spiele der anderen Modelle."""
+    vor, _ = _features(spiele)
+    ligen = {d: i for i, d in enumerate(sorted(spiele["Div"].unique()))}
+    ab = pd.Timestamp(ab)
+    tr, te = [], []
+    for r in q.itertuples(index=False):
+        k = _key(r.Div, r.Date, r.Home, r.Away)
+        f, m = vor.get(k), _markt(zeilen.get(k))
+        if not f or not m:
+            continue
+        hg, ag = int(r.HG), int(r.AG)
+        z = dict(f, **m, liga=ligen.get(r.Div, -1), y1=0 if hg > ag else 1 if hg == ag else 2, yo=int(hg + ag > 2),
+                 Div=r.Div, Date=r.Date, Home=r.Home, Away=r.Away, HG=hg, AG=ag)
+        (tr if r.Date < ab else te).append(z)
+    if len(tr) < 1000 or not te:
+        return []
+    T, E = pd.DataFrame(tr), pd.DataFrame(te)
+    m1, mo = _modell(3), _modell(2)
+    m1.fit(T[FEAT], T["y1"]); mo.fit(T[FEAT], T["yo"])
+    p1, po = m1.predict_proba(E[FEAT]), mo.predict_proba(E[FEAT])
+    out = [{"Div": r.Div, "Date": r.Date, "Home": r.Home, "Away": r.Away, "HG": r.HG, "AG": r.AG,
+            "p": {"1": a[0], "X": a[1], "2": a[2], "\u00dc2.5": b[1], "U2.5": b[0]}}
+           for r, a, b in zip(E.itertuples(index=False), p1, po)]
+    log(f"XGBoost-Rückblick: {len(T)} Trainings-, {len(out)} Testspiele")
+    return out
