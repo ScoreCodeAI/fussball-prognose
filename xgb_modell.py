@@ -155,7 +155,7 @@ def berechne(spiele, q, liste, zeilen, log=print):
             continue
         M = kern.matrix_unabhaengig(f["lh"], f["la"])
         a, b = np.unravel_index(M.argmax(), M.shape)
-        r0 = lambda x: int(round(float(x) * 100))
+        r0 = lambda x: round(float(x) * 100, 1)
         out[i] = {"p1": r0(p1[0]), "px": r0(p1[1]), "p2": r0(p1[2]), "ue25": r0(po[1]),
                   "bts": r0(pb[1]) if pb is not None else r0(f["sb"]),
                   "ht": [r0(x) for x in ph] if ph is not None else None,

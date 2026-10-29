@@ -53,8 +53,10 @@ def analyse(row, m):
         out["q"].append(round(q, 2))
         out["ev"].append(round(ev * 100, 1))
         out["value"].append(bool(MIN_EV <= ev <= MAX_EV and q <= MAX_QUOTE))
-    # Durchschnitt je Spalte (mit Marge): mittlere Wahrscheinlichkeit -> Quote -> x faire Chance
+    # Durchschnitt je Spalte OHNE Marge: mittlere Wahrscheinlichkeit, auf 100 % normiert -> Quote -> x faire Chance
     avg_p = [statistics.mean(1 / z[i] for z in zeilen) for i in range(len(fair))]
+    t = sum(avg_p)
+    avg_p = [x / t for x in avg_p]
     out["avg_p"] = [round(x * 100, 1) for x in avg_p]
     out["avg_q"] = [round(1 / x, 2) for x in avg_p]
     out["avg_check"] = [round(f / x * 100, 2) for f, x in zip(fair, avg_p)]

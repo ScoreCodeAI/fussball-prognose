@@ -294,10 +294,10 @@ def value_liste(p, q, par):
 
 
 def prog_eintrag(p, xg, q, par):
-    return {"p1": r(p["1"] * 100, 0), "px": r(p["X"] * 100, 0), "p2": r(p["2"] * 100, 0),
-            "ue25": r(p["Ü2.5"] * 100, 0), "bts": r(p["BTS"] * 100, 0), "tipp": p["tipp"], "xg": xg,
-            "ht": None if p["HT"] is None else [r(x * 100, 0) for x in p["HT"]],
-            "ht2": None if p.get("HT2") is None else [r(x * 100, 0) for x in p["HT2"]],
+    return {"p1": r(p["1"] * 100, 1), "px": r(p["X"] * 100, 1), "p2": r(p["2"] * 100, 1),
+            "ue25": r(p["Ü2.5"] * 100, 1), "bts": r(p["BTS"] * 100, 1), "tipp": p["tipp"], "xg": xg,
+            "ht": None if p["HT"] is None else [r(x * 100, 1) for x in p["HT"]],
+            "ht2": None if p.get("HT2") is None else [r(x * 100, 1) for x in p["HT2"]],
             "value": value_liste(p, q, par)}
 
 
@@ -443,6 +443,22 @@ def main():
         for pr in e["prog"].values():
             pr["vt"] = markt.vorteile(pr, mk)
     log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
+    # Hoechste Quote je Ausgang ueber alle Buchmacher (fuer die PAYOUT-Zeilen)
+    for e in liste:
+        z = zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"]))
+        if z is None:
+            continue
+        hq = {}
+        for m, sufs in (("x", ["H", "D", "A"]), ("ou", [">2.5", "<2.5"])):
+            werte = []
+            for suf in sufs:
+                qs = [quote(z, [sp]) for sp in sorted({c for c in EXTRA_QUOTEN + sum(MAERKTE.values(), []) if c.endswith(suf) and not c.startswith(("PSC", "PC", "AvgC"))})]
+                qs = [x for x in qs if x]
+                werte.append(round(max(qs), 2) if qs else None)
+            if all(werte):
+                hq[m] = werte
+        if hq:
+            e["hq"] = hq
     echte = list(ergebnis["modelle"])
 
     # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
