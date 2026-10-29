@@ -27,7 +27,7 @@ import kern
 import markt
 import ecken_modell
 import kalibrierung
-import linie_modell
+import minmax_modell
 import quoten_modell
 import sv_modell
 import xgb_modell
@@ -480,14 +480,23 @@ def main():
     except Exception as ex:
         log("Ecken-Prognose fehlgeschlagen:", ex)
 
-    # Modell L · Linie (Quotenbewegung, prueft sich selbst im Rueckblick)
-    try:
-        if any(m["id"] == "xgb" for m in echte):
-            bt["xgb"] = xgb_modell.rueckblick(spiele, q, zeilen, BACKTEST_START, log)
-        ergebnis["linie"] = linie_modell.berechne(bt, liste, zeilen, [{"id": m["id"], "kurz": m["kurz"]} for m in echte], log)
-        ergebnis["modelle"].append(dict(linie_modell.INFO))
-    except Exception as ex:
-        log("Linie fehlgeschlagen:", ex)
+    # Modell MM · Min-Max-Analyse (Georgis Prozess)
+    ergebnis["modelle"].append(dict(minmax_modell.INFO))
+    n_mm = 0
+    for e in liste:
+        try:
+            me = minmax_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            me = None
+        e["prog"]["mm"] = me
+        n_mm += me is not None
+    log(f"Min-Max-Analyse: {n_mm} von {len(liste)} Spielen")
+    # QA-Liste: Tagesliste der Quoten-Analyse-Tipps (nur Anzeige, nutzt SV und Min-Max)
+    ergebnis["modelle"].append({"id": "qaliste", "typ": "qaliste", "name": "QA-Liste · Tipps je Tag", "kurz": "QA-Liste",
+                                "icon": "📋", "farbe1": "#2bf5a0", "farbe2": "#ffd84d",
+                                "beschreibung": "Alle Spiele eines Tages mit Tipp X, 1 oder 2 aus Quoten-Analyse und Min-Max"})
+    for e in liste:
+        e["prog"]["qaliste"] = {}
 
     # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
     ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",
