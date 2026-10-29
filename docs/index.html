@@ -206,6 +206,13 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 @keyframes wv{to{transform:translateX(-50%)}}@keyframes wv2{to{transform:translateY(10px)}}
 .pct{font-family:Orbitron;font-size:10px;letter-spacing:2px;color:var(--cy);margin-bottom:12px;text-shadow:0 0 10px color-mix(in srgb,var(--cy) 60%,transparent)}
 .pg{margin-bottom:14px}
+.pay{display:flex;gap:4px;margin-top:5px}
+.pay div{flex:1;display:flex;justify-content:space-between;align-items:center;height:24px;padding:0 8px;border-radius:8px;background:#ffffff08;border:1px solid #ffffff10;font-size:10px;color:var(--mu);min-width:0}
+.pay div b{font-family:inherit;font-size:11px;font-weight:700;color:var(--mu);white-space:nowrap}
+.pay div.hi{border-color:#2bf5a066;background:#2bf5a00f;animation:payglow 2.8s ease-in-out infinite}
+.pay div.hi b{color:var(--gr)}
+.pay small{font-size:9px;letter-spacing:1px;color:var(--mu);opacity:.7;align-self:center;margin-right:2px}
+@keyframes payglow{50%{box-shadow:0 0 10px #2bf5a033 inset,0 0 8px #2bf5a033;border-color:#2bf5a0aa}}
 .pgh{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:7px}
 .pgh span{font-size:13px;font-weight:600}.pgh b{font-size:11px;color:var(--mu);font-weight:500}
 .pgh em{font-style:normal;font-family:Orbitron;font-size:13px;color:var(--cy);margin-left:4px;text-shadow:0 0 10px color-mix(in srgb,var(--cy) 60%,transparent)}
@@ -455,9 +462,9 @@ function svExtra(a,m,r){if(!a)return"";const L=a.labels;
  <div class="qban"><div style="display:flex;justify-content:space-between;align-items:center"><div><small>EV-TIPP</small><div class="big" style="font-size:19px">${evName}${e!=null?(e?" ✓":" ✕"):""}</div></div><small>${q.ev.length} Haken</small></div>
  ${q.ev.map(k=>`<div class="qer"><span>${SVL[k]} @ ${kom(a.q[L.indexOf(k)].toFixed(2))}</span><b>${kom(q.evw[k])} % ✓</b></div>`).join("")}</div>`+svAvg(a)}
 function svAvg(a){if(!a.avg_check)return"";const L=a.labels,mx=Math.max(...a.avg_check);
- return `<div class="qban" style="background:linear-gradient(180deg,#ff4d7d14,#ff4d7d05);border-color:#ff4d7d55;box-shadow:0 0 18px #ff4d7d1a"><small>DURCHSCHNITT · Ø-QUOTE (MIT MARGE) × FAIRE CHANCE</small>
+ return `<div class="qban" style="background:linear-gradient(180deg,#ff4d7d14,#ff4d7d05);border-color:#ff4d7d55;box-shadow:0 0 18px #ff4d7d1a"><small>DURCHSCHNITT · Ø-QUOTE (OHNE MARGE) × FAIRE CHANCE</small>
  ${L.map((k,i)=>{const b=a.avg_check[i]==mx,v=a.avg_check[i]>100;return `<div class="qer"><span>${SVL[k]} · Ø ${kom(a.avg_p[i])}% → ${kom(a.avg_q[i].toFixed(2))} × ${kom(a.fair[i])}%</span><b style="color:${v||b?'#ff4d7d':'var(--mu)'}">${kom(a.avg_check[i].toFixed(2))}%${v?" ✓":b?" ◆":""}</b></div>`}).join("")}
- <div style="font-size:11px;color:var(--mu);margin-top:6px">◆ = Spalte mit der geringsten Marge${a.avg_check.some(x=>x>100)?" · ✓ = über 100 %":""}</div></div>`}
+ <div style="font-size:11px;color:var(--mu);margin-top:6px">◆ = höchster Wert${a.avg_check.some(x=>x>100)?" · ✓ = über 100 %":""}</div></div>`}
 function renderTopSV(){S.tmode=S.tmode||"vt";
  if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
  $("tmode").innerHTML=[["vt","💰 Größter Vorteil"],["sicher","🛡 Sicherste"]].map(m=>`<div class="chip${S.tmode==m[0]?' on':''}" onclick="S.tmode='${m[0]}';renderTop()">${m[1]}</div>`).join("");$("mchips").innerHTML="";
@@ -564,25 +571,32 @@ function mrow(team,x){const h=x.heim?team:x.gegner,a=x.heim?x.gegner:team;
  return `<div class="frow"><span class="fd mono">${dm(x.datum)}</span><span class="wdl ${x.wdl}">${x.wdl}</span><span class="fh${x.heim?' me':''}">${h}</span><b class="mono">${x.ergebnis.replace(":"," : ")}</b><span class="fa${x.heim?'':' me'}">${a}</span></div>`}
 function formBlock(t,l){return `<h3>Letzte Spiele · <b style="color:var(--yl)">${t}</b> <span>${l.filter(x=>x.wdl=="S").length}S ${l.filter(x=>x.wdl=="U").length}U ${l.filter(x=>x.wdl=="N").length}N</span></h3><div class="card">${l.length?l.map(x=>mrow(t,x)).join(""):'<p class="msub">Keine Daten.</p>'}</div>`}
 function wave(){return `<svg class="wv" viewBox="0 0 800 60" preserveAspectRatio="none"><path d="M0 30 Q50 5 100 30 T200 30 T300 30 T400 30 T500 30 T600 30 T700 30 T800 30 V60 H0Z"/><path class="w2" d="M0 35 Q50 55 100 35 T200 35 T300 35 T400 35 T500 35 T600 35 T700 35 T800 35 V60 H0Z"/></svg>`}
-function markt(titel,opts,sv){const best=Math.max(...opts.map(o=>o[1])),bi=opts.findIndex(o=>o[1]==best);
+function payRow(lab,v){if(!v||v.some(x=>x==null||!isFinite(x)))return"";
+ return `<div class="pay"><small>PAYOUT</small>${v.map((x,i)=>`<div class="${x>100?'hi':''}"><span>${lab[i]}</span><b>${kom(x.toFixed(2))}${x>100?" ✓":""}</b></div>`).join("")}</div>`}
+function payout(s,mk,ps){const hq=s.hq||{},m=s.markt;
+ if(mk=="x"&&hq.x)return ps.map((p,i)=>p*hq.x[i]);
+ if(mk=="ou"&&hq.ou)return ps.map((p,i)=>p*hq.ou[i]);
+ const f=m&&(mk=="x"?m["1x2"]:m[mk]);return f?ps.map((p,i)=>f[i]>0?p/f[i]*100:null):null}
+const c100=x=>Math.round((100-x)*10)/10;
+function markt(titel,opts,sv,pay){const best=Math.max(...opts.map(o=>o[1])),bi=opts.findIndex(o=>o[1]==best);
  return `<div class="pg"><div class="pgh"><span>${titel}</span></div>
  <div class="pgb">${opts.map((o,i)=>{const w=!sv&&i==bi,v=sv&&sv[i];const lab=v?`VALUE +${kom(v)}%`:"TIPP";
-  return `<div class="opt${w?' win':''}${v?' sv':''}" style="flex:${Math.max(o[1],14)}">${w||v?`<i class="tipk">${lab}</i>`:""}<span>${o[0]}</span><strong>${kom(o[1])}%</strong></div>`}).join("")}</div></div>`}
+  return `<div class="opt${w?' win':''}${v?' sv':''}" style="flex:${Math.max(o[1],14)}">${w||v?`<i class="tipk">${lab}</i>`:""}<span>${o[0]}</span><strong>${kom(o[1])}%</strong></div>`}).join("")}</div>${pay||""}</div>`}
 function probCard(s,p){const r=res(s);
  const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"],["bts","Beide treffen"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
  const herk=p.quelle?`<p class="hint">★ Zusammengesetzt: 1X2 <b>${p.quelle["1x2"]}</b> · OVER/UNDER <b>${p.quelle.ou}</b> · BTTS <b>${p.quelle.bts}</b> · 1. HZ <b>${p.quelle.ht}</b> · 2. HZ <b>${p.quelle.ht2}</b></p>`:p.quelle_markt?`<p class="hint">Aus den Quoten von <b>${p.quelle_markt}</b>, Marge herausgerechnet.</p>`:"";
  return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${herk}${chk}${besteAlle(s)}${vtBlock(s,p)}
- ${markt("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]])}
- ${markt("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",Math.round((100-p.ue25)*10)/10]])}
- ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",100-p.bts]])}
- ${p.ht?markt("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]])+(p.ht2?markt("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]]):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
+ ${markt("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]],null,payRow(["1","X","2"],payout(s,"x",[p.p1,p.px,p.p2])))}
+ ${markt("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",c100(p.ue25)]],null,payRow(["OVER","UNDER"],payout(s,"ou",[p.ue25,c100(p.ue25)])))}
+ ${markt("Beide Teams treffen",[["Ja",p.bts],["Nein",c100(p.bts)]],null,payRow(["Ja","Nein"],payout(s,"bts",[p.bts,c100(p.bts)])))}
+ ${p.ht?markt("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]],null,payRow(["1","X","2"],payout(s,"ht",p.ht)))+(p.ht2?markt("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]],null,payRow(["1","X","2"],payout(s,"ht2",p.ht2))):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`}
  ${p.value.map(v=>`<div class="val"><div><div style="font-size:12px;font-weight:600">⚡ Value: ${v.markt} @ ${String(v.quote).replace(".",",")}</div><div style="font-size:11px;color:var(--mu)">Modell sieht mehr Chance als die Quote</div></div><b>+${v.edge}%</b></div>`).join("")}
  </div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
 const VKURZ={"Heimsieg":"1","Remis":"X","Auswärtssieg":"2","OVER 2,5":"OVER","UNDER 2,5":"UNDER"};
 function valBadge(p){const v=(p.value||[]).slice().sort((a,b)=>b.edge-a.edge)[0];return v?`<span class="qe">VALUE ${VKURZ[v.markt]||v.markt} +${v.edge}%</span>`:""}
 /* Hoechste Wahrscheinlichkeit ueber alle Maerkte und alle Prognose-Modelle */
-function optionen(p){const o=[["Spielausgang","1",p.p1,"1x2"],["Spielausgang","X",p.px,"1x2"],["Spielausgang","2",p.p2,"1x2"],["OVER / UNDER","OVER",p.ue25,"ou"],["OVER / UNDER","UNDER",100-p.ue25,"ou"],["Beide treffen","Ja",p.bts,"bts"],["Beide treffen","Nein",100-p.bts,"bts"]];
+function optionen(p){const o=[["Spielausgang","1",p.p1,"1x2"],["Spielausgang","X",p.px,"1x2"],["Spielausgang","2",p.p2,"1x2"],["OVER / UNDER","OVER",p.ue25,"ou"],["OVER / UNDER","UNDER",c100(p.ue25),"ou"],["Beide treffen","Ja",p.bts,"bts"],["Beide treffen","Nein",c100(p.bts),"bts"]];
  if(p.ht)["1","X","2"].forEach((k,i)=>o.push(["1. Halbzeit",k,p.ht[i],"ht"]));if(p.ht2)["1","X","2"].forEach((k,i)=>o.push(["2. Halbzeit",k,p.ht2[i],"ht2"]));return o}
 function besteAlle(s){const l=[];for(const m of D.modelle.filter(m=>!m.typ)){const p=s.prog[m.id];if(!p)continue;for(const o of optionen(p))l.push([...o,m.kurz])}
  if(!l.length)return"";l.sort((a,b)=>b[2]-a[2]);const b=l[0],r=res(s);
@@ -614,7 +628,7 @@ function renderTopAlt(){if(isOU(S.modell))return renderTopOU();if(isQ(S.modell))
  $("mchips").innerHTML=MARKTE.map(m=>`<div class="chip${S.markt==m[0]?' on':''}" onclick="S.markt='${m[0]}';renderTop()">${m[1]}</div>`).join("");
  if(S.tmode=="vt")return renderTopVorteil();
  const tag=D.spiele.filter(s=>s.datum==S.tag),done=tag.length&&tag[0].ergebnis!=null;let secs=[];
- if(S.markt=="tore")secs=[["🔥 OVER 2,5",tag.filter(s=>P(s).ue25>=55).map(s=>[s,P(s).ue25,"Ü2.5"]),"ou"],["🧊 UNDER 2,5",tag.filter(s=>P(s).ue25<=45).map(s=>[s,100-P(s).ue25,"U2.5"]),"ou"]];
+ if(S.markt=="tore")secs=[["🔥 OVER 2,5",tag.filter(s=>P(s).ue25>=55).map(s=>[s,P(s).ue25,"Ü2.5"]),"ou"],["🧊 UNDER 2,5",tag.filter(s=>P(s).ue25<=45).map(s=>[s,c100(P(s).ue25),"U2.5"]),"ou"]];
  else if(S.markt=="bts")secs=[["✅ Beide treffen: Ja",tag.filter(s=>P(s).bts>=55).map(s=>[s,P(s).bts,null]),"bts"],["⛔ Beide treffen: Nein",tag.filter(s=>P(s).bts<=45).map(s=>[s,100-P(s).bts,null]),"bts"]];
  else if(S.markt=="ht")secs=[["⏱ Klarste Halbzeit-Tipps",tag.filter(s=>P(s).ht).map(s=>{const[f,fp]=best(P(s).ht,["1","X","2"]);return[s,fp,null,"HZ "+f]}).filter(x=>x[1]>=45),"ht"]];
  else secs=[["🏆 Klarste Favoriten",tag.map(s=>{const[f,fp]=fav(P(s));return[s,fp,f,f]}).filter(x=>x[1]>=50),"1x2"]];
@@ -634,12 +648,13 @@ function lRow(s){const p=P(s),r=res(s);
  const left=`<div class="row" onclick="openDetail(${s.id})"><div class="rt mono">${r?`<b>${s.ergebnis}</b>`:s.zeit}</div><div class="rm"><div>${s.heim}</div><div>${s.gast}</div></div>`;
  if(!p||!p.tipps.length)return left+`<div class="rtip"><span class="ou">kein Tipp</span></div></div>`;
  return left+`<div class="rtip">${lGruppen(p).slice(0,2).map(t=>{const h=r?lWin(t,r):null;return `<span class="tp">📉 ${lName(s,t)}${h!=null?(h?" ✓":" ✕"):""}</span><span class="ou">${t.mods.join(" · ")}</span>`}).join("")}</div></div>`}
+function lClv(m){return m&&m.clv!=null?`${m.clv>0?"+":""}${kom(m.clv.toFixed(1))} %`:"zu wenig"}
 function lCard(s,p){const r=res(s),st=D.linie||{};
  const tipps=p&&p.tipps.length?lGruppen(p).map(t=>{const h=r?lWin(t,r):null;return `<div class="qban"><small>${t.m=="x"?"SPIELAUSGANG":"OVER / UNDER"}</small><div class="big">📉 ${lName(s,t)}${h!=null?(h?" ✓":" ✕"):""}</div><div style="font-size:12px;color:var(--mu)">${t.mods.length} Modell${t.mods.length>1?"e":""}: ${t.mods.join(" · ")}</div></div>`}).join(""):`<div class="card"><p class="msub">Kein Tipp für dieses Spiel.</p></div>`;
- const info=Object.values(st).map(x=>`<div class="qer"><span>${x.kurz}</span><b style="font-size:12px;font-family:inherit"><span style="color:${x.x.aktiv?'var(--gr)':'var(--mu)'}">1X2 ${x.x.aktiv?"✓":"–"}</span> · <span style="color:${x.ou.aktiv?'var(--gr)':'var(--mu)'}">O/U ${x.ou.aktiv?"✓":"–"}</span></b></div>`).join("");
+ const info=Object.values(st).map(x=>`<div class="qer"><span>${x.kurz}</span><b style="font-size:12px;font-family:inherit"><span style="color:${x.x.aktiv?'var(--gr)':'#ff4d7d'}">1X2 ${x.x.aktiv?"✓":"✕"} ${lClv(x.x)}</span> · <span style="color:${x.ou.aktiv?'var(--gr)':'#ff4d7d'}">O/U ${x.ou.aktiv?"✓":"✕"} ${lClv(x.ou)}</span></b></div>`).join("");
  return `<div class="pcard"><div class="pct">LINIE · QUOTENBEWEGUNG · ALLE MODELLE</div>${tipps}
  <div class="qban" style="background:#ffffff08;border-color:#ffffff22;box-shadow:none;color:var(--tx)"><small>WELCHE MODELLE DÜRFEN TIPPEN (SELBSTPRÜFUNG)</small>${info||'<p class="msub">Noch keine Prüfung.</p>'}</div>
- <p class="hint">Ein Modell gibt hier nur Tipps in den Märkten, in denen es im Rückblick die Bewegung der Pinnacle-Quote bis zum Anpfiff richtig vorhergesehen hat (✓). Die Prüfung läuft bei jedem Update neu.</p></div>`}
+ <p class="hint">Ein Modell gibt hier nur Tipps in den Märkten, in denen es im Rückblick die Bewegung der Pinnacle-Quote bis zum Anpfiff richtig vorhergesehen hat (✓). Die Zahl ist der Rückblick-Wert (CLV): positiv = freigegeben, negativ = gesperrt. Die Prüfung läuft bei jedem Update neu.</p></div>`}
 function renderBilanzL(fertig,chips,von,bis){const st=D.linie||{};let w=0,n=0;
  for(const s of fertig){const p=P(s),r=res(s);if(!p||!r)continue;for(const t of lGruppen(p)){n++;if(lWin(t,r))w++}}
  const z=(x,m)=>{const v=x[m];return `<div class="trow" style="cursor:default"><div class="tl"><b>${x.kurz} · ${m=="x"?"1X2":"OVER / UNDER"}</b><small>${v.n} Fälle${v.n?` · Quote fällt ${kom(v.faellt)}% · ROI ${v.roi>0?"+":""}${kom(v.roi)}%`:""}</small></div><div class="tr"><span class="vbad ${v.aktiv?'mk':'no'}">CLV ${v.clv==null?"–":(v.clv>0?"+":"")+kom(v.clv)+"%"}</span><small>${v.aktiv?"darf tippen":"aus"}</small></div></div>`};
