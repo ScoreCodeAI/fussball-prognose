@@ -27,6 +27,7 @@ import kern
 import markt
 import ecken_modell
 import kalibrierung
+import datencheck
 import minmax_modell
 import quoten_modell
 import sv_modell
@@ -173,6 +174,8 @@ def backtest(mod, spiele_land, quoten_land, start):
             except Exception:
                 continue
             p = kern.maerkte(ft, ht)
+            if getattr(mod, "EXTRA", False):
+                p.update(kern.extra(ft, ht))
             q, pk = markt_wkeiten(s)
             hg, ag, hth, hta = int(s["HG"]), int(s["AG"]), _int(s.get("HTHG")), _int(s.get("HTAG"))
             sid = len(spiele_out)
@@ -214,7 +217,7 @@ def _land_arbeit(job):
                     continue
                 qq, _ = markt_wkeiten(f)
                 live.append({"Div": f["Div"], "Date": f["Date"], "Time": str(f.get("Time", "") or "")[:5],
-                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": kern.maerkte(ft, ht), "xg": xg, "q": qq})
+                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": dict(kern.maerkte(ft, ht), **(kern.extra(ft, ht) if getattr(mod, "EXTRA", False) else {})), "xg": xg, "q": qq})
         except Exception as e:
             diag = f"Live-Training fehlgeschlagen: {str(e)[:80]}"
         return land, s_out, k_out, live, diag, time.time() - t0
@@ -298,7 +301,16 @@ def prog_eintrag(p, xg, q, par):
             "ue25": r(p["Ü2.5"] * 100, 1), "bts": r(p["BTS"] * 100, 1), "tipp": p["tipp"], "xg": xg,
             "ht": None if p["HT"] is None else [r(x * 100, 1) for x in p["HT"]],
             "ht2": None if p.get("HT2") is None else [r(x * 100, 1) for x in p["HT2"]],
-            "value": value_liste(p, q, par)}
+            "value": value_liste(p, q, par), **_extra_eintrag(p)}
+
+
+def _extra_eintrag(p):
+    if "CS" not in p:
+        return {}
+    out = {"cs": [[s, r(v * 100, 1)] for s, v in p["CS"]], "ou15": r(p["OU15"] * 100, 1), "ou35": r(p["OU35"] * 100, 1)}
+    if "HTFT" in p:
+        out.update(htft={k: r(v * 100, 1) for k, v in p["HTFT"].items()}, htou05=r(p["HTOU05"] * 100, 1), htou15=r(p["HTOU15"] * 100, 1))
+    return out
 
 
 # ---------- Hauptprogramm ----------
@@ -362,11 +374,19 @@ def main():
             live += lv
             log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
         K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
-        par_kal, kal_info = kalibrierung.walk_forward(alle_spiele)      # Platt-Kalibrierung (ehrlich, Woche fuer Woche)
+        eigen = bool(getattr(mod, "EXTRA", False))     # eigenstaendiges Modell: keine Kalibrierung, keine Quoten
+        if eigen:
+            par_kal, kal_info = None, {}
+            datencheck.berechne(alle_spiele, live)
+            log("   Daten-Check: Rückblick auf eigene Tipps berechnet")
+        else:
+            par_kal, kal_info = kalibrierung.walk_forward(alle_spiele)      # Platt-Kalibrierung (ehrlich, Woche fuer Woche)
         for lv in live:
             lv["p"] = kalibrierung.anwenden(lv["p"], par_kal)
-        log("   Kalibrierung Rückblick (LogLoss roh -> kalibriert, Spiele): " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
-        log(f"   Kalibrierung live: {', '.join(par_kal) if par_kal else 'aus (Rohwerte)'}")
+        if not eigen:
+            log("   Kalibrierung Rückblick (LogLoss roh -> kalibriert, Spiele): " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
+        if not eigen:
+            log(f"   Kalibrierung live: {', '.join(par_kal) if par_kal else 'aus (Rohwerte)'}")
         bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
@@ -378,10 +398,14 @@ def main():
             if woche_start <= sp["Date"] <= woche_ende:
                 e = eintrag(sp["Div"], sp["Date"], sp["Time"], sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"], sp["HT"])
                 e["prog"][key] = prog_eintrag(sp["p"], sp["xg"], sp["q"], par_live)
+                if eigen:
+                    e["prog"][key].update(value=[], dc=sp.get("dc"))
                 n_alt += 1
         for lv in live:
             e = eintrag(lv["Div"], lv["Date"], lv["Time"], lv["Home"], lv["Away"], None, lv["q"])
             e["prog"][key] = prog_eintrag(lv["p"], lv["xg"], lv["q"], par_live)
+            if eigen:
+                e["prog"][key].update(value=[], dc=lv.get("dc"))
         qual_roh[key] = [(s["Date"], s["qual"]) for s in alle_spiele]
         log(f"   Prognosen: {n_alt} letzte Spielwoche, {len(live)} kommend | {time.time() - tm:.0f} s")
 
@@ -390,7 +414,7 @@ def main():
             "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", mod.NAME.split(" ")[0]),
             "icon": getattr(mod, "ICON", "•"), "farbe1": getattr(mod, "FARBE1", "#2bf5a0"),
             "farbe2": getattr(mod, "FARBE2", "#22e4ff"), "beschreibung": getattr(mod, "BESCHREIBUNG", ""),
-            "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
+            "eigen": eigen, "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
             "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
             "einstellung_test": par_test, "einstellung_live": par_live})
 
@@ -441,7 +465,7 @@ def main():
             n_mk += 1
             e["markt"] = mk
         for pr in e["prog"].values():
-            pr["vt"] = markt.vorteile(pr, mk)
+            pr["vt"] = {} if pr.get("dc") is not None or "cs" in pr else markt.vorteile(pr, mk)
     log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
     # Hoechste Quote je Ausgang ueber alle Buchmacher (fuer die PAYOUT-Zeilen)
     for e in liste:
@@ -504,7 +528,7 @@ def main():
                                             "beschreibung": "Je Spiel der höchste OVER/UNDER-Vorteil aus allen Modellen"})
     n_ou = 0
     for e in liste:
-        alle = [(m["kurz"], (e["prog"].get(m["id"]) or {}).get("vt", {}).get("ou")) for m in echte]
+        alle = [(m["kurz"], (e["prog"].get(m["id"]) or {}).get("vt", {}).get("ou")) for m in echte if not m.get("eigen")]
         alle = sorted([(k, v) for k, v in alle if v], key=lambda x: -x[1][3])
         e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
         n_ou += bool(alle)

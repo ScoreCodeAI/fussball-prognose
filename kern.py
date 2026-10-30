@@ -209,3 +209,40 @@ def poisson_lambdas(p, n, i, j):
     A, C, AH, AA, CH, CA = blk
     i, j = np.asarray(i), np.asarray(j)
     return np.exp(mu + h + A[i] + AH[i] + C[j] + CA[j]), np.exp(mu + A[j] + AA[j] + C[i] + CH[i])
+
+
+# ---------- Zusatzmaerkte (fuer Modelle mit EXTRA = True) ----------
+def extra(ft, ht):
+    """Halbzeit/Endstand (9), Correct Score Top 10, O/U 1,5 / 3,5, Halbzeit O/U 0,5 / 1,5.
+    HZ/ES: Halbzeit-Matrix + zweite Halbzeit (erwartete Tore Endstand minus Halbzeit) -> echte gemeinsame Verteilung."""
+    out = {}
+    i0, j0 = np.arange(ft.shape[0]), np.arange(ft.shape[1])
+    idx = np.add.outer(i0, j0)
+    out["OU15"], out["OU35"] = float(ft[idx >= 2].sum()), float(ft[idx >= 4].sum())
+    cs = sorted(((float(ft[i, j]), f"{i}:{j}") for i in i0 for j in j0), reverse=True)[:10]
+    out["CS"] = [[s, p] for p, s in cs]
+    if ht is not None:
+        hi, hj = np.arange(ht.shape[0]), np.arange(ht.shape[1])
+        hidx = np.add.outer(hi, hj)
+        out["HTOU05"], out["HTOU15"] = float(ht[hidx >= 1].sum()), float(ht[hidx >= 2].sum())
+        xh, xa = erwartete_tore(ft)
+        hh, ha = erwartete_tore(ht)
+        g = 10
+        k = np.arange(g + 1)
+        p2h, p2a = poisson.pmf(k, max(xh - hh, 0.05)), poisson.pmf(k, max(xa - ha, 0.05))
+        S = np.outer(p2h, p2a)                       # Tore 2. Halbzeit
+        d2 = np.subtract.outer(k, k)                 # Tordifferenz 2. Halbzeit
+        pd2 = {v: float(S[d2 == v].sum()) for v in range(-g, g + 1)}
+        res = {a + "/" + b: 0.0 for a in "1X2" for b in "1X2"}
+        lab = lambda d: "1" if d > 0 else "X" if d == 0 else "2"
+        for i in hi:
+            for j in hj:
+                p = float(ht[i, j])
+                if p < 1e-9:
+                    continue
+                dh = i - j
+                for v, q in pd2.items():
+                    res[lab(dh) + "/" + lab(dh + v)] += p * q
+        s = sum(res.values())
+        out["HTFT"] = {kk: v / s for kk, v in res.items()}
+    return out
