@@ -604,7 +604,7 @@ function konsens(s,mk){const sv=s.prog.sv,m=s.markt;if(sv&&sv[mk]&&sv[mk].fair)r
 function payout(s,mk,ps){const hq=s.hq||{},m=s.markt;
  if((mk=="x"||mk=="ou")&&hq[mk]){const f=konsens(s,mk),w=mischung();return ps.map((p,i)=>(f?w*p+(1-w)*f[i]:p)*hq[mk][i])}
  const f=m&&(mk=="x"?m["1x2"]:m[mk]);return f?ps.map((p,i)=>f[i]>0?p/f[i]*100:null):null}
-const c100=x=>Math.round((100-x)*10)/10;
+const c100=x=>Math.round((100-x)*100)/100;
 function markt(titel,opts,sv,pay){const best=Math.max(...opts.map(o=>o[1])),bi=opts.findIndex(o=>o[1]==best);
  return `<div class="pg"><div class="pgh"><span>${titel}</span></div>
  <div class="pgb">${opts.map((o,i)=>{const w=!sv&&i==bi,v=sv&&sv[i];const lab=v?`VALUE +${kom(v)}%`:"TIPP";
