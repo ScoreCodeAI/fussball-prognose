@@ -145,12 +145,24 @@ def _int(v):
 
 
 # ---------- Modell aufrufen ----------
+_MARKT = [None]     # optionale Markt-Wahrscheinlichkeiten eines Modells (z. B. Ensemble: eigene Gewichte je Markt)
+
+
+def maerkte_von(ft, ht, mod):
+    p = kern.maerkte(ft, ht)
+    if _MARKT[0]:
+        p.update(_MARKT[0])
+    if getattr(mod, "EXTRA", False):
+        p.update(kern.extra(ft, ht))
+    return p
 def berechne(mod, modell, heim, gast):
     if hasattr(mod, "vorhersage"):
         o = mod.vorhersage(modell, heim, gast)
         ft, ht = o["ft"], o.get("ht")
         xg = o.get("xg") or kern.erwartete_tore(ft)
+        _MARKT[0] = o.get("markt")
     else:   # alte Schnittstelle: nur erwartete Tore, keine eigene Halbzeit
+        _MARKT[0] = None
         lh, la = mod.tore_erwartet(modell, heim, gast)
         ft, ht, xg = kern.matrix_unabhaengig(lh, la), None, [lh, la]
     return ft, ht, [r(xg[0]), r(xg[1])]
@@ -173,9 +185,7 @@ def backtest(mod, spiele_land, quoten_land, start):
                 ft, ht, xg = berechne(mod, modell, s["Home"], s["Away"])
             except Exception:
                 continue
-            p = kern.maerkte(ft, ht)
-            if getattr(mod, "EXTRA", False):
-                p.update(kern.extra(ft, ht))
+            p = maerkte_von(ft, ht, mod)
             q, pk = markt_wkeiten(s)
             hg, ag, hth, hta = int(s["HG"]), int(s["AG"]), _int(s.get("HTHG")), _int(s.get("HTAG"))
             sid = len(spiele_out)
@@ -217,7 +227,7 @@ def _land_arbeit(job):
                     continue
                 qq, _ = markt_wkeiten(f)
                 live.append({"Div": f["Div"], "Date": f["Date"], "Time": str(f.get("Time", "") or "")[:5],
-                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": dict(kern.maerkte(ft, ht), **(kern.extra(ft, ht) if getattr(mod, "EXTRA", False) else {})), "xg": xg, "q": qq})
+                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": maerkte_von(ft, ht, mod), "xg": xg, "q": qq})
         except Exception as e:
             diag = f"Live-Training fehlgeschlagen: {str(e)[:80]}"
         return land, s_out, k_out, live, diag, time.time() - t0
