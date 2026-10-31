@@ -630,6 +630,47 @@ function qcCalc(labs,ps,buch){if(!ps||ps.some(x=>x==null||!(x>0)))return{html:""
  const row=(name,v,hi)=>`<div class="pay${cl}${labs.length>3?' pay9':''}"><small>${name}</small>${v.map((x,i)=>`<div class="${hi(i)?'hi':''}"><span>${labs[i]}</span><b>${f2(x)}${hi(i)?" ✓":""}</b></div>`).join("")}</div>`;
  return{tipp,html:`<div class="qbox" style="--k:${col}"><div class="qbt">${buch?"BUCHMACHER · HÖCHSTE QUOTEN":"MODELL-QUOTEN"}</div>`+row("PAYOUT",ohne,i=>ohne[i]>100)+row("ÜBEREINST.",ue,i=>ue[i]==payr)+
   `<div class="qbi"><div><small>QUOTEN</small><b>${q.map(fq).join(" · ")}</b></div><div><small>PAYOUT · MARGE</small><b><span style="color:${col}">${f2(payr)}</span> · ${f2(mar)}</b></div><div style="grid-column:1/-1"><small>KATEGORIE</small><b class="qbk">${tipp.length?"@@KAT@@":"keine exakte Übereinstimmung"}</b></div></div></div>`}}
+/* ---------- Live-Rechner ---------- */
+function poi(l,k){let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p}
+function liveCalc(id){const s=D.spiele.find(x=>x.id==id),p=s.prog[S.dtab]||{},xg=p.xg;if(!xg)return;
+ const g=n=>{const v=parseFloat(String($(n).value).replace(",","."));return isNaN(v)?null:v};
+ const min=Math.min(Math.max(g("lv_min")??0,0),95),hg=g("lv_h")??0,ag=g("lv_a")??0,rest=Math.max(95-min,0)/95;
+ const lh=Math.max(xg[0],.05)*rest,la=Math.max(xg[1],.05)*rest,lt=lh+la;
+ const kein=Math.exp(-lt),nh=lt>0?lh/lt*(1-kein):0,na=lt>0?la/lt*(1-kein):0;
+ let p1=0,px=0,p2=0,ou=0;for(let i=0;i<=10;i++)for(let j=0;j<=10;j++){const pr=poi(lh,i)*poi(la,j),H=hg+i,A=ag+j;if(H>A)p1+=pr;else if(H==A)px+=pr;else p2+=pr;if(H+A>2)ou+=pr}
+ const pct=x=>kom((x*100).toFixed(1))+"%",qs=["lv_q1","lv_qx","lv_q2"].map(g),fair=x=>kom((1/Math.max(x,1e-6)).toFixed(2));
+ const stufe=(v,st,mi)=>v>=st?["🟢","STARKES SIGNAL","#2bf5a0"]:v>=mi?["🟡","MITTLERES SIGNAL","#ffd84d"]:["⚪","KEIN KLARES SIGNAL","var(--mu)"];
+ const sigBox=(titel,text,v,st,mi)=>{const[i,t,c]=stufe(v,st,mi);return `<div style="border:1px solid ${c}66;border-left:4px solid ${c};border-radius:12px;padding:8px 10px;margin-top:8px"><small style="color:var(--mu);letter-spacing:1px">${titel}</small><div style="font-size:16px;font-weight:700;color:${c};margin-top:2px">${i} ${t}</div><div style="font-size:15px;margin-top:2px">${text} <b>${pct(v)}</b></div></div>`};
+ const N=[s.heim,"Remis",s.gast],P=[p1,px,p2],best=P.indexOf(Math.max(...P));
+ const NT=[[s.heim+" trifft als Nächstes",nh],["Kein Tor mehr",kein],[s.gast+" trifft als Nächstes",na]].sort((a,b)=>b[1]-a[1])[0];
+ const OU=ou>=.5?["OVER 2,5 am Ende",ou]:["UNDER 2,5 am Ende",1-ou];
+ const quoten=qs.some(q=>q>1)?`<div class="ueg" style="color:#ffb02b">MIT LIVE-QUOTEN</div>`+N.map((n,i)=>{const q=qs[i];if(!(q>1))return"";const ok=P[i]*q>1;
+   return `<div class="qer"><span>${n} · Quote ${kom(q.toFixed(2))}</span><b style="color:${ok?'#2bf5a0':'#ff4d7d'}">${ok?"✅ LOHNT":"❌ LOHNT NICHT"}<br><small style="color:var(--mu);font-weight:400">fair wäre ${fair(P[i])}</small></b></div>`}).join(""):"";
+ const mitQ=qs.some(q=>q>1);let haupt;
+ if(mitQ){const ev=P.map((pr,i)=>qs[i]>1?pr*qs[i]-1:-9),bi=ev.indexOf(Math.max(...ev)),ok=ev[bi]>0;
+  const c=ok?"#2bf5a0":"var(--mu)";
+  haupt=`<div style="border:1px solid ${c}66;border-left:4px solid ${c};border-radius:12px;padding:8px 10px;margin-top:8px"><small style="color:var(--mu);letter-spacing:1px">ENDERGEBNIS · VALUE (ab ${hg}:${ag}, ${min}. Min.)</small>
+  <div style="font-size:16px;font-weight:700;color:${c};margin-top:2px">${ok?"🟢 VALUE GEFUNDEN":"⚪ KEIN VALUE"}</div>
+  <div style="font-size:15px;margin-top:2px">${ok?`${N[bi]}${bi==1?"":" gewinnt"} @ <b>${kom(qs[bi].toFixed(2))}</b> · fair ${fair(P[bi])} · <b style="color:#2bf5a0">+${kom((ev[bi]*100).toFixed(1))} %</b>`:"Keine der eingetragenen Quoten ist höher als die faire Quote."}</div></div>`}
+ else haupt=sigBox("ENDERGEBNIS (ab "+hg+":"+ag+", "+min+". Min.)",N[best]+(best==1?"":" gewinnt"),P[best],.6,.5);
+ $("lv_out").innerHTML=`<div style="font-size:11px;letter-spacing:1.5px;font-weight:700;color:${mitQ?'#ffb02b':'#22e4ff'};margin-top:4px">MODUS · ${mitQ?"VALUE (mit Live-Quoten)":"SIGNAL (ohne Quoten)"}</div>
+ <div class="qer"><span>Erwartete Resttore</span><b>${kom(lh.toFixed(2))} : ${kom(la.toFixed(2))}</b></div>
+ ${haupt}
+ ${sigBox("NÄCHSTES TOR",NT[0],NT[1],.55,.45)}
+ ${sigBox("TORE",OU[0],OU[1],.7,.6)}
+ <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mu);font-size:12px">alle Prozente anzeigen</summary>
+ ${N.map((n,i)=>`<div class="qer"><span>${n}</span><b>${pct(P[i])}</b></div>`).join("")}
+ <div class="qer"><span>Nächstes Tor ${s.heim} · keins · ${s.gast}</span><b>${pct(nh)} · ${pct(kein)} · ${pct(na)}</b></div>
+ <div class="qer"><span>OVER 2,5 am Ende</span><b>${pct(ou)}</b></div></details>${quoten}`}
+function liveReset(id,was){const f=was=="quoten"?["lv_q1","lv_qx","lv_q2"]:["lv_min","lv_h","lv_a","lv_q1","lv_qx","lv_q2"];f.forEach(n=>{if($(n))$(n).value=""});liveCalc(id);$(was=="quoten"?"lv_q1":"lv_min").focus()}
+function liveCard(s,p){if(!p||!p.xg)return"";const r=res(s);
+ const inp=(id,ph,w)=>`<input id="${id}" inputmode="decimal" placeholder="${ph}" oninput="liveCalc(${s.id})" style="width:${w};background:#ffffff10;border:1px solid #ffffff22;border-radius:8px;color:var(--tx);padding:8px;font-size:15px;text-align:center">`;
+ return `<details class="qban" style="border-color:#22e4ff55"><summary style="cursor:pointer;font-weight:700;color:#22e4ff;letter-spacing:1px">⏱ LIVE-RECHNER · ${M2(S.dtab).kurz.toUpperCase()}</summary>
+ <p class="hint" style="margin:8px 0">Minute und Spielstand eintragen – das Signal kommt sofort. Live-Quoten sind freiwillig (dann siehst du zusätzlich, ob sich eine Wette lohnt). Grundlage: erwartete Tore dieses Modells (${kom(p.xg[0])} : ${kom(p.xg[1])}). Rote Karten und Spielverlauf kennt der Rechner nicht.</p>
+ <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${inp("lv_min","Min.","62px")}<span>Min.</span>${inp("lv_h","0","48px")}<b>:</b>${inp("lv_a","0","48px")}</div>
+ <div style="display:flex;gap:6px;margin-top:6px;align-items:center"><small style="color:var(--mu)">Live-Quoten</small>${inp("lv_q1","1","64px")}${inp("lv_qx","X","64px")}${inp("lv_q2","2","64px")}</div>
+ <div style="display:flex;gap:6px;margin-top:8px"><button onclick="liveReset(${s.id},'alle')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #ff4d7d88;background:#ff4d7d1f;color:#ff4d7d;font-weight:700;font-size:14px">🗑 ALLES LÖSCHEN</button><button onclick="liveReset(${s.id},'quoten')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #ffb02b88;background:#ffb02b1a;color:#ffb02b;font-weight:700;font-size:14px">🗑 NUR QUOTEN</button></div>
+ <div id="lv_out" style="margin-top:8px"></div></details>`}
 function qsrc(s,mk){const q=(s.qquelle||{})[mk]||"football-data";return `<span class="qsrc ${q=="ODDS API"?"api":"fd"}">${q}</span>`}
 function qcRows(labs,ps){return qcCalc(labs,ps).html}
 function dcRow(s,p,mk,lab){if(!p.dc)return"";const d=p.dc[mk];if(!d)return"";
@@ -651,7 +692,7 @@ function probCard(s,p){const r=res(s),hq=s.hq||{};
   +(p.ht?blk("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]],L3,p.ht)+(p.ht2?blk("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]],L3,p.ht2):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`);
  const li=(L,col)=>L.length?L.map(([t,tp])=>`<div class="qer"><span style="font-size:15px">${t}</span><b style="color:${col};font-size:17px">${tp.map(NM).join(" · ")}</b></div>`).join(""):`<p class="msub" style="margin:4px 0">keine</p>`;
  const ue=`<div class="qban"><small style="font-size:12px">ÜBEREINSTIMMUNGEN · DIESES MODELL</small><div class="ueg" style="color:#2bf5a0">MODELL-QUOTEN</div>${li(tm,"#2bf5a0")}<div class="ueg" style="color:#ffb02b">BUCHMACHER · HÖCHSTE QUOTEN</div>${li(tb,"#ffb02b")}</div>`;
- return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}${ue}${body}</div>`}
+ return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}${r?"":liveCard(s,p)}${ue}${body}</div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
 function probEigen(s,p,r){return probCard(s,p)}
 const VKURZ={"Heimsieg":"1","Remis":"X","Auswärtssieg":"2","OVER 2,5":"OVER","UNDER 2,5":"UNDER"};
