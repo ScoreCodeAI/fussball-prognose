@@ -28,7 +28,6 @@ import markt
 import ecken_modell
 import kalibrierung
 import datencheck
-import minmax_modell
 import quoten_modell
 import sv_modell
 import xgb_modell
@@ -513,24 +512,6 @@ def main():
         ergebnis["modelle"].append(dict(ecken_modell.INFO))
     except Exception as ex:
         log("Ecken-Prognose fehlgeschlagen:", ex)
-
-    # Modell MM · Min-Max-Analyse (Georgis Prozess)
-    ergebnis["modelle"].append(dict(minmax_modell.INFO))
-    n_mm = 0
-    for e in liste:
-        try:
-            me = minmax_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
-        except Exception:
-            me = None
-        e["prog"]["mm"] = me
-        n_mm += me is not None
-    log(f"Min-Max-Analyse: {n_mm} von {len(liste)} Spielen")
-    # QA-Liste: Tagesliste der Quoten-Analyse-Tipps (nur Anzeige, nutzt SV und Min-Max)
-    ergebnis["modelle"].append({"id": "qaliste", "typ": "qaliste", "name": "QA-Liste · Tipps je Tag", "kurz": "QA-Liste",
-                                "icon": "📋", "farbe1": "#2bf5a0", "farbe2": "#ffd84d",
-                                "beschreibung": "Alle Spiele eines Tages mit Tipp X, 1 oder 2 aus Quoten-Analyse und Min-Max"})
-    for e in liste:
-        e["prog"]["qaliste"] = {}
 
     # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
     ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",
