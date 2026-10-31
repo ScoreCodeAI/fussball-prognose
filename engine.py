@@ -28,6 +28,7 @@ import markt
 import ecken_modell
 import kalibrierung
 import datencheck
+import odds_api
 import quoten_modell
 import sv_modell
 import xgb_modell
@@ -493,6 +494,16 @@ def main():
         if hq:
             e["hq"] = hq
     echte = list(ergebnis["modelle"])
+
+    # The Odds API: frischere Hoechstquoten fuer die Spiele der naechsten Stunden (+ Archiv fuer vergangene)
+    try:
+        kommend = [{"liga": x["liga"], "datum": x["datum"], "heim": x["heim"], "gast": x["gast"]} for x in liste if not x.get("ergebnis")]
+        archiv, ergebnis["odds_api"] = odds_api.holen(kommend, os.path.join(ORDNER, "docs", "odds_archiv.json"), log)
+        log(f"Odds API: {odds_api.anwenden(liste, archiv)} Spiele mit Odds-API-Quoten | Credits uebrig {ergebnis['odds_api'].get('rest')}")
+    except Exception as ex:
+        log("Odds API fehlgeschlagen:", ex)
+        for x in liste:
+            x.setdefault("qquelle", {"x": "football-data", "ou": "football-data"})
 
     # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
     ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))
