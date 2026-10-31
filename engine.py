@@ -297,19 +297,19 @@ def value_liste(p, q, par):
 
 
 def prog_eintrag(p, xg, q, par):
-    return {"p1": r(p["1"] * 100, 1), "px": r(p["X"] * 100, 1), "p2": r(p["2"] * 100, 1),
-            "ue25": r(p["Ü2.5"] * 100, 1), "bts": r(p["BTS"] * 100, 1), "tipp": p["tipp"], "xg": xg,
-            "ht": None if p["HT"] is None else [r(x * 100, 1) for x in p["HT"]],
-            "ht2": None if p.get("HT2") is None else [r(x * 100, 1) for x in p["HT2"]],
+    return {"p1": r(p["1"] * 100, 2), "px": r(p["X"] * 100, 2), "p2": r(p["2"] * 100, 2),
+            "ue25": r(p["Ü2.5"] * 100, 2), "bts": r(p["BTS"] * 100, 2), "tipp": p["tipp"], "xg": xg,
+            "ht": None if p["HT"] is None else [r(x * 100, 2) for x in p["HT"]],
+            "ht2": None if p.get("HT2") is None else [r(x * 100, 2) for x in p["HT2"]],
             "value": value_liste(p, q, par), **_extra_eintrag(p)}
 
 
 def _extra_eintrag(p):
     if "CS" not in p:
         return {}
-    out = {"cs": [[s, r(v * 100, 1)] for s, v in p["CS"]], "ou15": r(p["OU15"] * 100, 1), "ou35": r(p["OU35"] * 100, 1)}
+    out = {"cs": [[s, r(v * 100, 2)] for s, v in p["CS"]], "ou15": r(p["OU15"] * 100, 2), "ou35": r(p["OU35"] * 100, 2)}
     if "HTFT" in p:
-        out.update(htft={k: r(v * 100, 1) for k, v in p["HTFT"].items()}, htou05=r(p["HTOU05"] * 100, 1), htou15=r(p["HTOU15"] * 100, 1))
+        out.update(htft={k: r(v * 100, 2) for k, v in p["HTFT"].items()}, htou05=r(p["HTOU05"] * 100, 2), htou15=r(p["HTOU15"] * 100, 2))
     return out
 
 
