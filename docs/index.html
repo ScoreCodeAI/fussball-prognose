@@ -222,6 +222,7 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .ttop.y{background:#2bf5a026;color:var(--gr);box-shadow:0 0 12px #2bf5a033}.ttop.n{background:#ff4d7d26;color:#ff4d7d;box-shadow:0 0 12px #ff4d7d33}
 .tmk{font-size:10.5px;color:var(--mu);text-align:right;margin-bottom:3px}
 .card.hell{background:linear-gradient(180deg,#2a3170,#1b2050);border-color:#5b66c855}
+.pay.echt div{border-color:#a99bff33;background:#a99bff0d}.pay.echt div.hi{border-color:#a99bffaa;background:#a99bff1f}.pay.echt div.hi b{color:#a99bff}
 .pay.buch div{border-color:#ffb02b33;background:#ffb02b0d}.pay.buch div.hi{border-color:#ffb02baa;background:#ffb02b1f;animation:buchglow 2.8s ease-in-out infinite}.pay.buch div.hi b{color:#ffb02b}@keyframes buchglow{50%{box-shadow:0 0 10px #ffb02b44}}
 .qbox{border:1px solid color-mix(in srgb,var(--k) 35%,transparent);border-left:4px solid var(--k);border-radius:12px;padding:8px 10px 10px;margin-top:8px;background:color-mix(in srgb,var(--k) 5%,transparent)}
 .qbt{font-size:12px;font-weight:700;letter-spacing:1.5px;color:var(--k)}
@@ -432,7 +433,7 @@ function vhit(mk,lab,r){if(!r)return null;const t=r.h+r.a;switch(mk){
 /* echte Quote (falls vorhanden), sonst Markt-Quote ohne Marge */
 function vquote(s,mk,v){const q=s.quoten||{};if(mk=="1x2"&&q[v[0]])return[q[v[0]],1];
  if(mk=="ou"){const k=v[0].startsWith("OVER")?"Ü2.5":"U2.5";if(q[k])return[q[k],1]}return[+(100/v[2]).toFixed(2),0]}
-const VTM=[["1x2","🏆 1X2"],["ou","⚽ OVER / UNDER"],["bts","🤝 BTTS"],["ht","⏱ 1. Halbzeit"],["ht2","⏱ 2. Halbzeit"]];
+const VTM=[["1x2","🏆 1X2"],["ou","⚽ OVER / UNDER"],["ht","⏱ 1. Halbzeit"],["ht2","⏱ 2. Halbzeit"]];
 const kom=x=>String(x).replace(".",",");
 /* ---------- O/U · Bester Vorteil aus allen Modellen ---------- */
 const isOU=id=>(D.modelle.find(m=>m.id==id)||{}).typ=="oubest";
@@ -630,49 +631,32 @@ function qcCalc(labs,ps,buch){if(!ps||ps.some(x=>x==null||!(x>0)))return{html:""
  const row=(name,v,hi)=>`<div class="pay${cl}${labs.length>3?' pay9':''}"><small>${name}</small>${v.map((x,i)=>`<div class="${hi(i)?'hi':''}"><span>${labs[i]}</span><b>${f2(x)}${hi(i)?" ✓":""}</b></div>`).join("")}</div>`;
  return{tipp,html:`<div class="qbox" style="--k:${col}"><div class="qbt">${buch?"BUCHMACHER · HÖCHSTE QUOTEN":"MODELL-QUOTEN"}</div>`+row("PAYOUT",ohne,i=>ohne[i]>100)+row("ÜBEREINST.",ue,i=>ue[i]==payr)+
   `<div class="qbi"><div><small>QUOTEN</small><b>${q.map(fq).join(" · ")}</b></div><div><small>PAYOUT · MARGE</small><b><span style="color:${col}">${f2(payr)}</span> · ${f2(mar)}</b></div><div style="grid-column:1/-1"><small>KATEGORIE</small><b class="qbk">${tipp.length?"@@KAT@@":"keine exakte Übereinstimmung"}</b></div></div></div>`}}
-/* ---------- Live-Rechner ---------- */
-function poi(l,k){let p=Math.exp(-l);for(let i=1;i<=k;i++)p*=l/i;return p}
-function liveCalc(id){const s=D.spiele.find(x=>x.id==id),p=s.prog[S.dtab]||{},xg=p.xg;if(!xg)return;
- const g=n=>{const v=parseFloat(String($(n).value).replace(",","."));return isNaN(v)?null:v};
- const min=Math.min(Math.max(g("lv_min")??0,0),95),hg=g("lv_h")??0,ag=g("lv_a")??0,rest=Math.max(95-min,0)/95;
- const lh=Math.max(xg[0],.05)*rest,la=Math.max(xg[1],.05)*rest,lt=lh+la;
- const kein=Math.exp(-lt),nh=lt>0?lh/lt*(1-kein):0,na=lt>0?la/lt*(1-kein):0;
- let p1=0,px=0,p2=0,ou=0;for(let i=0;i<=10;i++)for(let j=0;j<=10;j++){const pr=poi(lh,i)*poi(la,j),H=hg+i,A=ag+j;if(H>A)p1+=pr;else if(H==A)px+=pr;else p2+=pr;if(H+A>2)ou+=pr}
- const pct=x=>kom((x*100).toFixed(1))+"%",qs=["lv_q1","lv_qx","lv_q2"].map(g),fair=x=>kom((1/Math.max(x,1e-6)).toFixed(2));
- const stufe=(v,st,mi)=>v>=st?["🟢","STARKES SIGNAL","#2bf5a0"]:v>=mi?["🟡","MITTLERES SIGNAL","#ffd84d"]:["⚪","KEIN KLARES SIGNAL","var(--mu)"];
- const sigBox=(titel,text,v,st,mi)=>{const[i,t,c]=stufe(v,st,mi);return `<div style="border:1px solid ${c}66;border-left:4px solid ${c};border-radius:12px;padding:8px 10px;margin-top:8px"><small style="color:var(--mu);letter-spacing:1px">${titel}</small><div style="font-size:16px;font-weight:700;color:${c};margin-top:2px">${i} ${t}</div><div style="font-size:15px;margin-top:2px">${text} <b>${pct(v)}</b></div></div>`};
- const N=[s.heim,"Remis",s.gast],P=[p1,px,p2],best=P.indexOf(Math.max(...P));
- const NT=[[s.heim+" trifft als Nächstes",nh],["Kein Tor mehr",kein],[s.gast+" trifft als Nächstes",na]].sort((a,b)=>b[1]-a[1])[0];
- const OU=ou>=.5?["OVER 2,5 am Ende",ou]:["UNDER 2,5 am Ende",1-ou];
- const quoten=qs.some(q=>q>1)?`<div class="ueg" style="color:#ffb02b">MIT LIVE-QUOTEN</div>`+N.map((n,i)=>{const q=qs[i];if(!(q>1))return"";const ok=P[i]*q>1;
-   return `<div class="qer"><span>${n} · Quote ${kom(q.toFixed(2))}</span><b style="color:${ok?'#2bf5a0':'#ff4d7d'}">${ok?"✅ LOHNT":"❌ LOHNT NICHT"}<br><small style="color:var(--mu);font-weight:400">fair wäre ${fair(P[i])}</small></b></div>`}).join(""):"";
- const mitQ=qs.some(q=>q>1);let haupt;
- if(mitQ){const ev=P.map((pr,i)=>qs[i]>1?pr*qs[i]-1:-9),bi=ev.indexOf(Math.max(...ev)),ok=ev[bi]>0;
-  const c=ok?"#2bf5a0":"var(--mu)";
-  haupt=`<div style="border:1px solid ${c}66;border-left:4px solid ${c};border-radius:12px;padding:8px 10px;margin-top:8px"><small style="color:var(--mu);letter-spacing:1px">ENDERGEBNIS · VALUE (ab ${hg}:${ag}, ${min}. Min.)</small>
-  <div style="font-size:16px;font-weight:700;color:${c};margin-top:2px">${ok?"🟢 VALUE GEFUNDEN":"⚪ KEIN VALUE"}</div>
-  <div style="font-size:15px;margin-top:2px">${ok?`${N[bi]}${bi==1?"":" gewinnt"} @ <b>${kom(qs[bi].toFixed(2))}</b> · fair ${fair(P[bi])} · <b style="color:#2bf5a0">+${kom((ev[bi]*100).toFixed(1))} %</b>`:"Keine der eingetragenen Quoten ist höher als die faire Quote."}</div></div>`}
- else haupt=sigBox("ENDERGEBNIS (ab "+hg+":"+ag+", "+min+". Min.)",N[best]+(best==1?"":" gewinnt"),P[best],.6,.5);
- $("lv_out").innerHTML=`<div style="font-size:11px;letter-spacing:1.5px;font-weight:700;color:${mitQ?'#ffb02b':'#22e4ff'};margin-top:4px">MODUS · ${mitQ?"VALUE (mit Live-Quoten)":"SIGNAL (ohne Quoten)"}</div>
- <div class="qer"><span>Erwartete Resttore</span><b>${kom(lh.toFixed(2))} : ${kom(la.toFixed(2))}</b></div>
- ${haupt}
- ${sigBox("NÄCHSTES TOR",NT[0],NT[1],.55,.45)}
- ${sigBox("TORE",OU[0],OU[1],.7,.6)}
- <details style="margin-top:8px"><summary style="cursor:pointer;color:var(--mu);font-size:12px">alle Prozente anzeigen</summary>
- ${N.map((n,i)=>`<div class="qer"><span>${n}</span><b>${pct(P[i])}</b></div>`).join("")}
- <div class="qer"><span>Nächstes Tor ${s.heim} · keins · ${s.gast}</span><b>${pct(nh)} · ${pct(kein)} · ${pct(na)}</b></div>
- <div class="qer"><span>OVER 2,5 am Ende</span><b>${pct(ou)}</b></div></details>${quoten}`}
-function liveReset(id,was){const f=was=="quoten"?["lv_q1","lv_qx","lv_q2"]:["lv_min","lv_h","lv_a","lv_q1","lv_qx","lv_q2"];f.forEach(n=>{if($(n))$(n).value=""});liveCalc(id);$(was=="quoten"?"lv_q1":"lv_min").focus()}
-function liveCard(s,p){if(!p||!p.xg)return"";const r=res(s);
- const inp=(id,ph,w)=>`<input id="${id}" inputmode="decimal" placeholder="${ph}" oninput="liveCalc(${s.id})" style="width:${w};background:#ffffff10;border:1px solid #ffffff22;border-radius:8px;color:var(--tx);padding:8px;font-size:15px;text-align:center">`;
- return `<details class="qban" style="border-color:#22e4ff55"><summary style="cursor:pointer;font-weight:700;color:#22e4ff;letter-spacing:1px">⏱ LIVE-RECHNER · ${M2(S.dtab).kurz.toUpperCase()}</summary>
- <p class="hint" style="margin:8px 0">Minute und Spielstand eintragen – das Signal kommt sofort. Live-Quoten sind freiwillig (dann siehst du zusätzlich, ob sich eine Wette lohnt). Grundlage: erwartete Tore dieses Modells (${kom(p.xg[0])} : ${kom(p.xg[1])}). Rote Karten und Spielverlauf kennt der Rechner nicht.</p>
- <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${inp("lv_min","Min.","62px")}<span>Min.</span>${inp("lv_h","0","48px")}<b>:</b>${inp("lv_a","0","48px")}</div>
- <div style="display:flex;gap:6px;margin-top:6px;align-items:center"><small style="color:var(--mu)">Live-Quoten</small>${inp("lv_q1","1","64px")}${inp("lv_qx","X","64px")}${inp("lv_q2","2","64px")}</div>
- <div style="display:flex;gap:6px;margin-top:8px"><button onclick="liveReset(${s.id},'alle')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #ff4d7d88;background:#ff4d7d1f;color:#ff4d7d;font-weight:700;font-size:14px">🗑 ALLES LÖSCHEN</button><button onclick="liveReset(${s.id},'quoten')" style="flex:1;padding:10px;border-radius:10px;border:1px solid #ffb02b88;background:#ffb02b1a;color:#ffb02b;font-weight:700;font-size:14px">🗑 NUR QUOTEN</button></div>
- <div id="lv_out" style="margin-top:8px"></div></details>`}
 function qsrc(s,mk){const q=(s.qquelle||{})[mk]||"football-data";return `<span class="qsrc ${q=="ODDS API"?"api":"fd"}">${q}</span>`}
 function qcRows(labs,ps){return qcCalc(labs,ps).html}
+function echtCalc(labs,ps,buch){if(!buch||buch.some(x=>!(x>1))||!ps||ps.some(x=>x==null))return{html:"",t1:[],t2:[],t3:[]};
+ const r2=x=>Math.round(x*100)/100,f2=x=>kom(r2(x).toFixed(2)),S=buch.reduce((a,x)=>a+1/x,0);
+ const eq=buch.map(x=>r2(x*S)),own=eq.map(x=>r2(100/x)),Se=eq.reduce((a,x)=>a+1/x,0),rr=eq.map(x=>r2(100/x/Se));
+ const v1=eq.map((q,i)=>r2(q*own[i])),v2=eq.map((q,i)=>r2(q*rr[i])),v3=eq.map((q,i)=>r2(q*ps[i]));
+ const ue=v=>v.map(x=>r2(100-Math.abs(x-100))),u1=ue(v1),u2=ue(v2),u3=ue(v3);
+ const nah=u=>{const m=Math.max(...u);return labs.filter((l,i)=>u[i]==m)},t1=nah(u1),t2=nah(u2);
+ const b3=Math.max(...v3),t3=b3>100?labs.filter((l,i)=>v3[i]==b3):[];
+ const P1=r2(100/Se),P2=r2(rr.reduce((a,x)=>a+x,0));
+ const row=(name,v,hi)=>`<div class="pay echt${labs.length>3?' pay9':''}"><small>${name}</small>${v.map((x,i)=>`<div class="${hi(i)?'hi':''}"><span>${labs[i]}</span><b>${f2(x)}${hi(i)&&name=="PAYOUT"?" ✓":""}</b></div>`).join("")}</div>`;
+ const fuss=(a,b,kat)=>`<div class="qbi"><div><small>${a}</small><b style="color:#a99bff">${b}</b></div><div><small>KATEGORIE</small><b class="qbk">${kat}</b></div></div>`;
+ const vt=t=>`<div class="ueg" style="color:#a99bff;margin-top:10px">${t}</div>`;
+ const html=`<div class="qbox" style="--k:#a99bff"><div class="qbt">ECHTE QUOTEN · OHNE MARGE</div>`+row("ECHTE Q.",eq,()=>false)
+  +vt("V1 · EIGENE %")+row("PAYOUT",v1,i=>t1.includes(labs[i]))+row("ÜBEREINST.",u1,()=>false)+fuss("PAYOUT · MARGE",`${f2(P1)} · ${f2(100-P1)}`,"@@K1@@")
+  +vt("V2 · REALE %")+row("PAYOUT",v2,i=>t2.includes(labs[i]))+row("ÜBEREINST.",u2,()=>false)+fuss("PAYOUT · MARGE",`${f2(P2)} · ${f2(100-P2)}`,"@@K2@@")
+  +vt("V3 · MODELL %")+row("PAYOUT",v3,i=>t3.includes(labs[i]))+row("ÜBEREINST.",u3,()=>false)+fuss("BESTER PAYOUT · VALUE",`${f2(b3)} · ${b3>=100?"+":""}${f2(b3-100)}`,"@@K3@@")+`</div>`;
+ return{html,t1,t2,t3}}
+function ttBlock(s,p){if(!p.tt)return"";const r=res(s),tq=(M2(S.dtab)||{}).tt_quote,L=["0","1+","2+","3+"];
+ const tip=v=>{for(const i of[3,2,1])if(v[i]>=50)return i;return 0};
+ const team=(name,v,tore)=>{const t=tip(v),h=tore==null?null:(t==0?tore==0:tore>=t);
+  return `<div class="ueg" style="color:#2bf5a0;margin-top:8px">${name.toUpperCase()}${h!=null?(h?" ✓":" ✕"):""}</div>
+  <div class="pay"><small>W. %</small>${v.map((x,i)=>`<div class="${i==t?'hi':''}"><span>${L[i]}</span><b>${kom(x.toFixed(2))}${i==t?" ✓":""}</b></div>`).join("")}</div>
+  <div class="pay"><small>MODELL-Q.</small>${v.map((x,i)=>`<div><span>${L[i]}</span><b>${x>0?kom((100/x).toFixed(3)):"–"}</b></div>`).join("")}</div>`};
+ return `<div class="pg"><div class="pgh"><span>Tore je Team</span>${p.xg?`<b>erwartet ${kom(p.xg[0])} : ${kom(p.xg[1])}</b>`:""}</div>${team(s.heim,p.tt.h,r?r.h:null)}${team(s.gast,p.tt.a,r?r.a:null)}
+  <div style="font-size:11px;color:var(--mu);margin:6px 2px 0">0 = kein Tor · 2+ = mind. 2 Tore · ✓ = höchste Stufe mit mind. 50 %${tq?` · Backtest: ${kom(tq.treffer)} % Treffer (${tq.n.toLocaleString("de-DE")} Tipps)`:""}</div></div>`}
 function dcRow(s,p,mk,lab){if(!p.dc)return"";const d=p.dc[mk];if(!d)return"";
  if(!d.p)return `<div class="pay"><small>DATEN-CHECK</small><div><span>zu wenig ähnliche Spiele (${d.n})</span></div></div>`;
  const r=res(s),idx=d.p.indexOf(Math.max(...d.p)),labs=lab||["1","X","2"];
@@ -680,25 +664,26 @@ function dcRow(s,p,mk,lab){if(!p.dc)return"";const d=p.dc[mk];if(!d)return"";
  return `<div class="pay"><small>DATEN-CHECK</small>${d.p.map((v,i)=>`<div class="${i==idx?'hi':''}"><span>${labs[i]}</span><b>${kom(v)}%${i==idx?" ✓":""}</b></div>`).join("")}</div>
  <div style="font-size:11px;color:var(--mu);margin:3px 0 0 2px">${d.n} ähnliche Spiele → laut Daten: <b style="color:var(--gr)">${bez(d.tipp)}</b></div>`}
 function probCard(s,p){const r=res(s),hq=s.hq||{};
- const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"],["bts","Beide treffen"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
- const NM=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":k,L3=["1","X","2"],OU=["OVER","UNDER"],tm=[],tb=[];
+ const chk=r?`<div class="checkrow">${[["1x2","1X2"],["ht","1. HZ"],["ht2","2. HZ"],["ou","OVER/UNDER"]].map(([k,n])=>{const ok=hit(k,p,r);if(ok==null)return"";return `<span class="ck ${ok?'y':'n'}">${n} ${ok?'✓':'✕'}</span>`}).join("")}</div>`:"";
+ const NM=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":k,L3=["1","X","2"],OU=["OVER","UNDER"],tm=[],tb=[],te=[];
  const kat=(m)=>m.html.replace("@@KAT@@",m.tipp.map(NM).join(" · "));
  const blk=(titel,opts,labs,ps,buch,mk)=>{const m=qcCalc(labs,ps);if(m.tipp.length)tm.push([titel,m.tipp]);
-  let b=null;if(buch){b=qcCalc(labs,ps,buch);if(b.tipp.length)tb.push([titel,b.tipp])}
-  return markt(titel,opts,null,kat(m)+(b?kat(b).replace("HÖCHSTE QUOTEN</div>","HÖCHSTE QUOTEN"+qsrc(s,mk)+"</div>"):""))};
+  let b=null,ec="";if(buch){b=qcCalc(labs,ps,buch);if(b.tipp.length)tb.push([titel,b.tipp]);
+   const e=echtCalc(labs,ps,buch),k=t=>t.length?t.map(NM).join(" · "):"keine";ec=e.html.replace("@@K1@@",k(e.t1)).replace("@@K2@@",k(e.t2)).replace("@@K3@@",e.t3.length?k(e.t3):"kein Value");
+   if(e.html)te.push([titel,e.t1,e.t2,e.t3])}
+  return markt(titel,opts,null,kat(m)+(b?kat(b).replace("HÖCHSTE QUOTEN</div>","HÖCHSTE QUOTEN"+qsrc(s,mk)+"</div>"):"")+ec)};
  let body=blk("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]],L3,[p.p1,p.px,p.p2],hq.x,"x")
   +blk("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",c100(p.ue25)]],OU,[p.ue25,c100(p.ue25)],hq.ou,"ou")
-  +blk("Beide Teams treffen",[["Ja",p.bts],["Nein",c100(p.bts)]],["Ja","Nein"],[p.bts,c100(p.bts)])
-  +(p.ht?blk("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]],L3,p.ht)+(p.ht2?blk("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]],L3,p.ht2):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`);
+  +(p.ht?blk("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]],L3,p.ht)+(p.ht2?blk("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]],L3,p.ht2):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`)+ttBlock(s,p);
  const li=(L,col)=>L.length?L.map(([t,tp])=>`<div class="qer"><span style="font-size:15px">${t}</span><b style="color:${col};font-size:17px">${tp.map(NM).join(" · ")}</b></div>`).join(""):`<p class="msub" style="margin:4px 0">keine</p>`;
- const ue=`<div class="qban"><small style="font-size:12px">ÜBEREINSTIMMUNGEN · DIESES MODELL</small><div class="ueg" style="color:#2bf5a0">MODELL-QUOTEN</div>${li(tm,"#2bf5a0")}<div class="ueg" style="color:#ffb02b">BUCHMACHER · HÖCHSTE QUOTEN</div>${li(tb,"#ffb02b")}</div>`;
- return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}${r?"":liveCard(s,p)}${ue}${body}</div>`}
+ const ue=`<div class="qban"><small style="font-size:12px">ÜBEREINSTIMMUNGEN · DIESES MODELL</small><div class="ueg" style="color:#2bf5a0">MODELL-QUOTEN</div>${li(tm,"#2bf5a0")}<div class="ueg" style="color:#ffb02b">BUCHMACHER · HÖCHSTE QUOTEN</div>${li(tb,"#ffb02b")}<div class="ueg" style="color:#a99bff">ECHTE QUOTEN</div>${te.length?te.map(([t,a,b,c])=>`<div class="qer"><span style="font-size:15px">${t}</span><b style="color:#a99bff;font-size:13px;text-align:right">V1 ${a.map(NM).join(" · ")||"–"}<br>V2 ${b.map(NM).join(" · ")||"–"}<br>V3 ${c.map(NM).join(" · ")||"kein Value"}</b></div>`).join(""):`<p class="msub" style="margin:4px 0">keine Buchmacher-Quoten</p>`}</div>`;
+ return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}${ue}${body}</div>`}
 const M2=id=>D.modelle.find(m=>m.id==id);
 function probEigen(s,p,r){return probCard(s,p)}
 const VKURZ={"Heimsieg":"1","Remis":"X","Auswärtssieg":"2","OVER 2,5":"OVER","UNDER 2,5":"UNDER"};
 function valBadge(p){const v=(p.value||[]).slice().sort((a,b)=>b.edge-a.edge)[0];return v?`<span class="qe">VALUE ${VKURZ[v.markt]||v.markt} +${v.edge}%</span>`:""}
 /* Hoechste Wahrscheinlichkeit ueber alle Maerkte und alle Prognose-Modelle */
-function optionen(p){const o=[["Spielausgang","1",p.p1,"1x2"],["Spielausgang","X",p.px,"1x2"],["Spielausgang","2",p.p2,"1x2"],["OVER / UNDER","OVER",p.ue25,"ou"],["OVER / UNDER","UNDER",c100(p.ue25),"ou"],["Beide treffen","Ja",p.bts,"bts"],["Beide treffen","Nein",c100(p.bts),"bts"]];
+function optionen(p){const o=[["Spielausgang","1",p.p1,"1x2"],["Spielausgang","X",p.px,"1x2"],["Spielausgang","2",p.p2,"1x2"],["OVER / UNDER","OVER",p.ue25,"ou"],["OVER / UNDER","UNDER",c100(p.ue25),"ou"]];
  if(p.ht)["1","X","2"].forEach((k,i)=>o.push(["1. Halbzeit",k,p.ht[i],"ht"]));if(p.ht2)["1","X","2"].forEach((k,i)=>o.push(["2. Halbzeit",k,p.ht2[i],"ht2"]));return o}
 function besteAlle(s){const l=[];for(const m of D.modelle.filter(m=>!m.typ&&!m.eigen)){const p=s.prog[m.id];if(!p)continue;for(const o of optionen(p))l.push([...o,m.kurz])}
  if(!l.length)return"";l.sort((a,b)=>b[2]-a[2]);const b=l[0],r=res(s);
@@ -714,7 +699,28 @@ function vtBlock(s,p){const vt=p.vt||{};const l=VTM.filter(([k])=>vt[k]).sort((a
 /* ---------- Top-Tipps ---------- */
 const MARKTE=[["tore","⚽ OVER / UNDER 2,5"]];
 const VT_KEY={tore:"ou"};
-function renderTop(){return renderTopAlle()}
+function renderTop(){return renderTopKombi()}
+const KBL=[["1","OVER"],["1","UNDER"],["X","OVER"],["X","UNDER"],["2","OVER"],["2","UNDER"]];
+function kbHit(i,r){const[a,b]=KBL[i],t=r.h+r.a;return a==sg(r.h,r.a)&&(b=="OVER"?t>2:t<=2)}
+function renderTopKombi(){if($("tmode"))$("tmode").innerHTML="";$("mchips").innerHTML="";S.tkn=S.tkn||3;
+ const mods=D.modelle.filter(m=>!m.typ),tag=D.spiele.filter(s=>s.datum==S.tag);
+ const best=nurUe=>{const l=[];for(const s of tag){let b=null;const hq=s.hq||{};for(const m of mods){const p=s.prog[m.id];if(!p||!p.kb)continue;
+   const L3=["1","X","2"],x1=qcCalc(L3,[p.p1,p.px,p.p2]).tipp,x2=hq.x?qcCalc(L3,[p.p1,p.px,p.p2],hq.x).tipp:[],ou=ouKat(p,hq.ou);
+   p.kb.forEach((pr,i)=>{const[a,o]=KBL[i];const ua=x1.includes(a)||x2.includes(a),uo=ou.m.includes(o)||ou.b.includes(o);
+    if(nurUe&&!(ua&&uo))return;if(!b||pr>b.pr)b={s,pr,i,mod:m.kurz,q:100/pr}})}if(b)l.push(b)}
+  l.sort((a,b)=>b.pr-a.pr);const out=[],ligen=new Set();for(const x of l){if(out.length>=S.tkn)break;if(!ligen.has(x.s.liga)){out.push(x);ligen.add(x.s.liga)}}
+  for(const x of l){if(out.length>=S.tkn)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.s.zeit||"").localeCompare(b.s.zeit||""))};
+ const NM=(s,k)=>k=="1"?s.heim:k=="2"?s.gast:"Remis";
+ const schein=(titel,L,col)=>{if(!L.length)return `<div class="card"><p class="msub">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
+  let ges=1,ch=1,alle=true,offen=false;for(const x of L){ges*=x.q;ch*=x.pr/100;const r=res(x.s);if(!r)offen=true;else if(!kbHit(x.i,r))alle=false}
+  const it=L.map(x=>{const r=res(x.s),h=r?kbHit(x.i,r):null,fl=D.laender.find(z=>z.ligen.some(g=>g.code==x.s.liga)),[a,o]=KBL[x.i];
+   return `<div class="trow" onclick="openDetail(${x.s.id})"><div class="tl"><small>${fl?fl.flagge:""} ${ligaInfo[x.s.liga]} · ${r?x.s.ergebnis:x.s.zeit}</small><b>${x.s.heim} – ${x.s.gast}</b><div class="vsub">${x.mod} · ${kom(x.pr.toFixed(2))}% · ${NM(x.s,a)} &amp; ${o}</div></div><div class="tr"><span class="ttop ${h==null?'':h?'y':'n'}">${a} &amp; ${o}${h!=null?(h?" ✓":" ✕"):""}</span><span class="vbad mk">@ ${kom(x.q.toFixed(3))}</span></div></div>`}).join("");
+  const st=offen?"":alle?`<b style="color:var(--gr)">✓ Schein gewonnen</b>`:`<b style="color:#ff4d7d">✕ Schein verloren</b>`;
+  return `<div class="card hell" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col}">${titel}</b><span style="font-size:12px;color:var(--mu)">${L.length}er-Kombi${L.length<S.tkn?` (nur ${L.length} Spiele verfügbar)`:""}</span></div>${it}
+  <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #ffffff22"><div><small style="color:var(--mu)">MODELL-QUOTE</small><div style="font-family:Orbitron;font-size:22px;color:${col}">${kom(ges.toFixed(2))}</div></div><div style="text-align:center">${st}</div><div style="text-align:right"><small style="color:var(--mu)">CHANCE LAUT MODELL</small><div style="font-family:Orbitron;font-size:22px">${kom((ch*100).toFixed(ch<0.01?3:1))}%</div></div></div></div>`};
+ const chips=[2,3,4,5,10,15,20].map(n=>`<div class="chip${S.tkn==n?' on':''}" onclick="S.tkn=${n};renderTopKombi()">${n}er</div>`).join("");
+ $("toplist").innerHTML=`<h3>🏆 Top-Kombi · 1X2 &amp; OVER/UNDER 2,5 <span>${tag.length} Spiele</span></h3><div class="mchips">${chips}</div>${schein("A · Höchste Wahrscheinlichkeit",best(false),"#22e4ff")}${schein("B · Nur mit Übereinstimmung",best(true),"#ffb02b")}
+ <p class="hint">Je Spiel ein Tipp aus 6 Kombinationen (z. B. „1 &amp; OVER“) – das Modell mit der höchsten Wahrscheinlichkeit, nach Anstoßzeit sortiert. Die Wahrscheinlichkeit kommt direkt aus der Tor-Matrix (Sieg und Tore hängen zusammen). B: 1X2-Teil und O/U-Teil haben je eine Übereinstimmung (Modell oder Buchmacher). Für diese Kombination liefert der Datenanbieter keine Buchmacher-Quoten, daher Modell-Quoten.</p>`}
 function ouKat(p,q){const ps=[p.ue25,c100(p.ue25)];const m=qcCalc(["OVER","UNDER"],ps),b=q?qcCalc(["OVER","UNDER"],ps,q):{tipp:[]};return{ps,tip:ps[0]>=50?"OVER":"UNDER",m:m.tipp,b:b.tipp}}
 function renderTopAlle(){if($("tmode"))$("tmode").innerHTML="";$("mchips").innerHTML="";
  const mods=D.modelle.filter(m=>!m.typ),tag=D.spiele.filter(s=>s.datum==S.tag).sort((a,b)=>a.zeit.localeCompare(b.zeit));
@@ -730,7 +736,7 @@ function renderKombi(){S.kn=S.kn||4;const mods=D.modelle.filter(m=>!m.typ),tag=D
  const best=(nurUe)=>{const l=[];for(const s of tag){let b=null;for(const m of mods){const p=s.prog[m.id];if(!p)continue;const k=ouKat(p,s.hq.ou),i=k.tip=="OVER"?0:1,pr=k.ps[i];
    if(nurUe&&!(k.m.includes(k.tip)||k.b.includes(k.tip)))continue;if(!b||pr>b.pr)b={s,pr,i,mod:m.kurz,q:s.hq.ou[i],ue:[k.m.includes(k.tip)?"Modell":"",k.b.includes(k.tip)?"Buchmacher":""].filter(x=>x)}}if(b)l.push(b)}
   l.sort((a,b)=>b.pr-a.pr);const out=[],ligen=new Set();for(const x of l){if(out.length>=S.kn)break;if(!ligen.has(x.s.liga)){out.push(x);ligen.add(x.s.liga)}}
-  for(const x of l){if(out.length>=S.kn)break;if(!out.includes(x))out.push(x)}return out};
+  for(const x of l){if(out.length>=S.kn)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.s.zeit||"").localeCompare(b.s.zeit||""))};
  const schein=(titel,L,col)=>{if(!L.length)return `<div class="card"><p class="msub">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
   let ges=1,ch=1,alle=true,offen=false;for(const x of L){ges*=x.q;ch*=x.pr/100;const r=res(x.s);if(!r)offen=true;else if(!(x.i==0?r.h+r.a>2:r.h+r.a<=2))alle=false}
   const it=L.map(x=>{const r=res(x.s),h=r?(x.i==0?r.h+r.a>2:r.h+r.a<=2):null,fl=D.laender.find(z=>z.ligen.some(g=>g.code==x.s.liga));
@@ -879,7 +885,7 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  if(isOU(S.modell))return renderBilanzOU(fertig,chipsQ,von,bis);
  if(isE(S.modell))return renderBilanzE(fertig,chipsQ,von,bis);
  if(isL(S.modell))return renderBilanzL(fertig,chipsQ,von,bis);
- const MK=[["1x2","Spielausgang"],["ht","1. Halbzeit"],["ou","OVER/UNDER 2,5"],["bts","Beide treffen"],["ht2","2. Halbzeit"]];
+ const MK=[["1x2","Spielausgang"],["ht","1. Halbzeit"],["ou","OVER/UNDER 2,5"],["ht2","2. Halbzeit"]];
  const stat=(list,k,mid=S.modell)=>{let w=0,n=0;for(const s of list){if(!P(s,mid))continue;const h=hit(k,P(s,mid),res(s));if(h==null)continue;n++;if(h)w++}return[w,n-w]};
  const rate=([w,l])=>w+l?Math.round(w/(w+l)*100):null;
  const all=MK.map(([k])=>stat(fertig,k)),W=all.reduce((a,x)=>a+x[0],0),L=all.reduce((a,x)=>a+x[1],0);
@@ -889,7 +895,7 @@ function renderBilanz(){const alle=D.spiele.filter(s=>s.ergebnis);if(!alle.lengt
  const ranking=rk.map((x,i)=>`<div class="rkrow${x.m.id==S.modell?' on':''}" style="--c:${x.m.farbe1}" onclick="S.modell='${x.m.id}';render()">
   <span class="rkn${i==0?' gold':i==1?' silver':i==2?' bronze':''}">${i+1}</span>
   <span class="swi" style="background:linear-gradient(140deg,${x.m.farbe1},${x.m.farbe2});width:34px;height:34px;font-size:15px">${x.m.icon}</span>
-  <div class="rkm"><b>${x.m.name}</b><div class="rkmk">${MK.slice(0,4).map(([k,n],j)=>{const r=rate(x.st[j]);return `<span>${["1X2","HZ1","O/U","BTS"][j]} <em class="${r==null?'':r>=50?'ok':'no'}">${r==null?'–':r+'%'}</em></span>`}).join("")}<span>RPS <em>${x.rps==null?'–':x.rps.toFixed(3).replace(".",",")}</em></span></div>
+  <div class="rkm"><b>${x.m.name}</b><div class="rkmk">${MK.slice(0,4).map(([k,n],j)=>{const r=rate(x.st[j]);return `<span>${["1X2","HZ1","O/U","HZ2"][j]} <em class="${r==null?'':r>=50?'ok':'no'}">${r==null?'–':r+'%'}</em></span>`}).join("")}<span>RPS <em>${x.rps==null?'–':x.rps.toFixed(3).replace(".",",")}</em></span></div>
   <div class="track"><i style="width:${Math.round(x.g*100)}%;background:linear-gradient(90deg,${x.m.farbe1},${x.m.farbe2})"></i></div></div>
   <b class="rkp" style="color:${x.m.farbe1}">${Math.round(x.g*100)}%</b></div>`).join("");
  $("bilanz").innerHTML=`${chips}<p class="hint">${S.btag?`Nur <b>${wd(S.btag)} ${dm(S.btag)}</b>`:`Die <b>letzte Spielwoche (${dm(von)}–${dm(bis)})</b>`}: Prognosen, die vor den Spielen feststanden, gegen die echten Ergebnisse.</p>
