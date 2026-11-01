@@ -28,6 +28,7 @@ import kern
 import markt
 import ecken_modell
 import kalibrierung
+import stacking
 import datencheck
 import odds_api
 import quoten_modell
@@ -325,6 +326,79 @@ def _tt_kb(p):
     return out
 
 
+_NUR_EIGEN = ("CS", "OU15", "OU35", "HTFT", "HTOU05", "HTOU15")
+
+
+def _qual_p(p, hg, ag, ht):
+    eps = 1e-12
+    o = 0 if hg > ag else 1 if hg == ag else 2
+    P = np.array([p["1"], p["X"], p["2"]]); O = np.eye(3)[o]
+    q = {"logloss_1x2": -np.log(max(P[o], eps)), "rps": float(((P[0] - O[0]) ** 2 + (P[0] + P[1] - O[0] - O[1]) ** 2) / 2),
+         "brier": float(np.sum((P - O) ** 2)), "logloss_ou": -np.log(max(p["Ü2.5"] if hg + ag > 2 else p["U2.5"], eps)),
+         "logloss_bts": -np.log(max(p["BTS"] if (hg > 0 and ag > 0) else 1 - p["BTS"], eps))}
+    if ht and p.get("HT"):
+        h1, a1 = map(int, ht.split(":"))
+        q["logloss_ht"] = -np.log(max(p["HT"][0 if h1 > a1 else 1 if h1 == a1 else 2], eps))
+    return {k: float(v) for k, v in q.items()}
+
+
+def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_start, woche_ende):
+    tm = time.time()
+    log("===== Stacking · Meta-Modell =====")
+    st_bt, st_live, gew = stacking.berechne(bt, live_p, list(modelle), log)
+    if not st_bt:
+        return
+    for sp in st_bt:
+        sp["p"] = {k: v for k, v in sp["p"].items() if k not in _NUR_EIGEN}
+    par_kal, kal_info = kalibrierung.walk_forward(st_bt)
+    log("   Kalibrierung Rückblick: " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
+    kand = []
+    for i, sp in enumerate(st_bt):
+        q = sp.get("q") or {}
+        for grp in (["1", "X", "2"], ["Ü2.5", "U2.5"]):
+            if not all(q.get(m) for m in grp):
+                continue
+            t = sum(1 / q[m] for m in grp)
+            for mk in grp:
+                kand.append({"id": i, "Div": sp["Div"], "Date": sp["Date"], "mk": mk, "grp": GRUPPE[mk],
+                             "pm": sp.get("p_roh", sp["p"])[mk], "pk": 1 / q[mk] / t, "q": q[mk], "win": gewonnen(mk, sp["HG"], sp["AG"])})
+    K = pd.DataFrame(kand, columns=K_SPALTEN)
+    par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
+    W_test = wetten_waehlen(K, par_test)
+    par_live = kalibrieren(K)
+    tt_n = tt_w = 0
+    for sp in st_bt:
+        tt = sp["p"].get("TT")
+        if tt:
+            for k, tore in (("h", sp["HG"]), ("a", sp["AG"])):
+                tt_n += 1
+                tt_w += tt_treffer(tt_tipp(tt[k]), int(tore))
+    n_alt = 0
+    for sp in st_bt:
+        if woche_start <= sp["Date"] <= woche_ende:
+            e = eintrag(sp["Div"], sp["Date"], sp.get("Time"), sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"] or {}, sp.get("HT"))
+            e["prog"]["st"] = prog_eintrag(sp["p"], [r(x) for x in sp["xg"]], sp["q"] or {}, par_live)
+            n_alt += 1
+    n_live = 0
+    for key, (p, xg) in st_live.items():
+        p = kalibrierung.anwenden({k: v for k, v in p.items() if k not in _NUR_EIGEN}, par_kal)
+        lv = next(iter(live_p.values()))[key][2]
+        e = eintrag(lv["Div"], lv["Date"], lv["Time"], lv["Home"], lv["Away"], None, lv["q"])
+        e["prog"]["st"] = prog_eintrag(p, [r(x) for x in xg], lv["q"], par_live)
+        n_live += 1
+    qual_roh["st"] = [(sp["Date"], _qual_p(sp["p"], sp["HG"], sp["AG"], sp.get("HT"))) for sp in st_bt]
+    _G["start"]["st"] = max(_G["start"].values())
+    info = dict(stacking.INFO)
+    saison_w = W_test[W_test["Date"] >= pd.Timestamp(SAISON_START)]
+    info.update(eigen=False, gewichte=gew, tt_quote={"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None,
+                backtest_ab=pd.Timestamp(st_bt[0]["Date"]).strftime("%Y-%m-%d"), saison=kennzahlen(saison_w),
+                vorsaison=kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
+                einstellung_test=par_test, einstellung_live=par_live,
+                beschreibung=stacking.INFO["beschreibung"] + " · aktuell: " + ", ".join(f"{modelle[m].NAME.split(' ')[0] if hasattr(modelle[m], 'NAME') else m} {round(w * 100)} %" for m, w in gew.items()))
+    ergebnis["modelle"].append(info)
+    log(f"   Prognosen: {n_alt} letzte Spielwoche, {n_live} kommend | {time.time() - tm:.0f} s")
+
+
 def tt_tipp(v):
     """Tipp-Regel Tore je Team: hoechste Stufe 'mind. X' mit >= 50 %, sonst 'kein Tor' (Index 0)"""
     for i in (3, 2, 1):
@@ -397,6 +471,7 @@ def main():
     groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
     reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
     qual_roh = {}
+    live_p = {}  # kommende Prognosen je Modell (fuer Stacking)
     bt = {}     # Backtest-Prognosen je Modell (fuer den Rueckblick des Modells Linie)
 
     for key, mod in modelle.items():
@@ -445,7 +520,9 @@ def main():
         tt_quote = {"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None
         if tt_quote:
             log(f"   Tore je Team Backtest: {tt_quote['treffer']} % Treffer ({tt_n} Tipps)")
-        bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p")} for sp in alle_spiele]
+        bt[key] = [{k: sp.get(k) for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p", "HT", "Time", "xg", "q")} for sp in alle_spiele]
+        live_p[key] = {(lv["Div"], pd.Timestamp(lv["Date"]).strftime("%Y-%m-%d"), lv["Home"], lv["Away"]): (lv["p"], lv["xg"], lv)
+                       for lv in live}
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
         W_test = wetten_waehlen(K, par_test)
@@ -475,6 +552,13 @@ def main():
             "eigen": eigen, "tt_quote": tt_quote, "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
             "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
             "einstellung_test": par_test, "einstellung_live": par_live})
+
+    # Modell ST · Stacking: lernt Woche fuer Woche, wie stark es jedem Tor-Modell traut
+    try:
+        stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_start, woche_ende)
+    except Exception as ex:
+        import traceback
+        log("Stacking fehlgeschlagen:", ex, traceback.format_exc()[-600:])
 
     # Qualitaet: alle Modelle auf demselben Zeitraum vergleichen
     vergleich_ab = max(_G["start"].values())
