@@ -319,8 +319,9 @@ def _tt_kb(p):
     out = {}
     if p.get("TT"):
         out["tt"] = {k: [r(x * 100, 2) for x in v] for k, v in p["TT"].items()}
-    if p.get("KB"):
-        out["kb"] = [r(x * 100, 2) for x in p["KB"]]
+    for a, b in (("KB", "kb"), ("KB15", "kb15"), ("DC15", "dc15")):
+        if p.get(a):
+            out[b] = [r(x * 100, 2) for x in p[a]]
     return out
 
 

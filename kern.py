@@ -137,7 +137,19 @@ def maerkte(ft, ht=None):
             "BTS": float(1 - M[0, :].sum() - M[:, 0].sum() + M[0, 0]), "tipp": f"{i}:{j}",
             "HT": None if ht is None else _1x2(ht),
             "HT2": None if ht is None else zweite_halbzeit(ft, ht),
-            "TT": team_tore(M), "KB": kombi_1x2_ou(M)}
+            "TT": team_tore(M), "KB": kombi_1x2_ou(M), "KB15": kombi_1x2_ou(M, 1),
+            "DC15": kombi_dc_ou(M, 1)}
+
+
+def kombi_dc_ou(M, linie=1):
+    """Doppelte Chance & OVER/UNDER (linie+0,5): 1X-O,1X-U,X2-O,X2-U,12-O,12-U (ueberlappend, nicht Summe 1)"""
+    M = M / M.sum()
+    i, j = np.meshgrid(np.arange(M.shape[0]), np.arange(M.shape[1]), indexing="ij")
+    o = (i + j) > linie
+    res = []
+    for m in (i >= j, i <= j, i != j):
+        res += [float(M[m & o].sum()), float(M[m & ~o].sum())]
+    return res
 
 
 def team_tore(M):
@@ -149,11 +161,11 @@ def team_tore(M):
     return out
 
 
-def kombi_1x2_ou(M):
-    """1X2 & OVER/UNDER 2,5 aus der Matrix (Abhaengigkeit beruecksichtigt): 1O,1U,XO,XU,2O,2U"""
+def kombi_1x2_ou(M, linie=2):
+    """1X2 & OVER/UNDER (linie+0,5) aus der Matrix (Abhaengigkeit beruecksichtigt): 1O,1U,XO,XU,2O,2U"""
     n = M.shape[0]
     i, j = np.meshgrid(np.arange(n), np.arange(M.shape[1]), indexing="ij")
-    o = (i + j) > 2
+    o = (i + j) > linie
     res = []
     for m in (i > j, i == j, i < j):
         res += [float(M[m & o].sum()), float(M[m & ~o].sum())]
