@@ -136,7 +136,29 @@ def maerkte(ft, ht=None):
             "Ü2.5": float(1 - unter), "U2.5": float(unter),
             "BTS": float(1 - M[0, :].sum() - M[:, 0].sum() + M[0, 0]), "tipp": f"{i}:{j}",
             "HT": None if ht is None else _1x2(ht),
-            "HT2": None if ht is None else zweite_halbzeit(ft, ht)}
+            "HT2": None if ht is None else zweite_halbzeit(ft, ht),
+            "TT": team_tore(M), "KB": kombi_1x2_ou(M)}
+
+
+def team_tore(M):
+    """Tore je Team: [P(0), P(mind. 1), P(mind. 2), P(mind. 3)] fuer Heim und Gast (aus der Tor-Matrix)."""
+    out = {}
+    for k, v in (("h", M.sum(axis=1)), ("a", M.sum(axis=0))):
+        v = v / v.sum()
+        out[k] = [float(v[0]), float(1 - v[0]), float(1 - v[:2].sum()), float(1 - v[:3].sum())]
+    return out
+
+
+def kombi_1x2_ou(M):
+    """1X2 & OVER/UNDER 2,5 aus der Matrix (Abhaengigkeit beruecksichtigt): 1O,1U,XO,XU,2O,2U"""
+    n = M.shape[0]
+    i, j = np.meshgrid(np.arange(n), np.arange(M.shape[1]), indexing="ij")
+    o = (i + j) > 2
+    res = []
+    for m in (i > j, i == j, i < j):
+        res += [float(M[m & o].sum()), float(M[m & ~o].sum())]
+    s = sum(res)
+    return [x / s for x in res]
 
 
 def erwartete_tore(M):

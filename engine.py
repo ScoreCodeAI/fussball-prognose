@@ -1,3 +1,4 @@
+import re
 # ===== SCORE CODE AGENT - BACKTEST- UND PROGNOSE-MOTOR (v3) =====
 # Jedes Modell ist eine eigene Datei modell_*.py und wird automatisch erkannt.
 # Schnittstelle eines Modells:
@@ -311,7 +312,42 @@ def prog_eintrag(p, xg, q, par):
             "ue25": r(p["Ü2.5"] * 100, 2), "bts": r(p["BTS"] * 100, 2), "tipp": p["tipp"], "xg": xg,
             "ht": None if p["HT"] is None else [r(x * 100, 2) for x in p["HT"]],
             "ht2": None if p.get("HT2") is None else [r(x * 100, 2) for x in p["HT2"]],
-            "value": value_liste(p, q, par), **_extra_eintrag(p)}
+            "value": value_liste(p, q, par), **_extra_eintrag(p), **_tt_kb(p)}
+
+
+def _tt_kb(p):
+    out = {}
+    if p.get("TT"):
+        out["tt"] = {k: [r(x * 100, 2) for x in v] for k, v in p["TT"].items()}
+    if p.get("KB"):
+        out["kb"] = [r(x * 100, 2) for x in p["KB"]]
+    return out
+
+
+def tt_tipp(v):
+    """Tipp-Regel Tore je Team: hoechste Stufe 'mind. X' mit >= 50 %, sonst 'kein Tor' (Index 0)"""
+    for i in (3, 2, 1):
+        if v[i] >= 0.5:
+            return i
+    return 0
+
+
+def tt_treffer(tipp, tore):
+    return tore == 0 if tipp == 0 else tore >= tipp
+
+
+def uhrzeit_deutsch(liste):
+    """football-data gibt Anstosszeiten in englischer Zeit (UK) an -> deutsche Zeit (Sommer/Winter automatisch)."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    uk, de = ZoneInfo("Europe/London"), ZoneInfo("Europe/Berlin")
+    for e in liste:
+        z = e.get("zeit") or ""
+        if not re.match(r"^\d{1,2}:\d{2}$", z):
+            continue
+        t = datetime.strptime(f'{e["datum"]} {z}', "%Y-%m-%d %H:%M").replace(tzinfo=uk).astimezone(de)
+        e["datum"], e["zeit"] = t.strftime("%Y-%m-%d"), t.strftime("%H:%M")
+    liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
 
 
 def _extra_eintrag(p):
@@ -397,6 +433,17 @@ def main():
             log("   Kalibrierung Rückblick (LogLoss roh -> kalibriert, Spiele): " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
         if not eigen:
             log(f"   Kalibrierung live: {', '.join(par_kal) if par_kal else 'aus (Rohwerte)'}")
+        tt_n = tt_w = 0
+        for sp in alle_spiele:
+            tt = sp["p"].get("TT")
+            if not tt:
+                continue
+            for k, tore in (("h", sp["HG"]), ("a", sp["AG"])):
+                tt_n += 1
+                tt_w += tt_treffer(tt_tipp(tt[k]), int(tore))
+        tt_quote = {"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None
+        if tt_quote:
+            log(f"   Tore je Team Backtest: {tt_quote['treffer']} % Treffer ({tt_n} Tipps)")
         bt[key] = [{k: sp[k] for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p")} for sp in alle_spiele]
 
         par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
@@ -424,7 +471,7 @@ def main():
             "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", mod.NAME.split(" ")[0]),
             "icon": getattr(mod, "ICON", "•"), "farbe1": getattr(mod, "FARBE1", "#2bf5a0"),
             "farbe2": getattr(mod, "FARBE2", "#22e4ff"), "beschreibung": getattr(mod, "BESCHREIBUNG", ""),
-            "eigen": eigen, "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
+            "eigen": eigen, "tt_quote": tt_quote, "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
             "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
             "einstellung_test": par_test, "einstellung_live": par_live})
 
@@ -535,6 +582,7 @@ def main():
         e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
         n_ou += bool(alle)
     log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
+    uhrzeit_deutsch(liste)
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
     with open(pfad, "w", encoding="utf-8") as f:
