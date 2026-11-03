@@ -19,6 +19,27 @@ LIGEN = {"D1": "ger.1", "D2": "ger.2", "E0": "eng.1", "E1": "eng.2", "E2": "eng.
          "BRA": "bra.1", "ARG": "arg.1", "JPN": "jpn.1", "CHN": "chn.1"}
 
 
+# Namen, die sich zwischen football-data und ESPN stark unterscheiden
+ALIAS = {"aarhus": "agf", "fc copenhagen": "fc kobenhavn", "la coruna": "deportivo", "atl. san luis": "atletico san luis",
+         "unam pumas": "pumas unam", "tijuana": "club tijuana", "los angeles fc": "lafc", "brondby": "brondby if",
+         "nordsjaelland": "fc nordsjaelland", "midtjylland": "fc midtjylland", "cfr cluj": "cfr 1907 cluj",
+         "fc rapid bucuresti": "rapid bucuresti", "csikszereda m. ciuc": "csikszereda", "wisla plock": "wisla plock",
+         "vps": "vps vaasa", "hjk": "hjk helsinki", "ac oulu": "ac oulu", "st. gallen": "st gallen"}
+ALLE = "all"          # ESPN-Sammel-Scoreboard (alle Ligen eines Tages) als Ersatz, wenn eine Liga leer bleibt
+
+
+def _n(x):
+    k = str(x).strip().lower()
+    return ALIAS.get(k, k)
+
+
+def _passt(e, s):
+    wh, wa = odds_api._aehnlich(_n(e["heim"]), _n(s["heim"])), odds_api._aehnlich(_n(e["gast"]), _n(s["gast"]))
+    # beide aehnlich - oder ein Team eindeutig (jedes Team spielt hoechstens einmal am Tag)
+    ok = min(wh, wa) >= 0.6 or (max(wh, wa) >= 0.85 and not s.get("alle"))   # Sammel-Scoreboard: beide Teams muessen passen
+    return (wh + wa) / 2 if ok else 0.0
+
+
 def _zahl(v):
     try:
         return int(float(v))
@@ -72,7 +93,7 @@ def ergaenzen(liste, heute, log=print):
     if not offen:
         log("ESPN: keine offenen Ergebnisse")
         return 0
-    n_ges, stat = 0, {}
+    n_ges, stat, alle_cache = 0, {}, {}
     for liga in sorted({e["liga"] for e in offen}):
         kand = [e for e in offen if e["liga"] == liga]
         tage = sorted({e["datum"] for e in kand})
@@ -85,18 +106,24 @@ def ergaenzen(liste, heute, log=print):
                 log(f"ESPN {liga}: Fehler {ex}")
             if x:
                 espn += x
+        if not espn:      # Liga bei ESPN leer -> Sammel-Scoreboard aller Ligen probieren
+            for d in {datetime.strptime(t, "%Y-%m-%d") + timedelta(days=k) for t in tage for k in (0, 1)}:
+                if d not in alle_cache:
+                    try:
+                        alle_cache[d] = [dict(x, alle=True) for x in (_spiele(ALLE, d) or [])]
+                    except Exception:
+                        alle_cache[d] = []
+                espn += alle_cache[d]
         n = 0
         for e in kand:
             best, wert = None, 0.0
             for s in espn:
                 if abs((datetime.strptime(s["datum"], "%Y-%m-%d") - datetime.strptime(e["datum"], "%Y-%m-%d")).days) > 1:
                     continue
-                wh, wa = odds_api._aehnlich(e["heim"], s["heim"]), odds_api._aehnlich(e["gast"], s["gast"])
-                ok = min(wh, wa) >= 0.6 or (max(wh, wa) >= 0.9 and min(wh, wa) >= 0.35)
-                w = (wh + wa) / 2 if ok else 0.0
+                w = _passt(e, s)
                 if w > wert:
                     best, wert = s, w
-            if best is not None and wert >= 0.6:
+            if best is not None and wert >= 0.45:
                 e["ergebnis"] = best["ergebnis"]
                 if best["ht"] and not e.get("ergebnis_ht"):
                     e["ergebnis_ht"] = best["ht"]
@@ -107,7 +134,7 @@ def ergaenzen(liste, heute, log=print):
         stat[liga] = f"{n}/{len(kand)}"
         if n < len(kand):     # Diagnose: was liefert ESPN, was fehlt?
             fehlt = [f'{e["datum"]} {e["heim"]}-{e["gast"]}' for e in kand if not e.get("equelle")][:3]
-            bsp = [f'{s["datum"]} {s["heim"]}-{s["gast"]}' for s in espn][:3]
+            bsp = [f'{s["datum"]} {s["heim"]}-{s["gast"]}' for s in espn][:6]
             log(f"   ESPN {liga} ({LIGEN[liga]}): {len(espn)} fertige Spiele bei ESPN | fehlt z. B.: {fehlt} | ESPN z. B.: {bsp}")
         n_ges += n
     log(f"ESPN: {n_ges} von {len(offen)} offenen Ergebnissen ergänzt | " + ", ".join(f"{k} {v}" for k, v in stat.items()))
