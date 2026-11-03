@@ -105,6 +105,10 @@ def ergaenzen(liste, heute, log=print):
                 e["equelle"] = "ESPN"
                 n += 1
         stat[liga] = f"{n}/{len(kand)}"
+        if n < len(kand):     # Diagnose: was liefert ESPN, was fehlt?
+            fehlt = [f'{e["datum"]} {e["heim"]}-{e["gast"]}' for e in kand if not e.get("equelle")][:3]
+            bsp = [f'{s["datum"]} {s["heim"]}-{s["gast"]}' for s in espn][:3]
+            log(f"   ESPN {liga} ({LIGEN[liga]}): {len(espn)} fertige Spiele bei ESPN | fehlt z. B.: {fehlt} | ESPN z. B.: {bsp}")
         n_ges += n
     log(f"ESPN: {n_ges} von {len(offen)} offenen Ergebnissen ergänzt | " + ", ".join(f"{k} {v}" for k, v in stat.items()))
     return n_ges
