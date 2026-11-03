@@ -29,6 +29,7 @@ import markt
 import ecken_modell
 import kalibrierung
 import stacking
+import espn
 import datencheck
 import odds_api
 import quoten_modell
@@ -667,6 +668,10 @@ def main():
         e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
         n_ou += bool(alle)
     log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
+    try:
+        espn.ergaenzen(liste, heute, log)      # schnelle Ergebnisse fuer die Anzeige (Modelle nutzen weiter nur football-data)
+    except Exception as ex:
+        log("ESPN fehlgeschlagen:", ex)
     uhrzeit_deutsch(liste)
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
