@@ -10,6 +10,8 @@
 # Lineares Mischen statt logistischer Regression: im Test blaehte die Regression bei wenig Daten das Remis auf.
 import numpy as np
 import pandas as pd
+
+import kern
 from scipy.optimize import minimize
 
 INFO = {"id": "st", "name": "Stacking · Meta-Modell", "kurz": "Stacking", "icon": "Σ",
@@ -48,6 +50,38 @@ def mischen(ps, w):
     if isinstance(a, (int, float, np.floating)) and not isinstance(a, bool):
         return float(sum(wi * float(x) for wi, x in zip(w, ps)))
     return ps[int(np.argmax(w))]
+
+
+MARKT = True       # Markt-Baustein (Tor-Matrix aus Buchmacher-Quoten) mit ins Stacking nehmen
+_MK = {}
+
+
+def markt_p(q, xg=(1.4, 1.1)):
+    """Faire Buchmacher-Wahrscheinlichkeiten (1X2 + O/U 2,5) -> komplette Tor-Matrix -> alle Maerkte."""
+    try:
+        if not all(q.get(k) for k in ("1", "X", "2", "Ü2.5", "U2.5")):
+            return None
+        key = tuple(round(float(q[k]), 3) for k in ("1", "X", "2", "Ü2.5", "U2.5"))
+        if key in _MK:
+            return _MK[key]
+        i3 = np.array([1 / q["1"], 1 / q["X"], 1 / q["2"]]); i3 /= i3.sum()
+        o = (1 / q["Ü2.5"]) / (1 / q["Ü2.5"] + 1 / q["U2.5"])
+
+        def f(t):
+            M = kern.matrix_dixon_coles(np.exp(t[0]), np.exp(t[1]), kern.REMIS_RHO)
+            p1, px, p2 = kern._1x2(M)
+            n = np.add.outer(np.arange(M.shape[0]), np.arange(M.shape[1]))
+            po = 1 - M[n <= 2].sum()
+            return (p1 - i3[0]) ** 2 + (px - i3[1]) ** 2 + (p2 - i3[2]) ** 2 + (po - o) ** 2
+        t = minimize(f, np.log(np.clip(xg, 0.2, 4)), method="Nelder-Mead", options={"xatol": 1e-4, "fatol": 1e-9}).x
+        lh, la = float(np.exp(t[0])), float(np.exp(t[1]))
+        ft = kern.matrix_dixon_coles(lh, la, kern.REMIS_RHO)
+        p = kern.maerkte(ft, kern.matrix_unabhaengig(lh * 0.45, la * 0.45))
+        p["_xg"] = [lh, la]
+        _MK[key] = p
+        return p
+    except Exception:
+        return None
 
 
 def _ziele(sp):
@@ -90,8 +124,17 @@ def berechne(bt, live_p, namen, log=print):
     maps = {m: {_key(sp): sp for sp in bt[m]} for m in ids}
     gemeinsam = set.intersection(*[set(v) for v in maps.values()]) if ids else set()
     spiele = sorted((maps[ids[0]][k] for k in gemeinsam), key=lambda s: s["Date"])
-    n_mod = len(ids)
+    namen_w = list(ids) + (["markt"] if MARKT else [])
+    n_mod = len(namen_w)
     gleich = np.ones(n_mod) / n_mod
+
+    def mit_markt(ps, q, xg):
+        if not MARKT:
+            return ps
+        mp = markt_p(q or {}, xg)
+        if mp is None:                       # keine Quoten -> neutral (Durchschnitt der Modelle)
+            mp = mischen(ps, np.ones(len(ps)) / len(ps))
+        return ps + [{k: v for k, v in mp.items() if k != "_xg"}]
     out, zeilen, w, grenze = [], [], gleich, None
     for sp in spiele:
         d = pd.Timestamp(sp["Date"])
@@ -102,10 +145,10 @@ def berechne(bt, live_p, namen, log=print):
             frueher = [z for z in zeilen if z[2] < d.normalize()][-FENSTER:]
             w = _fit([(ps, zz) for ps, zz, _ in frueher]) if len(frueher) >= MIN_SPIELE else gleich
         k = _key(sp)
-        ps = [maps[m][k]["p"] for m in ids]
+        ps = mit_markt([maps[m][k]["p"] for m in ids], maps[ids[0]][k].get("q"), maps[ids[0]][k]["xg"])
         neu = {x: sp[x] for x in ("Div", "Date", "Home", "Away", "HG", "AG", "HT", "Time") if x in sp}
         neu["p"] = mischen(ps, w)
-        neu["xg"] = [float(sum(wi * maps[m][k]["xg"][j] for wi, m in zip(w, ids))) for j in (0, 1)]
+        neu["xg"] = [float(sum(wi * maps[m][k]["xg"][j] for wi, m in zip(w, ids)) / max(sum(w[:len(ids)]), 1e-9)) for j in (0, 1)]
         neu["q"] = maps[ids[0]][k].get("q") or {}
         out.append(neu)
         zeilen.append((ps, _ziele(sp), d.normalize()))
@@ -114,14 +157,17 @@ def berechne(bt, live_p, namen, log=print):
     ab = MIN_SPIELE
     if len(out) > ab + 100:
         z = {m: np.mean([rps(maps[m][_key(sp)]["p"], _ziele(sp)[0]) for sp in out[ab:]]) for m in ids}
+        if MARKT:
+            z["MARKT"] = np.mean([rps(markt_p(sp["q"]) or sp["p"], _ziele(sp)[0]) for sp in out[ab:]])
         z["STACKING"] = np.mean([rps(sp["p"], _ziele(sp)[0]) for sp in out[ab:]])
         log(f"   Stacking ehrlicher Test ({len(out) - ab} Spiele) RPS: " + ", ".join(f"{k} {v:.4f}" for k, v in z.items()))
     w_live = _fit([(ps, zz) for ps, zz, _ in zeilen[-FENSTER:]]) if len(zeilen) >= MIN_SPIELE else gleich
     live = {}
     for k in set.intersection(*[set(live_p[m]) for m in ids]) if ids else set():
-        ps = [live_p[m][k][0] for m in ids]
-        xg = [float(sum(wi * live_p[m][k][1][j] for wi, m in zip(w_live, ids))) for j in (0, 1)]
+        lv = live_p[ids[0]][k][2] if len(live_p[ids[0]][k]) > 2 else {}
+        ps = mit_markt([live_p[m][k][0] for m in ids], (lv or {}).get("q"), live_p[ids[0]][k][1])
+        xg = [float(sum(wi * live_p[m][k][1][j] for wi, m in zip(w_live, ids)) / max(sum(w_live[:len(ids)]), 1e-9)) for j in (0, 1)]
         live[k] = (mischen(ps, w_live), xg)
     log(f"   Stacking: {len(out)} Backtest-Spiele, {len(live)} kommend | Gewichte: " +
-        ", ".join(f"{m}={x:.2f}" for m, x in zip(ids, w_live)))
-    return out, live, {m: round(float(x), 3) for m, x in zip(ids, w_live)}
+        ", ".join(f"{m}={x:.2f}" for m, x in zip(namen_w, w_live)))
+    return out, live, {m: round(float(x), 3) for m, x in zip(namen_w, w_live)}

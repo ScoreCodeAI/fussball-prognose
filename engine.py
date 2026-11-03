@@ -395,7 +395,7 @@ def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_star
                 backtest_ab=pd.Timestamp(st_bt[0]["Date"]).strftime("%Y-%m-%d"), saison=kennzahlen(saison_w),
                 vorsaison=kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
                 einstellung_test=par_test, einstellung_live=par_live,
-                beschreibung=stacking.INFO["beschreibung"] + " · aktuell: " + ", ".join(f"{modelle[m].NAME.split(' ')[0] if hasattr(modelle[m], 'NAME') else m} {round(w * 100)} %" for m, w in gew.items()))
+                beschreibung=stacking.INFO["beschreibung"] + " · aktuell: " + ", ".join(f"{modelle[m].NAME.split(' ')[0] if m in modelle else 'Markt'} {round(w * 100)} %" for m, w in gew.items()))
     ergebnis["modelle"].append(info)
     log(f"   Prognosen: {n_alt} letzte Spielwoche, {n_live} kommend | {time.time() - tm:.0f} s")
 
