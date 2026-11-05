@@ -783,7 +783,7 @@ function kontra(s,art,i,p){const[a,o]=KART[art].L[i],gr=[],pr=kPr(p,art,i);
  if(alle.length>1&&Math.max(...alle)-Math.min(...alle)>15)gr.push("Modelle uneinig");
  const q=s.quoten||{},hq=s.hq||{},L3=["1","X","2"];
  if(a){const pm=[...a].reduce((t,c)=>t+[p.p1,p.px,p.p2][L3.indexOf(c)],0);
-  if(q["1"]&&q.X&&q["2"]){const inv=L3.map(k=>1/q[k]),S0=inv.reduce((x,y)=>x+y,0),mk=[...a].reduce((t,c)=>t+inv[L3.indexOf(c)]/S0*100,0);if(pm-mk>7)gr.push("Markt widerspricht")}
+  const qx=hq.x?{"1":hq.x[0],X:hq.x[1],"2":hq.x[2]}:q;if(qx["1"]&&qx.X&&qx["2"]){const inv=L3.map(k=>1/qx[k]),S0=inv.reduce((x,y)=>x+y,0),mk=[...a].reduce((t,c)=>t+inv[L3.indexOf(c)]/S0*100,0);if(pm-mk>7)gr.push("Markt widerspricht")}
   if(a.length==1&&a!="X"&&p.px>=28)gr.push("Remis-Gefahr");if(a=="12"&&p.px>=28)gr.push("Remis-Gefahr");
   if(hq.x){const S0=hq.x.reduce((t,x)=>t+1/x,0),v=hq.x.map((x,j)=>Math.round(x*S0*100)/100*[p.p1,p.px,p.p2][j]);if(L3.some((k,j)=>!a.includes(k)&&v[j]>100))gr.push("Value beim Gegner")}}
  else if(art=="ou25"){const mq=hq.ou;if(mq){const S0=1/mq[0]+1/mq[1],mk=(1/mq[i])/S0*100;if(pr-mk>7)gr.push("Markt widerspricht");const v=mq.map((x,j)=>Math.round(x*S0*100)/100*(j==0?p.ue25:c100(p.ue25)));if(v[1-i]>100)gr.push("Value beim Gegner")}}
@@ -850,7 +850,7 @@ function konsKand(s,mk){const mods=TKM().map(m=>s.prog[m.id]).filter(p=>p&&p.p1!
  if(mk=="x"){const a=av([p=>p.p1,p=>p.px,p=>p.p2]),ti=a.indexOf(Math.max(...a)),L=["1","X","2"];
   const ein=mods.filter(p=>{const v=[p.p1,p.px,p.p2];return v.indexOf(Math.max(...v))==ti}).length;
   const dc=[["1X",a[0]+a[1],r=>r.h>=r.a],["X2",a[1]+a[2],r=>r.h<=r.a],["12",a[0]+a[2],r=>r.h!=r.a]].filter(d=>d[0].includes(L[ti])).sort((x,y)=>y[1]-x[1])[0];
-  let mkok=true;if(q["1"]&&q.X&&q["2"]){const iv=L.map(k=>1/q[k]);mkok=iv.indexOf(Math.max(...iv))==ti}
+  let mkok=true;const qx=hq.x?{"1":hq.x[0],X:hq.x[1],"2":hq.x[2]}:q;if(qx["1"]&&qx.X&&qx["2"]){const iv=L.map(k=>1/qx[k]);mkok=iv.indexOf(Math.max(...iv))==ti}
   const tip={s,pr:a[ti],mod:`Einigkeit ${ein}/${N}`,q:hq.x?hq.x[ti]:Math.round(10000/a[ti])/100,qm:"x",lab:L[ti]+(ti==1?"":" · "+(ti==0?s.heim:s.gast)),win:r=>sg(r.h,r.a)==L[ti],ue:[],ueOk:true,kontra:mkok?[]:["Markt widerspricht"],von:"Konsens",ein,N};
   const alt={s,pr:dc[1],mod:tip.mod,q:Math.round(10000/dc[1])/100,qm:"x",lab:dc[0],win:dc[2],ue:[],ueOk:true,kontra:[],von:"Konsens",ein,N};return{tip,alt,ein,N,mkok}}
  const o=av([p=>p.ue25]),ov=o[0]>=50,o15=mods.map(p=>ou15(p)).filter(x=>x);const a15=o15.length?o15.reduce((x,y)=>x+y[0],0)/o15.length:null;
