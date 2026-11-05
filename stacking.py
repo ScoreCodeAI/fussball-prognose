@@ -61,6 +61,8 @@ def shin(quoten):
     from scipy.optimize import brentq
     pi = 1 / np.array(quoten, dtype=float)
     S = pi.sum()
+    if not np.all(np.isfinite(pi)) or S < 1:       # Hoechstquoten mit negativer Marge (Surebet): gleichmaessig verteilen
+        return pi / pi.sum()
     f = lambda z: (np.sqrt(z ** 2 + 4 * (1 - z) * pi ** 2 / S) - z).sum() / (2 * (1 - z)) - 1
     try:
         z = brentq(f, 0, 0.4)
@@ -159,11 +161,12 @@ def berechne(bt, live_p, namen, log=print):
             frueher = [z for z in zeilen if z[2] < d.normalize()][-FENSTER:]
             w = _fit([(ps, zz) for ps, zz, _ in frueher]) if len(frueher) >= MIN_SPIELE else gleich
         k = _key(sp)
-        ps = mit_markt([maps[m][k]["p"] for m in ids], maps[ids[0]][k].get("q"), maps[ids[0]][k]["xg"])
+        ps = mit_markt([maps[m][k]["p"] for m in ids], maps[ids[0]][k].get("qmax") or maps[ids[0]][k].get("q"), maps[ids[0]][k]["xg"])
         neu = {x: sp[x] for x in ("Div", "Date", "Home", "Away", "HG", "AG", "HT", "Time") if x in sp}
         neu["p"] = mischen(ps, w)
         neu["xg"] = [float(sum(wi * maps[m][k]["xg"][j] for wi, m in zip(w, ids)) / max(sum(w[:len(ids)]), 1e-9)) for j in (0, 1)]
         neu["q"] = maps[ids[0]][k].get("q") or {}
+        neu["qmax"] = maps[ids[0]][k].get("qmax") or {}
         out.append(neu)
         zeilen.append((ps, _ziele(sp), d.normalize()))
     # ehrlicher Vergleich (nur Spiele, bei denen schon gelernte Gewichte galten)
@@ -172,14 +175,14 @@ def berechne(bt, live_p, namen, log=print):
     if len(out) > ab + 100:
         z = {m: np.mean([rps(maps[m][_key(sp)]["p"], _ziele(sp)[0]) for sp in out[ab:]]) for m in ids}
         if MARKT:
-            z["MARKT"] = np.mean([rps(markt_p(sp["q"]) or sp["p"], _ziele(sp)[0]) for sp in out[ab:]])
+            z["MARKT"] = np.mean([rps(markt_p(sp.get("qmax") or sp["q"]) or sp["p"], _ziele(sp)[0]) for sp in out[ab:]])
         z["STACKING"] = np.mean([rps(sp["p"], _ziele(sp)[0]) for sp in out[ab:]])
         log(f"   Stacking ehrlicher Test ({len(out) - ab} Spiele) RPS: " + ", ".join(f"{k} {v:.4f}" for k, v in z.items()))
     w_live = _fit([(ps, zz) for ps, zz, _ in zeilen[-FENSTER:]]) if len(zeilen) >= MIN_SPIELE else gleich
     live = {}
     for k in set.intersection(*[set(live_p[m]) for m in ids]) if ids else set():
         lv = live_p[ids[0]][k][2] if len(live_p[ids[0]][k]) > 2 else {}
-        ps = mit_markt([live_p[m][k][0] for m in ids], (lv or {}).get("q"), live_p[ids[0]][k][1])
+        ps = mit_markt([live_p[m][k][0] for m in ids], (lv or {}).get("qmax") or (lv or {}).get("q"), live_p[ids[0]][k][1])
         xg = [float(sum(wi * live_p[m][k][1][j] for wi, m in zip(w_live, ids)) / max(sum(w_live[:len(ids)]), 1e-9)) for j in (0, 1)]
         live[k] = (mischen(ps, w_live), xg)
     log(f"   Stacking: {len(out)} Backtest-Spiele, {len(live)} kommend | Gewichte: " +

@@ -13,8 +13,8 @@ from scipy.optimize import minimize
 
 import kern
 
-QUELLEN_1X2 = [("PS", "Pinnacle"), ("Avg", "Durchschnitt"), ("B365", "bet365")]
-QUELLEN_OU = [("P", "Pinnacle"), ("Avg", "Durchschnitt"), ("B365", "bet365")]
+QUELLEN_1X2 = [("Max", "Höchstquote"), ("PS", "Pinnacle"), ("B365", "bet365")]
+QUELLEN_OU = [("Max", "Höchstquote"), ("P", "Pinnacle"), ("B365", "bet365")]
 
 # Markt -> (Mindest-Wahrscheinlichkeit Modell in %, Mindest-Vorteil, Hoechst-Vorteil)
 REGELN = {"1x2": (25, 0.15, 0.60), "ou": (30, 0.12, 0.50), "bts": (30, 0.12, 0.50),

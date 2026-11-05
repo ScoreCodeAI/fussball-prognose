@@ -55,8 +55,9 @@ FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪�
            "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Österreich": "🇦🇹",
            "Schweiz": "🇨🇭", "Polen": "🇵🇱", "Rumänien": "🇷🇴", "Irland": "🇮🇪", "Russland": "🇷🇺", "USA": "🇺🇸",
            "Mexiko": "🇲🇽", "Brasilien": "🇧🇷", "Argentinien": "🇦🇷", "Japan": "🇯🇵", "China": "🇨🇳"}
-MAERKTE = {"1": ["PSH", "AvgH", "B365H"], "X": ["PSD", "AvgD", "B365D"], "2": ["PSA", "AvgA", "B365A"],   # Pinnacle zuerst
-           "Ü2.5": ["P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["P<2.5", "Avg<2.5", "B365<2.5"]}
+MAERKTE = {"1": ["MaxH", "BbMxH", "PSH", "AvgH", "B365H"], "X": ["MaxD", "BbMxD", "PSD", "AvgD", "B365D"],   # Hoechstquote zuerst
+           "2": ["MaxA", "BbMxA", "PSA", "AvgA", "B365A"],
+           "Ü2.5": ["Max>2.5", "BbMx>2.5", "P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["Max<2.5", "BbMx<2.5", "P<2.5", "Avg<2.5", "B365<2.5"]}
 GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
 MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "OVER 2,5", "U2.5": "UNDER 2,5"}
 EXTRA_QUOTEN = [b + s for b in ("PS", "Max", "B365", "BW", "WH", "1XB", "BFE", "BF", "IW", "VC", "LB", "BV", "CL") for s in ("H", "D", "A")] + \
@@ -123,6 +124,12 @@ def quote(row, namen):
         if not np.isnan(v) and v > 1:
             return v
     return None
+
+
+def qmax(row):
+    """Hoechstquote je Ausgang (Spalten Max* von football-data) - Grundlage fuer den Markt-Baustein."""
+    q = {mk: quote(row, ["Max" + s]) for mk, s in (("1", "H"), ("X", "D"), ("2", "A"), ("Ü2.5", ">2.5"), ("U2.5", "<2.5"))}
+    return q if all(q.values()) else {}
 
 
 def markt_wkeiten(row):
@@ -194,7 +201,7 @@ def backtest(mod, spiele_land, quoten_land, start):
             hg, ag, hth, hta = int(s["HG"]), int(s["AG"]), _int(s.get("HTHG")), _int(s.get("HTAG"))
             sid = len(spiele_out)
             spiele_out.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "Home": s["Home"], "Away": s["Away"],
-                               "HG": hg, "AG": ag, "p": p, "q": q, "Time": str(s.get("Time", "") or "")[:5], "xg": xg,
+                               "HG": hg, "AG": ag, "p": p, "q": q, "qmax": qmax(s), "Time": str(s.get("Time", "") or "")[:5], "xg": xg,
                                "HT": f"{hth}:{hta}" if hth is not None and hta is not None else None,
                                "qual": kern.qualitaet(p, ft, ht, hg, ag, hth, hta)})
             for mk in MAERKTE:
@@ -231,7 +238,7 @@ def _land_arbeit(job):
                     continue
                 qq, _ = markt_wkeiten(f)
                 live.append({"Div": f["Div"], "Date": f["Date"], "Time": str(f.get("Time", "") or "")[:5],
-                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": maerkte_von(ft, ht, mod), "xg": xg, "q": qq})
+                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": maerkte_von(ft, ht, mod), "xg": xg, "q": qq, "qmax": qmax(f)})
         except Exception as e:
             diag = f"Live-Training fehlgeschlagen: {str(e)[:80]}"
         return land, s_out, k_out, live, diag, time.time() - t0
@@ -522,7 +529,7 @@ def main():
         tt_quote = {"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None
         if tt_quote:
             log(f"   Tore je Team Backtest: {tt_quote['treffer']} % Treffer ({tt_n} Tipps)")
-        bt[key] = [{k: sp.get(k) for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p", "HT", "Time", "xg", "q")} for sp in alle_spiele]
+        bt[key] = [{k: sp.get(k) for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p", "HT", "Time", "xg", "q", "qmax")} for sp in alle_spiele]
         live_p[key] = {(lv["Div"], pd.Timestamp(lv["Date"]).strftime("%Y-%m-%d"), lv["Home"], lv["Away"]): (lv["p"], lv["xg"], lv)
                        for lv in live}
 
@@ -620,7 +627,7 @@ def main():
         for m, sufs in (("x", ["H", "D", "A"]), ("ou", [">2.5", "<2.5"])):
             werte = []
             for suf in sufs:
-                qs = [quote(z, [sp]) for sp in sorted({c for c in EXTRA_QUOTEN + sum(MAERKTE.values(), []) if c.endswith(suf) and not c.startswith(("PSC", "PC", "AvgC"))})]
+                qs = [quote(z, [sp]) for sp in sorted({c for c in EXTRA_QUOTEN + sum(MAERKTE.values(), []) if c.endswith(suf) and not c.startswith(("PSC", "PC", "AvgC", "MaxC"))})]
                 qs = [x for x in qs if x]
                 werte.append(round(max(qs), 2) if qs else None)
             if all(werte):

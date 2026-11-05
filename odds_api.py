@@ -78,7 +78,7 @@ def _auswerten(ev):
                     ou[0].append(d["Over"]); ou[1].append(d["Under"])
     if not alle:
         return None
-    kopf = pin or [round(sum(q[i] for q in alle) / len(alle), 2) for i in range(3)]
+    kopf = [max(v) for v in x]          # Spielkopf: Hoechstquote (nicht Pinnacle/Durchschnitt)
     return {"x": [max(v) for v in x], "ou": [max(v) for v in ou] if ou[0] else None, "kopf": kopf,
             "n": len(alle), "n_ou": len(ou[0]), "zeit": ev["commence_time"]}
 
