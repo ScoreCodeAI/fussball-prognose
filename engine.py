@@ -30,6 +30,7 @@ import ecken_modell
 import kalibrierung
 import stacking
 import espn
+import hz2_modell
 import datencheck
 import odds_api
 import quoten_modell
@@ -649,6 +650,12 @@ def main():
         e["prog"]["sv"] = se
         n_sv += se is not None
     log(f"Spalten-Value: {n_sv} von {len(liste)} Spielen")
+
+    # Modell HZ2 · Tore 2. Halbzeit (eigener Prozess nur aus Daten der 2. Halbzeit)
+    try:
+        hz2_modell.berechne(spiele, liste, log)
+    except Exception as ex:
+        log("HZ2-Prognose fehlgeschlagen:", ex)
 
     # Modell E · Ecken
     try:

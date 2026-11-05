@@ -56,6 +56,20 @@ MARKT = True       # Markt-Baustein (Tor-Matrix aus Buchmacher-Quoten) mit ins S
 _MK = {}
 
 
+def shin(quoten):
+    """Marge nach Shin entfernen: Aussenseiter tragen mehr Marge als Favoriten (Test 60.535 Spiele: besser als gleichmaessig)."""
+    from scipy.optimize import brentq
+    pi = 1 / np.array(quoten, dtype=float)
+    S = pi.sum()
+    f = lambda z: (np.sqrt(z ** 2 + 4 * (1 - z) * pi ** 2 / S) - z).sum() / (2 * (1 - z)) - 1
+    try:
+        z = brentq(f, 0, 0.4)
+        p = (np.sqrt(z ** 2 + 4 * (1 - z) * pi ** 2 / S) - z) / (2 * (1 - z))
+    except Exception:
+        p = pi
+    return p / p.sum()
+
+
 def markt_p(q, xg=(1.4, 1.1)):
     """Faire Buchmacher-Wahrscheinlichkeiten (1X2 + O/U 2,5) -> komplette Tor-Matrix -> alle Maerkte."""
     try:
@@ -64,8 +78,8 @@ def markt_p(q, xg=(1.4, 1.1)):
         key = tuple(round(float(q[k]), 3) for k in ("1", "X", "2", "Ü2.5", "U2.5"))
         if key in _MK:
             return _MK[key]
-        i3 = np.array([1 / q["1"], 1 / q["X"], 1 / q["2"]]); i3 /= i3.sum()
-        o = (1 / q["Ü2.5"]) / (1 / q["Ü2.5"] + 1 / q["U2.5"])
+        i3 = shin([q["1"], q["X"], q["2"]])
+        o = shin([q["Ü2.5"], q["U2.5"]])[0]
 
         def f(t):
             M = kern.matrix_dixon_coles(np.exp(t[0]), np.exp(t[1]), kern.REMIS_RHO)
