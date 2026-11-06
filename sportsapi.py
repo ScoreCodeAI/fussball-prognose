@@ -21,7 +21,8 @@ import odds_api
 
 B = "https://v2.football.sportsapipro.com"
 BUDGET = 90
-QUOTEN_MAX = 45
+QUOTEN_MAX = 20
+QUOTEN_LIGEN = {"D1", "E0", "SP1", "I1", "F1", "N1", "E1", "D2"}   # Quoten nur hier (Statistik/xG hat Vorrang)
 RUECK_BIS = "2025-07-01"          # so weit zurueck wird nachgeladen (letzte Saison komplett)
 DE = ZoneInfo("Europe/Berlin")
 LIGEN = {("Germany", "Bundesliga"): "D1", ("Germany", "2. Bundesliga"): "D2", ("England", "Premier League"): "E0",
@@ -188,7 +189,7 @@ def holen(log=print, jetzt=None):
     # 2) Quoten der naechsten 48 h (einmal je Tag und Spiel)
     heute = jetzt.astimezone(DE).strftime("%Y-%m-%d")
     bald = sorted([(s["ts"], i) for i, s in S.items() if not s.get("fertig") and s.get("ts")
-                   and 0 < s["ts"] - jetzt.timestamp() < 48 * 3600 and s.get("q_tag") != heute])
+                   and 0 < s["ts"] - jetzt.timestamp() < 48 * 3600 and s.get("q_tag") != heute and s.get("liga") in QUOTEN_LIGEN])
     for _, i in bald[:QUOTEN_MAX]:
         j = hole(f"/api/match/{i}/odds", {"scope": "all"})
         if j is None:
