@@ -333,6 +333,12 @@ def _tt_kb(p):
     for a, b in (("KB", "kb"), ("KB15", "kb15"), ("DC15", "dc15")):
         if p.get(a):
             out[b] = [r(x * 100, 2) for x in p[a]]
+    for a, b in (("CSG", "csg"), ("CSH", "csh"), ("CS2", "cs2")):
+        if p.get(a):
+            top = sorted(p[a].items(), key=lambda kv: -kv[1])[:6]
+            out[b] = [[s, r(v * 100, 2)] for s, v in top]
+    if p.get("HF"):
+        out["hf"] = {k: r(v * 100, 2) for k, v in p["HF"].items()}
     return out
 
 
@@ -697,6 +703,10 @@ def main():
         e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
         n_ou += bool(alle)
     log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
+    try:
+        sportsapi.xg_form(spiele, liste, log)          # Ueber-/Unterperformance: Tore gegen xG der letzten Spiele
+    except Exception as ex:
+        log("xG-Form fehlgeschlagen:", ex)
     try:
         sportsapi.anwenden(liste, sapi_archiv, log)   # Ergebnisse, Halbzeit, Ecken, Karten, Statistik, SportsAPI-Quoten
     except Exception as ex:

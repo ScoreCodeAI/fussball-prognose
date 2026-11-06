@@ -138,7 +138,28 @@ def maerkte(ft, ht=None):
             "HT": None if ht is None else _1x2(ht),
             "HT2": None if ht is None else zweite_halbzeit(ft, ht),
             "TT": team_tore(M), "KB": kombi_1x2_ou(M), "KB15": kombi_1x2_ou(M, 1),
-            "DC15": kombi_dc_ou(M, 1)}
+            "DC15": kombi_dc_ou(M, 1), **ergebnisse(M, ht)}
+
+
+def _gitter(M, n):
+    M = M / M.sum()
+    return {f"{i}:{j}": float(M[i, j]) if i < M.shape[0] and j < M.shape[1] else 0.0 for i in range(n + 1) for j in range(n + 1)}
+
+
+def ergebnisse(ft, ht):
+    """Correct Score Endstand (0-4), 1. HZ (0-3), 2. HZ (0-3, nur Tore nach der Pause) und Halbzeit/Endstand (9).
+    Feste Schluessel, damit Stacking die Verteilungen sauber mischen kann."""
+    out = {"CSG": _gitter(ft, 4)}
+    if ht is None:
+        return out
+    out["CSH"] = _gitter(ht, 3)
+    xh, xa = erwartete_tore(ft)
+    hh, ha = erwartete_tore(ht)
+    out["CS2"] = _gitter(matrix_unabhaengig(max(xh - hh, 0.05), max(xa - ha, 0.05), 10), 3)
+    e = extra(ft, ht)
+    if "HTFT" in e:
+        out["HF"] = {k: float(v) for k, v in e["HTFT"].items()}
+    return out
 
 
 def kombi_dc_ou(M, linie=1):

@@ -21,7 +21,7 @@ import odds_api
 
 B = "https://v2.football.sportsapipro.com"
 BUDGET = 90
-QUOTEN_MAX = 20
+QUOTEN_MAX = 0          # SportsAPI-Quoten aus (alle Abrufe fuer Statistik/xG). Wieder an: 20
 QUOTEN_LIGEN = {"D1", "E0", "SP1", "I1", "F1", "N1", "E1", "D2"}   # Quoten nur hier (Statistik/xG hat Vorrang)
 RUECK_BIS = "2025-07-01"          # so weit zurueck wird nachgeladen (letzte Saison komplett)
 DE = ZoneInfo("Europe/Berlin")
@@ -348,3 +348,31 @@ def anwenden(liste, a, log=print):
             e["squoten"] = s["quoten"]
             n_q += 1
     log(f"SportsAPI auf der Seite: {n_e} Ergebnisse ergänzt, {n_q} Spiele mit SportsAPI-Quoten")
+
+
+def xg_form(df, liste, log=print, n=10):
+    """Je Team die letzten n Spiele MIT xG: Tore vs xG und Gegentore vs xG gegen.
+    Positiv = mehr Tore als xG (Glueck/Effizienz), negativ = Pech/Ineffizienz -> spielt besser als die Ergebnisse."""
+    import pandas as pd
+    if "HXG" not in df:
+        return
+    d = df.dropna(subset=["HXG", "AXG"]).sort_values("Date")
+    if d.empty:
+        return
+    rows = []
+    for r in d.itertuples(index=False):
+        rows.append((r.Div, r.Home, r.Date, r.HG, r.AG, r.HXG, r.AXG))
+        rows.append((r.Div, r.Away, r.Date, r.AG, r.HG, r.AXG, r.HXG))
+    t = pd.DataFrame(rows, columns=["liga", "team", "date", "tore", "geg", "xg", "xga"])
+    n_ok = 0
+    for e in liste:
+        out = {}
+        for seite, team in (("h", e["heim"]), ("a", e["gast"])):
+            x = t[(t["liga"] == e["liga"]) & (t["team"] == team) & (t["date"] < pd.Timestamp(e["datum"]))].tail(n)
+            if len(x) >= 3:
+                out[seite] = {"n": int(len(x)), "tore": int(x["tore"].sum()), "xg": round(float(x["xg"].sum()), 2),
+                              "geg": int(x["geg"].sum()), "xga": round(float(x["xga"].sum()), 2)}
+        if out:
+            e["xgform"] = out
+            n_ok += 1
+    log(f"xG-Form: {n_ok} Spiele mit Tore-gegen-xG-Vergleich")
