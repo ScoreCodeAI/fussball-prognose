@@ -1,0 +1,17 @@
+name: sportsapipro_ligen
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Ligen auflisten
+        env:
+          SPORTSAPIPRO_KEY: ${{ secrets.SPORTSAPIPRO_KEY }}
+        run: python sportsapipro_ligen.py
+        
