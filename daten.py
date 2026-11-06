@@ -7,11 +7,12 @@ import requests
 from ligen import LAENDER, SAISON, EXTRA_LIGEN
 
 ALLE_LIGEN = [code for ligen in LAENDER.values() for code in ligen]
-SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC"]
-STAT_SPALTEN = ["HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC"]
+SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR"]
+STAT_SPALTEN = ["HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR"]
 XG_NAMEN = {"Division": "Div", "MatchDate": "Date", "HomeTeam": "Home", "AwayTeam": "Away", "FTHome": "HG", "FTAway": "AG",
             "HTHome": "HTHG", "HTAway": "HTAG", "HomeShots": "HS", "AwayShots": "AS", "HomeTarget": "HST",
-            "AwayTarget": "AST", "HomeCorners": "HC", "AwayCorners": "AC"}
+            "AwayTarget": "AST", "HomeCorners": "HC", "AwayCorners": "AC",
+            "HomeYellow": "HY", "AwayYellow": "AY", "HomeRed": "HR", "AwayRed": "AR"}
 
 XG_RAW = "https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data/main/data/"
 XG_API = "https://api.github.com/repos/xgabora/Club-Football-Match-Data/contents/data"

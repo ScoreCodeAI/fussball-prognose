@@ -29,7 +29,8 @@ import markt
 import ecken_modell
 import kalibrierung
 import stacking
-import espn
+import sportsapi
+import karten_modell
 import hz2_modell
 import datencheck
 import odds_api
@@ -455,6 +456,13 @@ def main():
     q = quoten_spiele()
     spiele = pd.concat([hist, q[daten.SPALTEN]]).dropna(subset=["Date", "HG", "AG"])
     spiele = spiele.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
+    try:                                       # SportsAPI Pro: aktuelle Ergebnisse, Halbzeit, xG + alle Statistiken
+        sapi_archiv, sapi_status = sportsapi.holen(log)
+        spiele = sportsapi.ergaenze_df(spiele, sapi_archiv, log)
+    except Exception as ex:
+        import traceback
+        sapi_archiv, sapi_status = {"spiele": {}}, {"aktiv": False, "fehler": str(ex)}
+        log("SportsAPI fehlgeschlagen:", ex, traceback.format_exc()[-500:])
     fx = daten.kommende_spiele()
     log(f"Spiele: {len(spiele):,} | mit Halbzeit: {spiele['HTHG'].notna().sum():,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
 
@@ -664,6 +672,13 @@ def main():
     except Exception as ex:
         log("HZ2-Prognose fehlgeschlagen:", ex)
 
+    # Modell K · Karten
+    try:
+        karten_modell.berechne(spiele, liste, log)
+        ergebnis["modelle"].append(dict(karten_modell.INFO))
+    except Exception as ex:
+        log("Karten-Prognose fehlgeschlagen:", ex)
+
     # Modell E · Ecken
     try:
         ecken_modell.berechne(spiele, liste, log)
@@ -683,9 +698,10 @@ def main():
         n_ou += bool(alle)
     log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
     try:
-        espn.ergaenzen(liste, heute, log)      # schnelle Ergebnisse fuer die Anzeige (Modelle nutzen weiter nur football-data)
+        sportsapi.anwenden(liste, sapi_archiv, log)   # Ergebnisse, Halbzeit, Ecken, Karten, Statistik, SportsAPI-Quoten
     except Exception as ex:
-        log("ESPN fehlgeschlagen:", ex)
+        log("SportsAPI-Anzeige fehlgeschlagen:", ex)
+    ergebnis["sportsapi"] = sapi_status
     uhrzeit_deutsch(liste)
     os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
     pfad = os.path.join(ORDNER, "docs", "daten.json")
