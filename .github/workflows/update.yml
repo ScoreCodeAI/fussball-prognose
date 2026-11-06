@@ -1,4 +1,3 @@
-
 name: Taegliches Update
 
 on:
@@ -23,6 +22,7 @@ jobs:
       - name: Motor starten
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          SPORTSAPIPRO_KEY: ${{ secrets.SPORTSAPIPRO_KEY }}
         run: python engine.py
       - name: Ergebnis speichern
         run: |
@@ -30,5 +30,6 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add docs/daten.json
           git add docs/odds_archiv.json || true
+          git add archiv/sportsapi.json.gz || true
           git commit -m "Daten-Update $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
           git push
