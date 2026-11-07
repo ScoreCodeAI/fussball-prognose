@@ -55,7 +55,9 @@ def _f(v):
 
 def analyse(row, m):
     zeilen, wer = [], []
-    for b in BUCHMACHER[m]:
+    namen = row.get("_namen") or {}
+    oa = sorted({k[3:-len(sfx)] for k in row.keys() if str(k).startswith("OA:") for sfx in SUFFIXE[m][:1] if str(k).endswith(sfx)})
+    for b in (["OA:" + k for k in oa] if oa else BUCHMACHER[m]):
         q = [_f(row.get(b + s)) for s in SUFFIXE[m]]
         if all(q):
             zeilen.append(q)
@@ -88,7 +90,8 @@ def analyse(row, m):
         spalte = [z[i] for z in zeilen]
         j = max(range(len(spalte)), key=lambda k: spalte[k])
         hq = hoch[i] if hoch[i] and hoch[i] > spalte[j] else None
-        out["wer"].append(NAMEN.get("Max", "Max") if hq else NAMEN.get(wer[j], wer[j]))
+        nm = namen.get(wer[j][3:], wer[j][3:]) if wer[j].startswith("OA:") else NAMEN.get(wer[j], wer[j])
+        out["wer"].append(NAMEN.get("Max", "Max") if hq else nm)
         out["abw"].append(round(((hq or spalte[j]) / statistics.median(spalte) - 1) * 100, 1))
     # (3) Faire Chance mit Shin aus der Durchschnittsquote -> hoechste Quote x Shin-Chance
     sh = shin([statistics.mean(z[i] for z in zeilen) for i in range(len(fair))])

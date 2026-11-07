@@ -475,6 +475,17 @@ def main():
         sapi_archiv, sapi_status = {"spiele": {}}, {"aktiv": False, "fehler": str(ex)}
         log("SportsAPI fehlgeschlagen:", ex, traceback.format_exc()[-500:])
     fx = daten.kommende_spiele()
+    # QUOTEN-REGEL: kommende Spiele nur mit Odds-API-Quoten (frisch, ohne Wettboersen).
+    # football-data-Quoten dienen nur noch zum Lernen aus alten Spielen (Backtest, XGBoost, Markt-Baustein).
+    try:
+        kommend = [{"liga": f["Div"], "datum": f["Date"].strftime("%Y-%m-%d"), "heim": f["HomeTeam"], "gast": f["AwayTeam"]}
+                   for _, f in fx.iterrows() if not pd.isna(f["Date"])]
+        oa_archiv, oa_status = odds_api.holen(kommend, os.path.join(ORDNER, "docs", "odds_archiv.json"), log)
+    except Exception as ex:
+        oa_archiv, oa_status = {}, {"aktiv": False, "fehler": str(ex)}
+        log("Odds API fehlgeschlagen:", ex)
+    fx, n_oa = odds_api.fx_ersetzen(fx, oa_archiv)
+    log(f"Kommende Spiele: {len(fx)} | davon mit Odds-API-Quoten: {n_oa} (football-data-Quoten entfernt)")
     log(f"Spiele: {len(spiele):,} | mit Halbzeit: {spiele['HTHG'].notna().sum():,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
 
     ergebnis = {"stand": heute.strftime("%Y-%m-%d"), "daten_bis": spiele["Date"].max().strftime("%Y-%m-%d"),
@@ -614,6 +625,10 @@ def main():
     for _, z in fx.iterrows():
         if not pd.isna(z["Date"]):
             zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+    # Angezeigte Spiele (letzte Woche + kommend): nur Odds-API-Quoten, sonst keine
+    for e in liste:
+        k = (e["liga"], e["datum"], e["heim"], e["gast"])
+        zeilen[k] = odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
     # Modell X · XGBoost (Markt + Schuesse), wird wie ein normales Prognose-Modell behandelt
     try:
         xp = xgb_modell.berechne(spiele, q, liste, zeilen, log)
@@ -656,14 +671,8 @@ def main():
     echte = list(ergebnis["modelle"])
 
     # The Odds API: frischere Hoechstquoten fuer die Spiele der naechsten Stunden (+ Archiv fuer vergangene)
-    try:
-        kommend = [{"liga": x["liga"], "datum": x["datum"], "heim": x["heim"], "gast": x["gast"]} for x in liste if not x.get("ergebnis")]
-        archiv, ergebnis["odds_api"] = odds_api.holen(kommend, os.path.join(ORDNER, "docs", "odds_archiv.json"), log)
-        log(f"Odds API: {odds_api.anwenden(liste, archiv)} Spiele mit Odds-API-Quoten | Credits uebrig {ergebnis['odds_api'].get('rest')}")
-    except Exception as ex:
-        log("Odds API fehlgeschlagen:", ex)
-        for x in liste:
-            x.setdefault("qquelle", {"x": "football-data", "ou": "football-data"})
+    ergebnis["odds_api"] = oa_status
+    log(f"Odds API: {odds_api.anwenden(liste, oa_archiv)} Spiele mit Odds-API-Quoten | Credits uebrig {oa_status.get('rest')}")
 
     # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
     ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))

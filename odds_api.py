@@ -57,11 +57,19 @@ def _aehnlich(a, b):
     return difflib.SequenceMatcher(None, a, b).ratio()
 
 
+# Wettboersen zaehlen NICHT als Buchmacher (Quoten ohne Kommission, oft unrealistisch hoch)
+BOERSEN = {"betfair_ex_eu", "betfair_ex_uk", "betfair_ex_au", "matchbook", "smarkets"}
+VERSION = 2          # Archiv-Eintraege ab Version 2: ohne Boersen, mit Quoten je Buchmacher
+
+
 def _auswerten(ev):
     """Ein Spiel der Odds API -> {x: Hoechstquoten, ou: Hoechstquoten 2,5, kopf: Pinnacle/Durchschnitt, n}"""
     h, a = ev["home_team"], ev["away_team"]
-    x, ou, pin, alle = [[], [], []], [[], []], None, []
+    x, ou, pin, alle, je = [[], [], []], [[], []], None, [], {}
     for bm in ev.get("bookmakers", []):
+        if bm.get("key") in BOERSEN:
+            continue
+        b = je.setdefault(bm["key"], {"t": bm.get("title", bm["key"])})
         for m in bm.get("markets", []):
             if m["key"] == "h2h":
                 d = {o["name"]: o["price"] for o in m["outcomes"]}
@@ -70,17 +78,62 @@ def _auswerten(ev):
                     for i in range(3):
                         x[i].append(q[i])
                     alle.append(q)
+                    b["x"] = q
                     if bm["key"] == "pinnacle":
                         pin = q
             elif m["key"] == "totals":
                 d = {o["name"]: o["price"] for o in m["outcomes"] if abs(float(o.get("point", 0)) - 2.5) < 1e-9}
                 if "Over" in d and "Under" in d:
                     ou[0].append(d["Over"]); ou[1].append(d["Under"])
+                    b["ou"] = [d["Over"], d["Under"]]
     if not alle:
         return None
     kopf = [max(v) for v in x]          # Spielkopf: Hoechstquote (nicht Pinnacle/Durchschnitt)
     return {"x": [max(v) for v in x], "ou": [max(v) for v in ou] if ou[0] else None, "kopf": kopf,
-            "n": len(alle), "n_ou": len(ou[0]), "zeit": ev["commence_time"]}
+            "n": len(alle), "n_ou": len(ou[0]), "zeit": ev["commence_time"], "pin": pin,
+            "bm": {k: v for k, v in je.items() if "x" in v or "ou" in v}, "v": VERSION}
+
+
+def zeile(a):
+    """Odds-API-Auswertung -> Quoten-Zeile im football-data-Format (Max*, Avg*, PS*, je Buchmacher 'OA:<key>')."""
+    if not a or a.get("v", 0) < VERSION:
+        return None
+    z = {"_quelle": "ODDS API"}
+    for i, s in enumerate(("H", "D", "A")):
+        z["Max" + s] = a["x"][i]
+        z["Avg" + s] = sum(b["x"][i] for b in a["bm"].values() if "x" in b) / max(1, sum("x" in b for b in a["bm"].values()))
+    if a.get("ou"):
+        for i, s in enumerate((">2.5", "<2.5")):
+            z["Max" + s] = a["ou"][i]
+            n = [b["ou"][i] for b in a["bm"].values() if "ou" in b]
+            z["Avg" + s] = sum(n) / len(n)
+    p = a["bm"].get("pinnacle")
+    if p and "x" in p:
+        z["PSH"], z["PSD"], z["PSA"] = p["x"]
+    if p and "ou" in p:
+        z["P>2.5"], z["P<2.5"] = p["ou"]
+    for k, b in a["bm"].items():
+        for m, sufs in (("x", ("H", "D", "A")), ("ou", (">2.5", "<2.5"))):
+            if m in b:
+                for q, suf in zip(b[m], sufs):
+                    z[f"OA:{k}{suf}"] = q
+    z["_namen"] = {k: b["t"] for k, b in a["bm"].items()}
+    return z
+
+
+BEHALTEN = {"Div", "Date", "Time", "HomeTeam", "AwayTeam", "Referee", "Country", "League", "Season"}
+
+
+def fx_ersetzen(fx, archiv):
+    """Kommende Spiele: ALLE football-data-Quoten loeschen, nur Odds-API-Quoten eintragen."""
+    import pandas as pd
+    fx = fx[[c for c in fx.columns if c in BEHALTEN]].copy()
+    zz = []
+    for _, f in fx.iterrows():
+        z = None if pd.isna(f["Date"]) else zeile(archiv.get(_key(f["Div"], f["Date"].strftime("%Y-%m-%d"), f["HomeTeam"], f["AwayTeam"])))
+        zz.append({k: v for k, v in (z or {}).items() if not k.startswith("_")})
+    extra = pd.DataFrame(zz, index=fx.index)
+    return pd.concat([fx, extra], axis=1), sum(1 for z in zz if z)
 
 
 def _key(liga, datum, heim, gast):
@@ -115,7 +168,7 @@ def holen(fx_spiele, archiv_pfad, log=print):
         if not evs:
             continue
         heute_txt = jetzt.strftime("%Y-%m-%d")
-        if any(k.startswith(liga + "|") and v.get("abruf", "").startswith(heute_txt) for k, v in archiv.items()):
+        if any(k.startswith(liga + "|") and v.get("abruf", "").startswith(heute_txt) and v.get("v", 0) >= VERSION for k, v in archiv.items()):
             log(f"Odds API {liga}: heute schon abgerufen - keine Credits verbraucht")
             continue
         rest = status["rest"]
@@ -186,18 +239,22 @@ def anwenden(liste, archiv):
     n = 0
     for e in liste:
         a = archiv.get(_key(e["liga"], e["datum"], e["heim"], e["gast"]))
-        e.setdefault("qquelle", {"x": "football-data", "ou": "football-data"})
-        if not a:
+        e["qquelle"] = {}
+        e.pop("hq", None)
+        if not a or a.get("v", 0) < VERSION:
+            e["quoten"] = {}                      # keine football-data-Quoten mehr in der Anzeige
             continue
-        hq = dict(e.get("hq") or {})
+        hq = {}
         hq["x"] = [round(v, 2) for v in a["x"]]
         e["qquelle"]["x"] = "ODDS API"
         if a.get("ou"):
             hq["ou"] = [round(v, 2) for v in a["ou"]]
             e["qquelle"]["ou"] = "ODDS API"
         e["hq"] = hq
-        q = dict(e.get("quoten") or {})
+        q = {}
         q["1"], q["X"], q["2"] = a["kopf"]
+        if a.get("ou"):
+            q["Ü2.5"], q["U2.5"] = a["ou"]
         e["quoten"] = q
         e["qinfo"] = {"buchmacher": a["n"], "abruf": a.get("abruf")}
         n += 1
