@@ -14,11 +14,12 @@ import markt
 
 INFO = {"id": "xgb", "name": "XGBoost · Markt + Schüsse", "kurz": "XGBoost", "icon": "X",
         "farbe1": "#ffd84d", "farbe2": "#ff7a45",
-        "beschreibung": "Gradient Boosting aus fairer Quote, Schuss-Stärken, Form und Ruhetagen"}
+        "beschreibung": "Gradient Boosting aus fairer Quote, Schuss-Stärken, Elo, Form und Ruhetagen"}
 
 K = 0.03
+ELO_K, ELO_HEIM = 20.0, 65.0      # Elo als Merkmal: ClubElo (HE/AE) wenn vorhanden, sonst eigenes laufendes Elo
 FEAT = ["m1", "mx", "m2", "mo", "s1", "sx", "s2", "so", "sb", "lh", "la", "g1", "gx", "g2", "go",
-        "Ah", "Dh", "Aa", "Da", "f_h", "f_a", "rest_h", "rest_a", "liga"]
+        "Ah", "Dh", "Aa", "Da", "f_h", "f_a", "rest_h", "rest_a", "liga", "elo_d", "elo_p"]
 
 
 def _modell(n_klassen):
@@ -50,13 +51,21 @@ def _features(spiele):
         A, D, A0, D0 = {}, {}, {}, {}
         mu, h, conv = np.log(1.35), 0.12, 0.32
         mu0, h0 = mu, h
-        form, last = {}, {}
+        form, last, E = {}, {}, {}
         for r in df.itertuples(index=False):
             a, b = r.Home, r.Away
+            he = getattr(r, "HE", np.nan); ae = getattr(r, "AE", np.nan)
+            ok = not (pd.isna(he) or pd.isna(ae))
+            if ok:                                   # ClubElo bevorzugt, eigenes Elo daran angleichen
+                E[a], E[b] = float(he), float(ae)
+            ed = (E.get(a, 1500.0) - E.get(b, 1500.0))
             lh = np.exp(mu + h + A.get(a, 0) - D.get(b, 0)); la = np.exp(mu - h + A.get(b, 0) - D.get(a, 0))
             gh = np.exp(mu0 + h0 + A0.get(a, 0) - D0.get(b, 0)); ga = np.exp(mu0 - h0 + A0.get(b, 0) - D0.get(a, 0))
-            vor[_key(div, r.Date, a, b)] = _zeile(lh, la, gh, ga, A, D, a, b, form, last, r.Date)
+            vor[_key(div, r.Date, a, b)] = _zeile(lh, la, gh, ga, A, D, a, b, form, last, r.Date, ed)
             hg, ag = float(r.HG), float(r.AG)
+            erw = 1 / (1 + 10 ** (-(ed + ELO_HEIM) / 400)); erg = 1.0 if hg > ag else 0.5 if hg == ag else 0.0
+            dk = ELO_K * np.log1p(abs(hg - ag)) * (erg - erw) if hg != ag else ELO_K * (erg - erw)
+            E[a] = E.get(a, 1500.0) + dk; E[b] = E.get(b, 1500.0) - dk
             sh, sa = r.HST, r.AST
             if pd.isna(sh) or pd.isna(sa):
                 th, ta = hg, ag
@@ -72,24 +81,26 @@ def _features(spiele):
             mu0 += 0.002 * (e0 + e1); h0 += 0.002 * (e0 - e1)
             form.setdefault(a, []).append(hg - ag); form.setdefault(b, []).append(ag - hg)
             last[a] = last[b] = r.Date
-        ende[div] = dict(A=A, D=D, A0=A0, D0=D0, mu=mu, h=h, mu0=mu0, h0=h0, form=form, last=last)
+        ende[div] = dict(A=A, D=D, A0=A0, D0=D0, mu=mu, h=h, mu0=mu0, h0=h0, form=form, last=last, E=E)
     return vor, ende
 
 
-def _zeile(lh, la, gh, ga, A, D, a, b, form, last, datum):
+def _zeile(lh, la, gh, ga, A, D, a, b, form, last, datum, ed=0.0):
     s, g = _kurz_maerkte(lh, la), _kurz_maerkte(gh, ga)
     fa, fb = form.get(a, []), form.get(b, [])
     rest = lambda t: min((pd.Timestamp(datum) - last[t]).days, 30) if t in last else 7
     return dict(s1=s[0], sx=s[1], s2=s[2], so=s[3], sb=s[4], lh=lh, la=la, g1=g[0], gx=g[1], g2=g[2], go=g[3],
                 Ah=A.get(a, 0), Dh=D.get(a, 0), Aa=A.get(b, 0), Da=D.get(b, 0),
                 f_h=float(np.mean(fa[-5:])) if fa else 0.0, f_a=float(np.mean(fb[-5:])) if fb else 0.0,
-                rest_h=rest(a), rest_a=rest(b))
+                rest_h=rest(a), rest_a=rest(b),
+                elo_d=float(ed), elo_p=float(1 / (1 + 10 ** (-(ed + ELO_HEIM) / 400))))
 
 
 def _zukunft(e, div, datum, a, b):
     lh = np.exp(e["mu"] + e["h"] + e["A"].get(a, 0) - e["D"].get(b, 0)); la = np.exp(e["mu"] - e["h"] + e["A"].get(b, 0) - e["D"].get(a, 0))
     gh = np.exp(e["mu0"] + e["h0"] + e["A0"].get(a, 0) - e["D0"].get(b, 0)); ga = np.exp(e["mu0"] - e["h0"] + e["A0"].get(b, 0) - e["D0"].get(a, 0))
-    return _zeile(lh, la, gh, ga, e["A"], e["D"], a, b, e["form"], e["last"], datum)
+    ed = e["E"].get(a, 1500.0) - e["E"].get(b, 1500.0)
+    return _zeile(lh, la, gh, ga, e["A"], e["D"], a, b, e["form"], e["last"], datum, ed)
 
 
 def _markt(row):
