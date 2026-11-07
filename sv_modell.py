@@ -22,6 +22,27 @@ BUCHMACHER = {"x": ["B365", "BW", "PS", "WH", "1XB", "BFE", "BF", "IW", "VC", "L
 SUFFIXE = {"x": ["H", "D", "A"], "ou": [">2.5", "<2.5"]}
 LABELS = {"x": ["1", "X", "2"], "ou": ["O", "U"]}
 HOECHST = {"x": "Max", "ou": "Max"}
+SCHLUSS = {"x": ["PSCH", "PSCD", "PSCA"], "ou": ["PC>2.5", "PC<2.5"]}      # Pinnacle-Schlussquoten (fuer CLV)
+NAMEN = {"B365": "bet365", "BW": "bwin", "PS": "Pinnacle", "P": "Pinnacle", "WH": "William Hill", "1XB": "1xBet",
+         "BFE": "Betfair Exchange", "BF": "Betfair", "IW": "Interwetten", "VC": "BetVictor", "LB": "Ladbrokes",
+         "BV": "BetVictor", "CL": "Coral", "GB": "Gamebookers", "SB": "Sportingbet", "Max": "Höchstquote"}
+
+
+def shin(quoten):
+    """Marge nach Shin entfernen (Aussenseiter tragen mehr Marge). Bei negativer Marge: gleichmaessig."""
+    from scipy.optimize import brentq
+    pi = [1 / q for q in quoten]
+    S = sum(pi)
+    if S <= 1:
+        return [p / S for p in pi]
+    f = lambda z: sum(math.sqrt(z * z + 4 * (1 - z) * p * p / S) - z for p in pi) / (2 * (1 - z)) - 1
+    try:
+        z = brentq(f, 0, 0.4)
+        p = [(math.sqrt(z * z + 4 * (1 - z) * x * x / S) - z) / (2 * (1 - z)) for x in pi]
+    except Exception:
+        p = pi
+    t = sum(p)
+    return [x / t for x in p]
 
 
 def _f(v):
@@ -33,11 +54,12 @@ def _f(v):
 
 
 def analyse(row, m):
-    zeilen = []
+    zeilen, wer = [], []
     for b in BUCHMACHER[m]:
         q = [_f(row.get(b + s)) for s in SUFFIXE[m]]
         if all(q):
             zeilen.append(q)
+            wer.append(b)
     if len(zeilen) < MIN_BUCHMACHER:
         return None
     fair = [statistics.median(p[i] for p in (markt.marge_entfernen(z) for z in zeilen)) for i in range(len(SUFFIXE[m]))]
@@ -60,6 +82,24 @@ def analyse(row, m):
     out["avg_p"] = [round(x * 100, 1) for x in avg_p]
     out["avg_q"] = [round(1 / x, 2) for x in avg_p]
     out["avg_check"] = [round(f / x * 100, 2) for f, x in zip(fair, avg_p)]
+    # (2) Wer zahlt die hoechste Quote je Spalte, und wie weit ueber dem Konsens (Median der Spalte)?
+    out["wer"], out["abw"] = [], []
+    for i in range(len(fair)):
+        spalte = [z[i] for z in zeilen]
+        j = max(range(len(spalte)), key=lambda k: spalte[k])
+        hq = hoch[i] if hoch[i] and hoch[i] > spalte[j] else None
+        out["wer"].append(NAMEN.get("Max", "Max") if hq else NAMEN.get(wer[j], wer[j]))
+        out["abw"].append(round(((hq or spalte[j]) / statistics.median(spalte) - 1) * 100, 1))
+    # (3) Faire Chance mit Shin aus der Durchschnittsquote -> hoechste Quote x Shin-Chance
+    sh = shin([statistics.mean(z[i] for z in zeilen) for i in range(len(fair))])
+    out["shin"] = [round(x * 100, 2) for x in sh]
+    out["shin_check"] = [round(q * x * 100, 2) for q, x in zip(out["q"], sh)]
+    # (1) CLV: hoechste Quote gegen Pinnacle-Schlussquote ohne Marge (nur fuer beendete Spiele vorhanden)
+    sq = [_f(row.get(c)) for c in SCHLUSS[m]]
+    if all(sq):
+        fs = shin(sq)
+        out["clv"] = [round((q * f - 1) * 100, 1) for q, f in zip(out["q"], fs)]
+        out["schluss"] = [round(x, 2) for x in sq]
     # Spalten-Check: hoechste Quote x faire Wahrscheinlichkeit (ueber 100 % = Value)
     out["check"] = [round(q * f * 100, 2) for q, f in zip(out["q"], fair)]
     # Quoten-Analyse (frueher Modell Q) auf den hoechsten Quoten der Spalten
