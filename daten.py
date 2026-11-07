@@ -7,12 +7,13 @@ import requests
 from ligen import LAENDER, SAISON, EXTRA_LIGEN
 
 ALLE_LIGEN = [code for ligen in LAENDER.values() for code in ligen]
-SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR"]
-STAT_SPALTEN = ["HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR"]
+SPALTEN = ["Div", "Date", "Home", "Away", "HG", "AG", "HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR", "HE", "AE", "HF", "AF"]
+STAT_SPALTEN = ["HTHG", "HTAG", "HS", "AS", "HST", "AST", "HC", "AC", "HY", "AY", "HR", "AR", "HF", "AF"]
 XG_NAMEN = {"Division": "Div", "MatchDate": "Date", "HomeTeam": "Home", "AwayTeam": "Away", "FTHome": "HG", "FTAway": "AG",
             "HTHome": "HTHG", "HTAway": "HTAG", "HomeShots": "HS", "AwayShots": "AS", "HomeTarget": "HST",
             "AwayTarget": "AST", "HomeCorners": "HC", "AwayCorners": "AC",
-            "HomeYellow": "HY", "AwayYellow": "AY", "HomeRed": "HR", "AwayRed": "AR"}
+            "HomeYellow": "HY", "AwayYellow": "AY", "HomeRed": "HR", "AwayRed": "AR",
+            "HomeElo": "HE", "AwayElo": "AE", "HomeFouls": "HF", "AwayFouls": "AF"}
 
 XG_RAW = "https://raw.githubusercontent.com/xgabora/Club-Football-Match-Data/main/data/"
 XG_API = "https://api.github.com/repos/xgabora/Club-Football-Match-Data/contents/data"

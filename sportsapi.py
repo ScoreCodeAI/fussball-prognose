@@ -263,7 +263,7 @@ def ergaenze_df(df, a, log=print):
                    "HXG2": ("expectedGoals", 0, "2ND"), "AXG2": ("expectedGoals", 1, "2ND")}
     fuell = {"HS": ("totalShotsOnGoal", 0), "AS": ("totalShotsOnGoal", 1), "HST": ("shotsOnGoal", 0), "AST": ("shotsOnGoal", 1),
              "HC": ("cornerKicks", 0), "AC": ("cornerKicks", 1), "HY": ("yellowCards", 0), "AY": ("yellowCards", 1),
-             "HR": ("redCards", 0), "AR": ("redCards", 1)}
+             "HR": ("redCards", 0), "AR": ("redCards", 1), "HF": ("fouls", 0), "AF": ("fouls", 1)}
     for c in list(neu_spalten) + list(fuell):
         if c not in df:
             df[c] = np.nan

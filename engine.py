@@ -460,8 +460,13 @@ def main():
     log("Lade Historie, Quoten und kommende Spiele ...")
     hist = daten.historie()
     q = quoten_spiele()
-    spiele = pd.concat([hist, q[daten.SPALTEN]]).dropna(subset=["Date", "HG", "AG"])
+    spiele = pd.concat([hist, q.reindex(columns=daten.SPALTEN)]).dropna(subset=["Date", "HG", "AG"])
     spiele = spiele.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
+    # ClubElo steht nur in der Historie: bei doppelten Spielen (football-data hat Vorrang) Elo-Werte zurueckholen
+    _k = ["Div", "Date", "Home", "Away"]
+    _elo = hist.dropna(subset=["HE"])[_k + ["HE", "AE"]].drop_duplicates(_k)
+    spiele = spiele.drop(columns=["HE", "AE"]).merge(_elo, on=_k, how="left")
+    log(f"ClubElo: {spiele['HE'].notna().sum():,} Spiele mit Elo-Wert")
     try:                                       # SportsAPI Pro: aktuelle Ergebnisse, Halbzeit, xG + alle Statistiken
         sapi_archiv, sapi_status = sportsapi.holen(log)
         spiele = sportsapi.ergaenze_df(spiele, sapi_archiv, log)
@@ -703,6 +708,11 @@ def main():
         e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
         n_ou += bool(alle)
     log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
+    try:
+        import modell_elo
+        modell_elo.anzeige(spiele, liste, log)        # Elo beider Teams, Rang, Trend (Anzeige)
+    except Exception as ex:
+        log("Elo-Anzeige fehlgeschlagen:", ex)
     try:
         sportsapi.xg_form(spiele, liste, log)          # Ueber-/Unterperformance: Tore gegen xG der letzten Spiele
     except Exception as ex:
