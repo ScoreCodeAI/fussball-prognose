@@ -731,11 +731,11 @@ function probCard(s,p){const r=res(s),hq=s.hq||{};
    if(e.html)te.push([titel,e.t1,e.t2,e.t3])}
   return markt(titel,opts,null,kat(m)+(b?kat(b).replace("HÖCHSTE QUOTEN</div>","HÖCHSTE QUOTEN"+qsrc(s,mk)+"</div>"):"")+ec)};
  const kbx=(art,t)=>{if(art=="ou15"||art=="bts"){const pr=kPr(p,art,0);if(pr==null)return"";const i=art=="bts"&&pr<50?1:0,v=kPr(p,art,i),h=r?kWin(art,i,r):null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>${t}</small><b>${art=="bts"?(i?"NEIN":"JA"):"OVER 1,5"}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(v.toFixed(2))} %</span></div>`}const v=p[art];if(!v)return"";const i=v.indexOf(Math.max(...v)),h=r?kWin(art,i,r):null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>${t}</small><b>${kLab(art,i).replace(" 1,5","")}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(v[i].toFixed(2))} %</span></div>`};
- let body=(p.kb?`<div class="kbg">${kbx("kb","1X2 + O/U 2,5")}${kbx("kb15","1X2 + O/U 1,5")}${kbx("dc15","DC + O/U 1,5")}${kbx("ou15","OVER 1,5")}${kbx("bts","Beide treffen")}${["csg","csh","cs2"].map(a=>{const v=p[a];if(!v||!v.length)return"";const e=csEcht(a,r),h=e?e[0]+":"+e[1]==v[0][0]:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>${a=="csg"?"Ergebnis":a=="csh"?"Ergebnis 1.HZ":"Ergebnis 2.HZ"}</small><b>${v[0][0]}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(v[0][1].toFixed(2))} %</span></div>`}).join("")}${p.hf?(()=>{const k=HFL.reduce((a,k)=>p.hf[k]>p.hf[a]?k:a,HFL[0]),h=r&&r.hh!=null?sg(r.hh,r.ha)+"/"+sg(r.h,r.a)==k:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>HZ/ES</small><b>${k}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(p.hf[k].toFixed(2))} %</span></div>`})():""}${s.prog.hz2?(()=>{const z=s.prog.hz2,h=r&&r.hh!=null?(r.h-r.hh)+(r.a-r.ha)>1:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>2. HZ OVER 1,5</small><b>${z.o15>=50?"OVER":"UNDER"}${h!=null?((z.o15>=50)==h?" ✓":" ✕"):""}</b><span>${kom(z.o15.toFixed(2))} %</span></div>`})():""}</div>`:"")+blk("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]],L3,[p.p1,p.px,p.p2],hq.x,"x")
-  +blk("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",c100(p.ue25)]],OU,[p.ue25,c100(p.ue25)],hq.ou,"ou")
+ let body=(p.kb?`<div class="kbg">${kbx("kb","1X2 + O/U 2,5")}${kbx("kb15","1X2 + O/U 1,5")}${kbx("dc15","DC + O/U 1,5")}${kbx("ou15","OVER 1,5")}${kbx("bts","Beide treffen")}${["csg","csh","cs2"].map(a=>{const v=p[a];if(!v||!v.length)return"";const e=csEcht(a,r),h=e?e[0]+":"+e[1]==v[0][0]:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>${a=="csg"?"Ergebnis":a=="csh"?"Ergebnis 1.HZ":"Ergebnis 2.HZ"}</small><b>${v[0][0]}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(v[0][1].toFixed(2))} %</span></div>`}).join("")}${p.hf?(()=>{const k=HFL.reduce((a,k)=>p.hf[k]>p.hf[a]?k:a,HFL[0]),h=r&&r.hh!=null?sg(r.hh,r.ha)+"/"+sg(r.h,r.a)==k:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>HZ/ES</small><b>${k}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(p.hf[k].toFixed(2))} %</span></div>`})():""}${s.prog.hz2?(()=>{const z=s.prog.hz2,h=r&&r.hh!=null?(r.h-r.hh)+(r.a-r.ha)>1:null;return `<div class="kbx${h==null?'':h?' y':' n'}"><small>2. HZ OVER 1,5</small><b>${z.o15>=50?"OVER":"UNDER"}${h!=null?((z.o15>=50)==h?" ✓":" ✕"):""}</b><span>${kom(z.o15.toFixed(2))} %</span></div>`})():""}</div>`:"")+blk("Spielausgang",[[s.heim,p.p1],["Remis",p.px],[s.gast,p.p2]],L3,[p.p1,p.px,p.p2],null,"x")
+  +blk("OVER / UNDER 2,5",[["OVER",p.ue25],["UNDER",c100(p.ue25)]],OU,[p.ue25,c100(p.ue25)],null,"ou")
   +(p.ht?blk("1. Halbzeit",[[s.heim,p.ht[0]],["Remis",p.ht[1]],[s.gast,p.ht[2]]],L3,p.ht)+(p.ht2?blk("2. Halbzeit",[[s.heim,p.ht2[0]],["Remis",p.ht2[1]],[s.gast,p.ht2[2]]],L3,p.ht2):""):`<div class="pg"><div class="pgh"><span>Halbzeiten</span><b>keine Halbzeitdaten für diese Liga</b></div></div>`)+ttBlock(s,p);
  const li=(L,col)=>L.length?L.map(([t,tp])=>`<div class="qer"><span style="font-size:15px">${t}</span><b style="color:${col};font-size:17px">${tp.map(NM).join(" · ")}</b></div>`).join(""):`<p class="msub" style="margin:4px 0">keine</p>`;
- const ue=eloBlock(s)+statBlock(s)+xgFormBlock(s)+alleBlock(s)+maxBlock(s)+`<div class="qban"><small style="font-size:12px;color:#c9bfff">ECHTE QUOTEN · ERGEBNIS V1 / V2 / V3</small>${te.length?te.map(([t,a,b,c])=>`<div class="qer"><span style="font-size:15px">${t}</span><b style="color:#a99bff;font-size:13px;text-align:right">V1 ${a.map(NM).join(" · ")||"–"}<br>V2 ${b.map(NM).join(" · ")||"–"}<br>V3 ${c.map(NM).join(" · ")||"kein Value"}</b></div>`).join(""):`<p class="msub" style="margin:4px 0">keine Buchmacher-Quoten</p>`}</div>`;
+ const ue=eloBlock(s)+statBlock(s)+xgFormBlock(s)+alleBlock(s)+maxBlock(s);
  const gw=M2(S.dtab).gewichte,MN=id=>id=="markt"?"Markt (Buchmacher)":(D.modelle.find(m=>m.id==id)||{}).kurz||id.replace("modell_","");
  const gwh=gw?`<div class="qban" style="margin:6px 0"><small>STACKING · AKTUELLES VERTRAUEN JE MODELL</small><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">${Object.entries(gw).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="ek" style="font-size:12px">${MN(k)} ${Math.round(v*100)} %</span>`).join("")}</div></div>`:"";
  return `<div class="pcard"><div class="pct">PROGNOSEN · ${M2(S.dtab).name.toUpperCase()}</div>${chk}${gwh}${ue}${body}</div>`}
@@ -766,13 +766,13 @@ function kbHit(i,r){const[a,b]=KBL[i],t=r.h+r.a;return a==sg(r.h,r.a)&&(b=="OVER
 function ouKat(p,q){const ps=[p.ue25,c100(p.ue25)];const m=qcCalc(["OVER","UNDER"],ps),b=q?qcCalc(["OVER","UNDER"],ps,q):{tipp:[]};return{ps,tip:ps[0]>=50?"OVER":"UNDER",m:m.tipp,b:b.tipp}}
 function renderTopAlle(){if($("tmode"))$("tmode").innerHTML="";$("mchips").innerHTML="";
  const mods=D.modelle.filter(m=>!m.typ),tag=D.spiele.filter(s=>s.datum==S.tag).sort((a,b)=>a.zeit.localeCompare(b.zeit));
- const g=(L,col)=>L.length?`<b style="color:${col}">${L.join(" · ")}</b>`:`<span style="color:var(--mu)">–</span>`,G="display:grid;grid-template-columns:74px 1.1fr 1fr 1fr;gap:4px";
- const rows=tag.map(s=>{const r=res(s),q=(s.hq||{}).ou,fl=D.laender.find(z=>z.ligen.some(x=>x.code==s.liga));
+ const g=(L,col)=>L.length?`<b style="color:${col}">${L.join(" · ")}</b>`:`<span style="color:var(--mu)">–</span>`,G="display:grid;grid-template-columns:74px 1.2fr 1fr;gap:4px";
+ const rows=tag.map(s=>{const r=res(s),q=null,fl=D.laender.find(z=>z.ligen.some(x=>x.code==s.liga));
   const z=mods.map(m=>{const p=s.prog[m.id];if(!p)return"";const k=ouKat(p,q),h=r?(k.tip=="OVER"?r.h+r.a>2:r.h+r.a<=2):null;
-   return `<div style="${G};font-size:12.5px;padding:5px 0;border-top:1px solid #ffffff0d"><span style="color:var(--mu)">${m.kurz}</span><b style="color:${h==null?'var(--tx)':h?'var(--gr)':'#ff4d7d'}">${k.tip} ${kom(Math.max(...k.ps))}%${h!=null?(h?" ✓":" ✕"):""}</b><span>${g(k.m,"#2bf5a0")}</span><span>${g(k.b,"#ffb02b")}</span></div>`}).join("");
+   return `<div style="${G};font-size:12.5px;padding:5px 0;border-top:1px solid #ffffff0d"><span style="color:var(--mu)">${m.kurz}</span><b style="color:${h==null?'var(--tx)':h?'var(--gr)':'#ff4d7d'}">${k.tip} ${kom(Math.max(...k.ps))}%${h!=null?(h?" ✓":" ✕"):""}</b><span>${g(k.m,"#2bf5a0")}</span></div>`}).join("");
   return `<div style="padding:10px 0;border-bottom:1px solid #ffffff14" onclick="openDetail(${s.id})"><small style="color:var(--mu)">${fl?fl.flagge:""} ${ligaInfo[s.liga]} · ${r?s.ergebnis:s.zeit}${q?` · Höchstquoten OVER ${kom(q[0])} · UNDER ${kom(q[1])}`:""}</small>${q?qsrc(s,"ou"):""}<div style="font-weight:700;margin:2px 0 4px">${s.heim} – ${s.gast}</div>
-  <div style="${G};font-size:10px;color:var(--mu)"><span>MODELL</span><span>TIPP</span><span style="color:#2bf5a0">ÜBEREINST. MODELL</span><span style="color:#ffb02b">ÜBEREINST. BUCHM.</span></div>${z}</div>`}).join("");
- $("toplist").innerHTML=`<p class="hint">Je Spiel <b>OVER / UNDER 2,5 aller Modelle</b> mit den Übereinstimmungen aus Modell-Quoten und Buchmacher-Höchstquoten.</p><h3>🏆 Top · OVER / UNDER <span>${tag.length} Spiele</span></h3>`+(tag.length?`<div class="card hell" style="padding:4px 14px">${rows}</div>`:`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`)}
+  <div style="${G};font-size:10px;color:var(--mu)"><span>MODELL</span><span>TIPP</span><span style="color:#2bf5a0">ÜBEREINST. MODELL</span></div>${z}</div>`}).join("");
+ $("toplist").innerHTML=`<p class="hint">Je Spiel <b>OVER / UNDER 2,5 aller Modelle</b> mit der Übereinstimmung aus den Modell-Quoten (keine Buchmacher-Quoten).</p><h3>🏆 Top · OVER / UNDER <span>${tag.length} Spiele</span></h3>`+(tag.length?`<div class="card hell" style="padding:4px 14px">${rows}</div>`:`<div class="card"><p class="msub">An diesem Tag keine Spiele.</p></div>`)}
 /* ---------- Kombi-Tipps ---------- */
 /* ---------- Kombi-Auswahl (Top + Kombi + Bilanz) ---------- */
 const TKM=()=>D.modelle.filter(m=>!m.typ);
@@ -784,29 +784,23 @@ const KART={kb:{n:"1X2 & OVER/UNDER 2,5",lin:2,ico:"🏆",tab:"Top",L:KBL},kb15:
 function kLab(art,i){const[a,o]=KART[art].L[i];if(art=="bts")return "Beide: "+o;if(art=="ou15")return "OVER 1,5";return art=="ou25"?o+" 2,5":a+" & "+o+(KART[art].lin==1?" 1,5":"")}
 function kWin(art,i,r){if(art=="bts")return (r.h>0&&r.a>0)==(i==0);const[a,o]=KART[art].L[i],t=r.h+r.a,l=KART[art].lin;return (a==""||a.includes(sg(r.h,r.a)))&&(o=="OVER"?t>l:t<=l)}
 function ou15(p){const k=p.kb15;if(!k)return null;const o=k[0]+k[2]+k[4];return[o,Math.round((100-o)*100)/100]}
-function qfOk(s,mk){const q=S.qf||"ODDS API";return q=="Alle"||((s.qquelle||{})[mk]||"football-data")==q}
-function qfSwitch(cb){const q=S.qf||"ODDS API";return `<div class="bsw">${["ODDS API","football-data","Alle"].map(k=>`<div class="${q==k?'on':''}" onclick="S.qf='${k}';${cb}">${k}</div>`).join("")}</div>`}
+function qfOk(s,mk){return true}   /* Modell-Tabs brauchen keine Buchmacher-Quoten */
+function qfSwitch(cb){return ""}
 /* Wahrscheinlichkeit eines Tipps (art,i) bei einem Modell-Eintrag p */
 function kPr(p,art,i){if(!p)return null;if(art=="ou15"){const o=ou15(p);return o?o[0]:null}if(art=="bts")return p.bts==null?null:(i==0?p.bts:c100(p.bts));if(art=="ou25")return p.ue25==null?null:(i==0?p.ue25:c100(p.ue25));return p[art]?p[art][i]:null}
 /* ---------- Kontra-Check: 4 Warnzeichen je Tipp ---------- */
-function kontra(s,art,i,p){const[a,o]=KART[art].L[i],gr=[],pr=kPr(p,art,i);
+function kontra(s,art,i,p){const[a,o]=KART[art].L[i],gr=[];
  const alle=TKM().map(m=>kPr(s.prog[m.id],art,i)).filter(x=>x!=null);
  if(alle.length>1&&Math.max(...alle)-Math.min(...alle)>15)gr.push("Modelle uneinig");
- const q=s.quoten||{},hq=s.hq||{},L3=["1","X","2"];
- if(a){const pm=[...a].reduce((t,c)=>t+[p.p1,p.px,p.p2][L3.indexOf(c)],0);
-  const qx=hq.x?{"1":hq.x[0],X:hq.x[1],"2":hq.x[2]}:q;if(qx["1"]&&qx.X&&qx["2"]){const inv=L3.map(k=>1/qx[k]),S0=inv.reduce((x,y)=>x+y,0),mk=[...a].reduce((t,c)=>t+inv[L3.indexOf(c)]/S0*100,0);if(pm-mk>7)gr.push("Markt widerspricht")}
-  if(a.length==1&&a!="X"&&p.px>=28)gr.push("Remis-Gefahr");if(a=="12"&&p.px>=28)gr.push("Remis-Gefahr");
-  if(hq.x){const S0=hq.x.reduce((t,x)=>t+1/x,0),v=hq.x.map((x,j)=>Math.round(x*S0*100)/100*[p.p1,p.px,p.p2][j]);if(L3.some((k,j)=>!a.includes(k)&&v[j]>100))gr.push("Value beim Gegner")}}
- else if(art=="ou25"){const mq=hq.ou;if(mq){const S0=1/mq[0]+1/mq[1],mk=(1/mq[i])/S0*100;if(pr-mk>7)gr.push("Markt widerspricht");const v=mq.map((x,j)=>Math.round(x*S0*100)/100*(j==0?p.ue25:c100(p.ue25)));if(v[1-i]>100)gr.push("Value beim Gegner")}}
+ if(a){if(a.length==1&&a!="X"&&p.px>=28)gr.push("Remis-Gefahr");if(a=="12"&&p.px>=28)gr.push("Remis-Gefahr")}
  return gr}
 /* Kandidat je Spiel und Markt. modus: false=A, true=B (Übereinst.), "c"=C (ohne Widerspruch) */
 function kKand(s,art,modus){let b=null;const hq=s.hq||{};for(const m of TKM()){const p=s.prog[m.id];if(!p)continue;const n=["ou25","bts"].includes(art)?2:art=="ou15"?1:(p[art]||[]).length;if(!n||kPr(p,art,0)==null)continue;
-  const L3=["1","X","2"],x1=qcCalc(L3,[p.p1,p.px,p.p2]).tipp,x2=hq.x?qcCalc(L3,[p.p1,p.px,p.p2],hq.x).tipp:[];
-  let um=[];if(art=="bts")um=qcCalc(["JA","NEIN"],[p.bts,c100(p.bts)]).tipp;else if(art=="ou15"){const o=ou15(p);if(o)um=qcCalc(["OVER","UNDER"],o).tipp}else if(KART[art].lin==2){if(hq.ou){const ou=ouKat(p,hq.ou);um=[...ou.m,...ou.b]}else um=qcCalc(["OVER","UNDER"],[p.ue25,c100(p.ue25)]).tipp}else{const o=ou15(p);if(o)um=qcCalc(["OVER","UNDER"],o).tipp}
+  const L3=["1","X","2"],x1=qcCalc(L3,[p.p1,p.px,p.p2]).tipp,x2=[];
+  let um=[];if(art=="bts")um=qcCalc(["JA","NEIN"],[p.bts,c100(p.bts)]).tipp;else if(art=="ou15"){const o=ou15(p);if(o)um=qcCalc(["OVER","UNDER"],o).tipp}else if(KART[art].lin==2){um=qcCalc(["OVER","UNDER"],[p.ue25,c100(p.ue25)]).tipp}else{const o=ou15(p);if(o)um=qcCalc(["OVER","UNDER"],o).tipp}
   for(let i=0;i<n;i++){const pr=kPr(p,art,i);if(pr==null)continue;const[a,o]=KART[art].L[i];const ua=!a||[...a].some(c=>x1.includes(c)||x2.includes(c)),uo=um.includes(o),ueOk=ua&&uo;
-   if(modus===true&&!ueOk)continue;if(art=="ou25"&&!hq.ou)continue;const kg=kontra(s,art,i,p);if(modus=="c"&&kg.length)continue;
-   const sqx=art=="ou15"?((s.squoten||{})["Match goals 1.5"]||{}).Over:art=="bts"?((s.squoten||{})["Both teams to score"]||{})[i==0?"Yes":"No"]:null;
-   if(!b||pr>b.pr)b={s,pr,mod:m.kurz,art,i,q:art=="ou25"?hq.ou[i]:sqx||Math.round(10000/pr)/100,src:art=="ou25"?null:sqx?"SportsAPI":"Modell",qm:art=="ou25"?"ou":"x",lab:kLab(art,i),win:r=>kWin(art,i,r),ue:ueOk?["Modell/Buchm."]:[],ueOk,kontra:kg,von:KART[art].tab}}}
+   if(modus===true&&!ueOk)continue;const kg=kontra(s,art,i,p);if(modus=="c"&&kg.length)continue;
+   if(!b||pr>b.pr)b={s,pr,mod:m.kurz,art,i,q:Math.round(10000/pr)/100,src:"Modell",qm:art=="ou25"?"ou":"x",lab:kLab(art,i),win:r=>kWin(art,i,r),ue:ueOk?["Modell"]:[],ueOk,kontra:kg,von:KART[art].tab}}}
  return b}
 function kAuswahl(tag,modus,n){return kWahl(tag.map(s=>kKand(s,"ou25",modus)).filter(x=>x),n)}
 function tAuswahl(tag,modus,n,art){return kWahl(tag.map(s=>kKand(s,art||"kb",modus)).filter(x=>x),n)}
@@ -818,8 +812,8 @@ function kWahl(l,n,mega){bestMark(l);l.sort(mega?((a,b)=>(b.best-a.best)||(a.kon
  for(const x of l){if(out.length>=n)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.s.datum+a.s.zeit).localeCompare(b.s.datum+b.s.zeit))}
 const HEUTE_STR=(()=>{const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0")})();
 function abz(x,mega){const k=x.kontra.length,cl=k==0?"k0":k==1?"k1":k==2?"k2":"k3";
- return `<div class="abz">${mega?`<span class="bz mk">aus ${x.von}</span>`:""}${x.best?`<span class="bz best">★ BEST-STATUS</span>`:""}<span class="bz ${cl}">Kontra ${k}${x.art=="ecken"?"/1":"/4"}</span></div>${k?`<div class="vsub" style="color:#ffe3ea">⚠ ${x.kontra.join(" · ")}</div>`:""}`}
-const SCH={g:["★ Best-Status","kG","#fff6c2"],a:["A · Höchste Wahrscheinlichkeit","kA","#c9f8ff"],b:["B · Nur mit Übereinstimmung","kB","#ffe2a8"],c:["C · Ohne Widerspruch (Kontra 0/4)","kC","#d8ffee"]};
+ return `<div class="abz">${mega?`<span class="bz mk">aus ${x.von}</span>`:""}${x.best?`<span class="bz best">★ BEST-STATUS</span>`:""}<span class="bz ${cl}">Kontra ${k}${x.art=="ecken"?"/1":"/2"}</span></div>${k?`<div class="vsub" style="color:#ffe3ea">⚠ ${x.kontra.join(" · ")}</div>`:""}`}
+const SCH={g:["★ Best-Status","kG","#fff6c2"],a:["A · Höchste Wahrscheinlichkeit","kA","#c9f8ff"],b:["B · Nur mit Übereinstimmung","kB","#ffe2a8"],c:["C · Ohne Widerspruch (Kontra 0)","kC","#d8ffee"]};
 function kSchein(ab,L,n,qname,mega){const[titel,cls,col]=SCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
  let ges=1,ch=1,richtig=0,offen=0;for(const x of L){ges*=x.q;ch*=x.pr/100;const r=res(x.s);if(!r)offen++;else if(x.win(r))richtig++}
  const it=L.map(x=>{const r=res(x.s),h=r?x.win(r):null,fl=D.laender.find(z=>z.ligen.some(g=>g.code==x.s.liga)),folgt=!r&&x.s.datum<HEUTE_STR;
@@ -838,10 +832,10 @@ function renderTK(art,ziel){if($("tmode"))$("tmode").innerHTML="";if($("mchips")
  if(!D.spiele.some(s=>Object.values(s.prog).some(p=>p&&kPr(p,art,0)!=null))){$(ziel).innerHTML=`<h3>${K.ico} ${K.tab} · ${K.n.replace("&","&amp;")}</h3><div class="card kB"><p class="msub" style="color:#fff">Für diesen Markt wurden noch keine Daten berechnet. Bitte auf GitHub unter <b>Actions</b> den Workflow mit <b>Run workflow</b> starten.</p></div>`;return}
  const chips=chipsN(k,cb),n=S[k];
  $(ziel).innerHTML=`<h3>${K.ico} ${K.tab} · ${K.n.replace("&","&amp;")} <span>${tag.length} Spiele</span></h3>${qfSwitch(cb)}${chips}${kSchein("a",tAuswahl(tag,false,n,art),n,"MODELL-QUOTE")}${kSchein("b",tAuswahl(tag,true,n,art),n,"MODELL-QUOTE")}${kSchein("c",tAuswahl(tag,"c",n,art),n,"MODELL-QUOTE")}
- <p class="hint">Je Spiel ein Tipp – das Modell mit der höchsten Wahrscheinlichkeit, nach Anstoßzeit sortiert. B: beide Teile haben eine Übereinstimmung. C: kein Warnzeichen im Kontra-Check (Modelle uneinig · Markt widerspricht · Remis-Gefahr · Value beim Gegner). ★ BEST-STATUS: Kontra 0/4 + Übereinstimmung + Wahrscheinlichkeit im besten Viertel des Tages.</p>`}
-function renderKombi(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.hq&&s.hq.ou&&qfOk(s,"ou")),chips=chipsN("kn","renderKombi()"),n=S.kn;
+ <p class="hint">Je Spiel ein Tipp – das Modell mit der höchsten Wahrscheinlichkeit, nach Anstoßzeit sortiert. B: beide Teile haben eine Übereinstimmung. C: kein Warnzeichen im Kontra-Check (Modelle uneinig · Markt widerspricht · Remis-Gefahr · Value beim Gegner). ★ BEST-STATUS: Kontra 0 + Übereinstimmung + Wahrscheinlichkeit im besten Viertel des Tages.</p>`}
+function renderKombi(){const tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,"ou")),chips=chipsN("kn","renderKombi()"),n=S.kn;
  $("klist").innerHTML=`<h3>🎫 Kombi-Tipps · OVER / UNDER 2,5 <span>${tag.length} Spiele</span></h3>${qfSwitch("renderKombi()")}${chips}${kSchein("a",kAuswahl(tag,false,n),n,"GESAMTQUOTE")}${kSchein("b",kAuswahl(tag,true,n),n,"GESAMTQUOTE")}${kSchein("c",kAuswahl(tag,"c",n),n,"GESAMTQUOTE")}
- <p class="hint">Je Spiel nur ein Tipp (das Modell mit der höchsten Wahrscheinlichkeit), zuerst aus verschiedenen Ligen, nach Anstoßzeit sortiert. Gesamtquote = Produkt der Höchstquoten. C: ohne Warnzeichen im Kontra-Check.</p>`}
+ <p class="hint">Je Spiel nur ein Tipp (das Modell mit der höchsten Wahrscheinlichkeit), zuerst aus verschiedenen Ligen, nach Anstoßzeit sortiert. Gesamtquote = Produkt der Modell-Quoten (100 ÷ %). C: ohne Warnzeichen im Kontra-Check.</p>`}
 /* ---------- SportsAPI: Spiel-Statistik + Quoten (Detail) ---------- */
 const STK=[["expectedGoals","xG"],["expectedGoalsOnTarget","xGOT"],["bigChanceCreated","Großchancen"],["totalShotsOnGoal","Schüsse"],["shotsOnGoal","Aufs Tor"],["totalShotsInsideBox","Im Strafraum"],["cornerKicks","Ecken"],["yellowCards","Gelb"],["redCards","Rot"],["ballPossession","Ballbesitz %"],["fouls","Fouls"],["touchesInOppBox","Ballkontakte Strafraum"]];
 function statBlock(s){let h="";const st=s.stat;
@@ -869,19 +863,19 @@ function konsKand(s,mk){const mods=TKM().map(m=>s.prog[m.id]).filter(p=>p&&p.p1!
  if(mk=="x"){const a=av([p=>p.p1,p=>p.px,p=>p.p2]),ti=a.indexOf(Math.max(...a)),L=["1","X","2"];
   const ein=mods.filter(p=>{const v=[p.p1,p.px,p.p2];return v.indexOf(Math.max(...v))==ti}).length;
   const dc=[["1X",a[0]+a[1],r=>r.h>=r.a],["X2",a[1]+a[2],r=>r.h<=r.a],["12",a[0]+a[2],r=>r.h!=r.a]].filter(d=>d[0].includes(L[ti])).sort((x,y)=>y[1]-x[1])[0];
-  let mkok=true;const qx=hq.x?{"1":hq.x[0],X:hq.x[1],"2":hq.x[2]}:q;if(qx["1"]&&qx.X&&qx["2"]){const iv=L.map(k=>1/qx[k]);mkok=iv.indexOf(Math.max(...iv))==ti}
-  const tip={s,pr:a[ti],mod:`Einigkeit ${ein}/${N}`,q:hq.x?hq.x[ti]:Math.round(10000/a[ti])/100,qm:"x",lab:L[ti]+(ti==1?"":" · "+(ti==0?s.heim:s.gast)),win:r=>sg(r.h,r.a)==L[ti],ue:[],ueOk:true,kontra:mkok?[]:["Markt widerspricht"],von:"Konsens",ein,N};
+  const mkok=ein>=Math.ceil(N*0.75);
+  const tip={s,pr:a[ti],mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/a[ti])/100,src:"Modell",qm:"x",lab:L[ti]+(ti==1?"":" · "+(ti==0?s.heim:s.gast)),win:r=>sg(r.h,r.a)==L[ti],ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
   const alt={s,pr:dc[1],mod:tip.mod,q:Math.round(10000/dc[1])/100,qm:"x",lab:dc[0],win:dc[2],ue:[],ueOk:true,kontra:[],von:"Konsens",ein,N};return{tip,alt,ein,N,mkok}}
  const o=av([p=>p.ue25]),ov=o[0]>=50,o15=mods.map(p=>ou15(p)).filter(x=>x);const a15=o15.length?o15.reduce((x,y)=>x+y[0],0)/o15.length:null;
- const ein=mods.filter(p=>(p.ue25>=50)==ov).length;let mkok=true;if(hq.ou){mkok=(1/hq.ou[0]>1/hq.ou[1])==ov}
- const tip={s,pr:ov?o[0]:100-o[0],mod:`Einigkeit ${ein}/${N}`,q:hq.ou?hq.ou[ov?0:1]:Math.round(10000/(ov?o[0]:100-o[0]))/100,qm:"ou",lab:(ov?"OVER":"UNDER")+" 2,5",win:r=>ov?r.h+r.a>2:r.h+r.a<=2,ue:[],ueOk:true,kontra:mkok?[]:["Markt widerspricht"],von:"Konsens",ein,N};
+ const ein=mods.filter(p=>(p.ue25>=50)==ov).length;const mkok=ein>=Math.ceil(N*0.75);
+ const tip={s,pr:ov?o[0]:100-o[0],mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/(ov?o[0]:100-o[0]))/100,qm:"ou",lab:(ov?"OVER":"UNDER")+" 2,5",win:r=>ov?r.h+r.a>2:r.h+r.a<=2,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  let alt=null;if(a15!=null){const o1=a15>=50;const pr=o1?a15:100-a15;alt={s,pr,mod:tip.mod,q:Math.round(10000/pr)/100,qm:"ou",lab:(o1?"OVER":"UNDER")+" 1,5",win:r=>o1?r.h+r.a>1:r.h+r.a<=1,ue:[],ueOk:true,kontra:[],von:"Konsens",ein,N}}
  return{tip,alt:alt||tip,ein,N,mkok}}
 function konsAuswahl(tag,modus,n,mk){let l=tag.map(s=>konsKand(s,mk||S.kmk||"x")).filter(x=>x);
  if(modus===true)l=l.filter(x=>x.ein==x.N);if(modus=="c")l=l.filter(x=>x.mkok);
  l.sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr));const out=[],lg=new Set();for(const x of l){if(out.length>=n)break;if(!lg.has(x.tip.s.liga)){out.push(x);lg.add(x.tip.s.liga)}}
  for(const x of l){if(out.length>=n)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.tip.s.datum+a.tip.s.zeit).localeCompare(b.tip.s.datum+b.tip.s.zeit))}
-const KSCH={a:["A · Höchste Einigkeit","kA","#c9f8ff"],b:["B · Alle Modelle einig","kB","#ffe2a8"],c:["C · Markt stimmt zu","kC","#d8ffee"]};
+const KSCH={a:["A · Höchste Einigkeit","kA","#c9f8ff"],b:["B · Alle Modelle einig","kB","#ffe2a8"],c:["C · Mindestens ¾ der Modelle einig","kC","#d8ffee"]};
 function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
  const sum=k=>{let g=1,c=1;for(const x of L){g*=x[k].q;c*=x[k].pr/100}return[g,c]},[gt,ct]=sum("tip"),[ga,ca]=sum("alt");
  const box=(x,typ)=>{const r=res(x.s),h=r?x.win(r):null;return `<div class="kbo ${typ}${h==null?'':h?' y':' n'}"><small>${typ=="t"?"TIPP":"ALTERNATIVE"}</small><b>${x.lab}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(x.pr.toFixed(1))} % · @ ${kom(x.q.toFixed(2))}</span><div class="pbar"><i style="width:${Math.min(100,x.pr)}%"></i></div></div>`};
@@ -894,7 +888,7 @@ function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,S.kmk=="x"?"x":"ou")),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw">${[["x","1X2 / Doppelte Chance"],["ou","OVER / UNDER"]].map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${["a","b","c"].map(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n)).join("")}
- <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER die Linie 1,5. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: der Buchmacher-Favorit ist derselbe. Quote Tipp = Höchstquote (falls vorhanden), Alternative = Modell-Quote.</p>`}
+ <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER die Linie 1,5. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
 /* ---------- ★ Best-Kombi ---------- */
 function bestAuswahl(tag,modus,n){const alle=[];for(const art of["kb","ou25","kb15","dc15","ou15","bts"]){const l=tag.map(s=>kKand(s,art,false)).filter(x=>x);bestMark(l);alle.push(...l.filter(x=>x.best))}
  const je={};for(const x of alle){const k=x.s.id;if(!je[k]||x.pr>je[k].pr)je[k]=x}const l=Object.values(je).sort((a,b)=>b.pr-a.pr);
@@ -902,7 +896,7 @@ function bestAuswahl(tag,modus,n){const alle=[];for(const art of["kb","ou25","kb
  for(const x of l){if(out.length>=n)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.s.datum+a.s.zeit).localeCompare(b.s.datum+b.s.zeit))}
 function renderBest(){const tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,"x")),chips=chipsN("bsn","renderBest()"),n=S.bsn;
  $("bstlist").innerHTML=`<h3>★ Best-Kombi · nur ★ BEST-STATUS <span>${tag.length} Spiele</span></h3>${qfSwitch("renderBest()")}${chips}${kSchein("g",bestAuswahl(tag,false,n),n,"QUOTE",true)}
- <p class="hint">Gesammelt aus Top, Kombi, Top 1,5, DC, Over 1,5 und Beide: nur Tipps mit ★ BEST-STATUS (Kontra 0/4 + Übereinstimmung + Wahrscheinlichkeit im besten Viertel des Tages). Je Spiel der stärkste davon. Gibt es weniger ★-Tipps als gewählt, wird nicht aufgefüllt.</p>`}
+ <p class="hint">Gesammelt aus Top, Kombi, Top 1,5, DC, Over 1,5 und Beide: nur Tipps mit ★ BEST-STATUS (Kontra 0 + Übereinstimmung + Wahrscheinlichkeit im besten Viertel des Tages). Je Spiel der stärkste davon. Gibt es weniger ★-Tipps als gewählt, wird nicht aufgefüllt.</p>`}
 /* ---------- HZ2 · OVER 1,5 in der 2. Halbzeit ---------- */
 function h2Win(r){if(r.hh==null)return null;return (r.h-r.hh)+(r.a-r.ha)>1}
 function h2Auswahl(tag,modus,n){const l=[];for(const s of tag){const p=s.prog.hz2;if(!p)continue;const r=res(s);if(r&&r.hh==null)continue;
@@ -993,7 +987,7 @@ function svBilanzExtra(zeige){const fertig=D.spiele.filter(s=>s.ergebnis&&zeige.
 function renderSVK(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.sv),gr=[1,2,3,5,10,15,20,25,30],chips=chipsN("svn","renderSVK()",gr),n=S.svn;
  $("svklist").innerHTML=`<h3>📈 SV-Kombi · Spalten-Value <span>${tag.length} Spiele</span></h3>${chips}
  <div class="svleg"><span style="background:#ff4d7d">A · Höchster Value</span><span style="background:${SVF.dop};color:#3d3000">B · ★ Doppel-Signal</span><span style="background:${SVF.clv};color:#06231a">C · Shin-Value</span></div>
- ${kSchein("a",svAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Höchster Value")}${kSchein("b",svAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · ★ Doppel-Signal")}${kSchein("c",svAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0/4)","C · Shin-Value")}
+ ${kSchein("a",svAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Höchster Value")}${kSchein("b",svAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · ★ Doppel-Signal")}${kSchein("c",svAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0)","C · Shin-Value")}
  <p class="hint">Je Spiel die stärkste Value-Spalte (1X2 oder O/U 2,5). A: höchster EV gegen den Buchmacher-Konsens · B: nur wenn auch die Mehrheit der Prognose-Modelle denselben Ausgang sieht · C: Value nach Shin-Chance. Quote = echte höchste Quote, darunter der Buchmacher. Bei beendeten Spielen: CLV gegen die Pinnacle-Schlussquote.</p>`}
 /* ---------- QA-Kombi: nur TIPP · QUOTEN-ANALYSE (Modell SV) ---------- */
 function mkSwitch(k,cb){S[k]=S[k]||"x";return `<div class="bsw">${[["x","1X2"],["ou","OVER / UNDER 2,5"]].map(([v,n])=>`<div class="${S[k]==v?'on':''}" onclick="S['${k}']='${v}';${cb}">${n}</div>`).join("")}</div>`}
@@ -1009,7 +1003,7 @@ function qaAuswahl(tag,modus,n,m,art){m=m||S.qam||"x";art=art||S.qaa||"qa";const
 function renderQA(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.sv),gr=[1,2,3,5,10,15,20,25,30],chips=chipsN("qan","renderQA()",gr),n=S.qan;S.qaa=S.qaa||"qa";
  const sw=`<div class="bsw">${[["qa","TIPP · QUOTEN-ANALYSE"],["ev","EV-TIPP"]].map(([k,t])=>`<div class="${S.qaa==k?'on':''}" onclick="S.qaa='${k}';renderQA()">${t}</div>`).join("")}</div>`;
  $("qalist").innerHTML=`<h3>🧮 SV · ${S.qaa=="qa"?"Tipp Quoten-Analyse":"EV-Tipp"} <span>${tag.length} Spiele</span></h3>${sw}${mkSwitch("qam","renderQA()")}${chips}
- ${kSchein("a",qaAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Alle Tipps")}${kSchein("b",qaAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · Tipp mit Spalten-Check über 100 %")}${kSchein("c",qaAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0/4)","C · QA-Tipp und EV-Tipp gleich")}
+ ${kSchein("a",qaAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Alle Tipps")}${kSchein("b",qaAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · Tipp mit Spalten-Check über 100 %")}${kSchein("c",qaAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0)","C · QA-Tipp und EV-Tipp gleich")}
  <p class="hint">Nur Modell SV, aus allen Spielpaarungen des Tages. TIPP · QUOTEN-ANALYSE = Ausgang, dessen Übereinstimmung den Payout trifft. EV-TIPP = Ausgang, dessen EV der Marge entspricht (bei 2 Haken = Doppelte Chance, z. B. X2). Alles aus den höchsten Quoten. B: im Spalten-Check (höchste Quote × faire Chance) über 100 % · C: beide Verfahren zeigen auf denselben Ausgang.</p>`}
 /* ---------- MAX-Strategie: je Ausgang die höchste % aller Modelle -> Quoten -> Tipp ---------- */
 function maxBuch(s,m){const ms=TKM().map(x=>s.prog[x.id]).filter(p=>p&&p.p1!=null);if(!ms.length)return null;
@@ -1018,47 +1012,48 @@ function maxBuch(s,m){const ms=TKM().map(x=>s.prog[x.id]).filter(p=>p&&p.p1!=nul
  const sum=mx.reduce((a,b)=>a+b,0),norm=mx.map(x=>x/sum*100),q=mx.map(x=>Math.round(10000/x)/100),ti=norm.indexOf(Math.max(...norm));
  const hq=(s.hq||{})[m],val=hq?L.map((_,i)=>hq[i]*norm[i]):null,qc=qcCalc(L,mx);
  return{L,mx,wer,norm,q,ti,tip:L[ti],sum,hq,val,kat:qc.tipp}}
-function maxAuswahl(tag,modus,n,m){m=m||S.mxm||"x";const l=[];for(const s of tag){const b=maxBuch(s,m);if(!b)continue;const i=b.ti;
-  if(modus===true&&!(b.val&&b.val[i]>100))continue;if(modus=="c"&&!b.kat.includes(b.tip))continue;
-  l.push({s,pr:b.norm[i],mod:`Max ${kom(b.mx[i].toFixed(1))}% (${b.wer[i]}) · Buch ${kom(b.sum.toFixed(1))}%${b.val?` · Value ${kom(b.val[i].toFixed(1))}%`:""}`,q:b.hq?b.hq[i]:b.q[i],src:b.hq?"Höchstquote":"Modell",qm:m,
-   lab:SVL[b.tip]+(m=="ou"?" 2,5":""),win:r=>svWin(b.tip,r),ue:[],ueOk:true,kontra:b.val&&b.val[i]<=100?["kein Value gegen Höchstquote"]:[],von:"MAX"})}
+function konsTip(s,m){const k=konsKand(s,m);return k?(m=="x"?["1","X","2"][["1","X","2"].findIndex(x=>k.tip.lab.startsWith(x))]:k.tip.lab.startsWith("OVER")?"O":"U"):null}
+function maxAuswahl(tag,modus,n,m){m=m||S.mxm||"x";const l=[];for(const s of tag){const b=maxBuch(s,m);if(!b)continue;const i=b.ti,uk=b.kat.includes(b.tip),gk=konsTip(s,m)==b.tip;
+  if(modus===true&&!uk)continue;if(modus=="c"&&!gk)continue;
+  l.push({s,pr:b.norm[i],mod:`Max ${kom(b.mx[i].toFixed(1))}% (${b.wer[i]}) · Buch ${kom(b.sum.toFixed(1))}%`,q:b.q[i],src:"Modell",qm:m,
+   lab:SVL[b.tip]+(m=="ou"?" 2,5":""),win:r=>svWin(b.tip,r),ue:uk?["Übereinst."]:[],ueOk:uk,kontra:gk?[]:["Konsens tippt anders"],von:"MAX"})}
  return kWahl(l,n)}
 function renderMAX(){const tag=D.spiele.filter(s=>s.datum==S.tag),gr=[1,2,3,5,10,15,20,25,30],chips=chipsN("mxn","renderMAX()",gr),n=S.mxn;
  $("mxlist").innerHTML=`<h3>🔝 MAX-Strategie · höchste % aller Modelle <span>${tag.length} Spiele</span></h3>${mkSwitch("mxm","renderMAX()")}${chips}
- ${kSchein("a",maxAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · MAX-Tipp")}${kSchein("b",maxAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · MAX-Tipp + Value")}${kSchein("c",maxAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0/4)","C · MAX-Tipp + Übereinstimmung")}
- <p class="hint">Je Ausgang wird die <b>höchste %</b> aus „Prognosen aller Modelle“ genommen und in eine Quote umgerechnet (100 ÷ %). Zusammen ergeben sie ein „Buch“ über 100 % – auf 100 % normiert ist der höchste Ausgang der Tipp. B: Höchstquote × normierte % über 100 · C: der Tipp ist zugleich Kategorie der Übereinstimmung (dein Payout-Verfahren auf den MAX-Quoten).</p>`}
+ ${kSchein("a",maxAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · MAX-Tipp")}${kSchein("b",maxAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · MAX-Tipp + Übereinstimmung")}${kSchein("c",maxAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0)","C · MAX-Tipp = Konsens-Tipp")}
+ <p class="hint">Je Ausgang wird die <b>höchste %</b> aus „Prognosen aller Modelle“ genommen und in eine Quote umgerechnet (100 ÷ %). Zusammen ergeben sie ein „Buch“ über 100 % – auf 100 % normiert ist der höchste Ausgang der Tipp. Quote = MAX-Quote (100 ÷ %), keine Buchmacher-Quoten. B: der Tipp ist zugleich Kategorie der Übereinstimmung (Payout-Verfahren auf den MAX-Quoten) · C: der Konsens aller Modelle tippt denselben Ausgang.</p>`}
 /* ---------- ELO: Tipp 1X2 (inkl. Remis) und O/U 2,5 aus dem Elo-Modell -> Quoten, Payout, Kombi ---------- */
 function eloBuch(s,m){const p=s.prog.modell_elo;if(!p||p.p1==null)return null;
  const L=m=="x"?["1","X","2"]:["O","U"],ps=m=="x"?[p.p1,p.px,p.p2]:[p.ue25,c100(p.ue25)];if(ps.some(x=>x==null))return null;
  const ti=ps.indexOf(Math.max(...ps)),q=ps.map(x=>Math.round(10000/x)/100),hq=(s.hq||{})[m],val=hq?L.map((_,i)=>hq[i]*ps[i]):null;
  return{L,ps,ti,tip:L[ti],q,hq,val,kat:qcCalc(L,ps).tipp}}
-function eloAuswahl(tag,modus,n,m){m=m||S.elm||"x";const l=[];for(const s of tag){const b=eloBuch(s,m);if(!b)continue;const i=b.ti;
-  if(modus===true&&!(b.val&&b.val[i]>100))continue;if(modus=="c"&&!b.kat.includes(b.tip))continue;
-  l.push({s,pr:b.ps[i],mod:`Elo ${kom(b.ps[i].toFixed(1))}% · Modell-Quote ${kom(b.q[i].toFixed(2))}${b.val?` · Value ${kom(b.val[i].toFixed(1))}%`:""}`,q:b.hq?b.hq[i]:b.q[i],src:b.hq?"Höchstquote":"Modell",qm:m,
-   lab:SVL[b.tip]+(m=="ou"?" 2,5":""),win:r=>svWin(b.tip,r),ue:[],ueOk:true,kontra:b.val&&b.val[i]<=100?["kein Value gegen Höchstquote"]:[],von:"Elo"})}
+function eloAuswahl(tag,modus,n,m){m=m||S.elm||"x";const l=[];for(const s of tag){const b=eloBuch(s,m);if(!b)continue;const i=b.ti,uk=b.kat.includes(b.tip),gk=konsTip(s,m)==b.tip;
+  if(modus===true&&!uk)continue;if(modus=="c"&&!gk)continue;
+  l.push({s,pr:b.ps[i],mod:`Elo · Payout ${kom((b.ps[i]*b.q[i]).toFixed(2))}${uk?" · Übereinstimmung ✓":""}`,q:b.q[i],src:"Modell",qm:m,
+   lab:SVL[b.tip]+(m=="ou"?" 2,5":""),win:r=>svWin(b.tip,r),ue:uk?["Übereinst."]:[],ueOk:uk,kontra:gk?[]:["Konsens tippt anders"],von:"Elo"})}
  return kWahl(l,n)}
 function renderELO(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.modell_elo),gr=[1,2,3,5,10,15,20,25,30],chips=chipsN("eln","renderELO()",gr),n=S.eln;
  $("elolist").innerHTML=`<h3>📈 Elo-Tipps · eigenes Elo-Modell <span>${tag.length} Spiele</span></h3>${mkSwitch("elm","renderELO()")}${chips}
- ${kSchein("a",eloAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Elo-Tipp")}${kSchein("b",eloAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · Elo-Tipp + Value")}${kSchein("c",eloAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0/4)","C · Elo-Tipp + Übereinstimmung")}
- <p class="hint">Tipp = Ausgang mit der höchsten Elo-Wahrscheinlichkeit – bei 1X2 auch das Remis (X). Quote = echte Höchstquote, sonst Modell-Quote (100 ÷ %). B: Höchstquote × Elo-% über 100 (Value) · C: der Tipp ist zugleich Kategorie der Übereinstimmung (Payout-Verfahren auf den Elo-Quoten).</p>`}
+ ${kSchein("a",eloAuswahl(tag,false,n),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Elo-Tipp")}${kSchein("b",eloAuswahl(tag,true,n),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · Elo-Tipp + Übereinstimmung")}${kSchein("c",eloAuswahl(tag,"c",n),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0)","C · Elo-Tipp = Konsens-Tipp")}
+ <p class="hint">Tipp = Ausgang mit der höchsten Elo-Wahrscheinlichkeit – bei 1X2 auch das Remis (X). Nur das Elo-Modell: Quote = 100 ÷ Elo-%, Payout = Elo-% × Quote. Keine Buchmacher-Quoten. B: der Tipp ist zugleich Kategorie der Übereinstimmung · C: der Konsens aller Modelle tippt denselben Ausgang.</p>`}
 function eloTipps(s){let h="";const NMx=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":SVL[k];
  for(const m of["x","ou"]){const b=eloBuch(s,m);if(!b)continue;
   h+=`<div class="ueg" style="color:#7ff0ff;margin-top:8px">ELO-TIPP · ${m=="x"?"1X2":"OVER / UNDER 2,5"}</div><div class="qer"><span style="font-size:15px">Tipp</span><b style="color:#ffe04d;font-size:16px">${NMx(b.tip)}${m=="ou"?" 2,5":""} · ${kom(b.ps[b.ti].toFixed(1))} %</b></div>`+
-   b.L.map((k,i)=>`<div class="qer"><span>${NMx(k)} · ${kom(b.ps[i].toFixed(1))} % → Modell-Quote</span><b style="color:${i==b.ti?'#ffe04d':'#fff'}">@ ${kom(b.q[i].toFixed(2))}${b.hq?` · Höchstquote ${kom(Number(b.hq[i]).toFixed(2))}`:""}${b.val?` · Value ${kom(b.val[i].toFixed(1))} %`:""}</b></div>`).join("");
-  const m1=qcCalc(b.L,b.ps),m2=b.hq?qcCalc(b.L,b.ps,b.hq):null;
+   b.L.map((k,i)=>`<div class="qer"><span>${NMx(k)} · 100 ÷ ${kom(b.ps[i].toFixed(1))}</span><b style="color:${i==b.ti?'#ffe04d':'#fff'}">@ ${kom(b.q[i].toFixed(2))} · Payout ${kom((b.ps[i]*b.q[i]).toFixed(2))}</b></div>`).join("");
+  const m1=qcCalc(b.L,b.ps),m2=null;
   h+=m1.html.replace("MODELL-QUOTEN","ELO-QUOTEN · PAYOUT").replace("@@KAT@@",m1.tipp.map(NMx).join(" · ")).replace(/--k:#2bf5a0/,"--k:#7ff0ff");
   if(m2&&m2.html)h+=m2.html.replace("BUCHMACHER · HÖCHSTE QUOTEN","ELO-% × BUCHMACHER-HÖCHSTQUOTE").replace("@@KAT@@",m2.tipp.map(NMx).join(" · "))}
  return h}
 function maxBlock(s){let h="";for(const m of["x","ou"]){const b=maxBuch(s,m);if(!b)continue;
-  h+=`<div class="ueg" style="color:#ffe04d">MAX-STRATEGIE · ${m=="x"?"1X2":"OVER / UNDER 2,5"}</div>`+b.L.map((k,i)=>`<div class="qer"><span>${SVL[k]} · max ${kom(b.mx[i].toFixed(1))}% (${b.wer[i]}) → @ ${kom(b.q[i].toFixed(2))}</span><b style="color:${i==b.ti?'#ffe04d':'#fff'}">${kom(b.norm[i].toFixed(1))} %${i==b.ti?" ◀ Tipp":""}</b></div>`).join("")+`<div class="svh">Buch ${kom(b.sum.toFixed(1))} %${b.val?` · Value gegen Höchstquote: ${kom(b.val[b.ti].toFixed(1))} %`:""}${b.kat.length?` · Übereinstimmung: ${b.kat.map(k=>SVL[k]).join(" · ")}`:""}</div>`
+  h+=`<div class="ueg" style="color:#ffe04d">MAX-STRATEGIE · ${m=="x"?"1X2":"OVER / UNDER 2,5"}</div>`+b.L.map((k,i)=>`<div class="qer"><span>${SVL[k]} · max ${kom(b.mx[i].toFixed(1))}% (${b.wer[i]}) → @ ${kom(b.q[i].toFixed(2))}</span><b style="color:${i==b.ti?'#ffe04d':'#fff'}">${kom(b.norm[i].toFixed(1))} %${i==b.ti?" ◀ Tipp":""}</b></div>`).join("")+`<div class="svh">Buch ${kom(b.sum.toFixed(1))} %${b.kat.length?` · Übereinstimmung: ${b.kat.map(k=>SVL[k]).join(" · ")}`:""}</div>`
   const NMx=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":SVL[k];
-  const m1=qcCalc(b.L,b.mx),m2=b.hq?qcCalc(b.L,b.mx,b.hq):null;
+  const m1=qcCalc(b.L,b.mx),m2=null;
   h+=m1.html.replace("MODELL-QUOTEN","MAX-QUOTEN · HÖCHSTE % JE AUSGANG").replace("@@KAT@@",m1.tipp.map(NMx).join(" · ")).replace(/--k:#2bf5a0/,"--k:#ffe04d");
   if(m2&&m2.html)h+=m2.html.replace("BUCHMACHER · HÖCHSTE QUOTEN","MAX-% × BUCHMACHER-HÖCHSTQUOTE").replace("@@KAT@@",m2.tipp.map(NMx).join(" · "));}
  return h?`<div class="qban amb">${h}</div>`:""}
 function renderMega(){const tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,"x")),chips=chipsN("mn","renderMega()"),n=S.mn;
  $("mlist").innerHTML=`<h3>💎 Mega · Kombi der Kombis <span>${tag.length} Spiele</span></h3>${qfSwitch("renderMega()")}${chips}${kSchein("a",mAuswahl(tag,false,n),n,"QUOTE",true)}${kSchein("b",mAuswahl(tag,true,n),n,"QUOTE",true)}${kSchein("c",mAuswahl(tag,"c",n),n,"QUOTE",true)}
- <p class="hint">Je Spiel der beste Tipp aus Top, Kombi, Top 1,5, Over 1,5 und Beide treffen. Reihenfolge der Auswahl: zuerst ★ BEST-STATUS, dann wenige Warnzeichen, dann höchste Wahrscheinlichkeit. Quote: Höchstquote bei O/U 2,5, sonst Modell-Quote.</p>`}
+ <p class="hint">Je Spiel der beste Tipp aus Top, Kombi, Top 1,5, Over 1,5 und Beide treffen. Reihenfolge der Auswahl: zuerst ★ BEST-STATUS, dann wenige Warnzeichen, dann höchste Wahrscheinlichkeit. Quote = Modell-Quote (100 ÷ %).</p>`}
 /* ---------- Bilanz Top / Kombi / Mega (letzte 3 Tage) ---------- */
 function bTage(){return [...new Set(D.spiele.filter(s=>s.ergebnis).map(s=>s.datum))].sort().slice(-3)}
 function bSwitch(){S.bm=S.bm||"mod";return `<div class="bsw" style="flex-wrap:wrap">${[["mod","Modelle"],["top","Top"],["kombi","Kombi"],["kb15","Top 1,5"],["dc15","DC"],["ou15","Over 1,5"],["bts","Beide"],["hz1","HZ1 1X2"],["hz2","HZ2 1,5"],["karten","Karten"],["cs","Ergebnis"],["svk","SV"],["qa","QA"],["mx","MAX"],["elo","Elo"],["hf","HZ/ES"],["kons","Konsens"],["konsalt","Konsens Alt."],["best","★ Best"],["mega","Mega"],["ecken","Ecken"]].map(([k,n])=>`<div style="flex:1 1 30%" class="${S.bm==k?'on':''}" onclick="S.bm='${k}';renderBilanz()">${n}</div>`).join("")}</div>`}
@@ -1080,9 +1075,9 @@ function renderBilanzK(){const tage=bTage();if(S.bkt&&!tage.includes(S.bkt))S.bk
   <div class="qer"><span><span class="qsrc fd">football-data</span> Einzeltipps</span><b style="color:#fff">${pz(st[ab]["football-data"])}</b></div></div>`;
  const kc=`<div class="card kC" style="padding:10px 14px;margin-bottom:10px"><b style="color:#d8ffee">🛡 Kontra-Check · funktioniert er? (Tipps aus A)</b>
   <div class="qer"><span>★ BEST-STATUS</span><b style="color:#fff">${pz(bs)}</b></div>
-  <div class="qer"><span>Kontra 0/4</span><b style="color:#fff">${pz(kz[0])}</b></div>
-  <div class="qer"><span>Kontra 1–4/4</span><b style="color:#fff">${pz(kz[1])}</b></div>
-  <p class="msub" style="color:#eef2ff;margin:6px 0 0">Trifft „Kontra 0/4“ deutlich öfter als „Kontra 1–4“, hilft der Check. Wenige Tipps = noch Zufall.</p></div>`;
+  <div class="qer"><span>Kontra 0</span><b style="color:#fff">${pz(kz[0])}</b></div>
+  <div class="qer"><span>Kontra 1–2/4</span><b style="color:#fff">${pz(kz[1])}</b></div>
+  <p class="msub" style="color:#eef2ff;margin:6px 0 0">Trifft „Kontra 0“ deutlich öfter als „Kontra 1–2“, hilft der Check. Wenige Tipps = noch Zufall.</p></div>`;
  $("bilanz").innerHTML=bSwitch()+dchips+(bm=="cs"?csSwitch("renderBilanz()"):bm=="qa"?mkSwitch("qam","renderBilanz()"):bm=="mx"?mkSwitch("mxm","renderBilanz()"):"")+nchips+`<p class="hint">${name} rückwirkend: die Scheine, die mit den Prognosen vor dem Anpfiff entstanden wären, gegen die echten Ergebnisse.</p>`+(bm=="ecken"?eSwitch("renderBilanz()"):"")+(bm=="svk"?svBilanzExtra(zeige):kc)+box("a")+(bm=="ecken"||bm=="hz2"||bm=="karten"?"":box("b"))+box("c")+html}
 function renderTopAlt(){if(isOU(S.modell))return renderTopOU();if(isQ(S.modell))return renderTopQ();if(isSV(S.modell))return renderTopSV();S.tmode=S.tmode||"vt";S.markt="tore";
  if(!$("tmode")){const d=document.createElement("div");d.id="tmode";d.className="mchips";$("mchips").before(d)}
