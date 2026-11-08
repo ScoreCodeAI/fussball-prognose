@@ -37,6 +37,7 @@ import odds_api
 import quoten_modell
 import sv_modell
 import xgb_modell
+import rf_modell
 from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
 
 # ---------- Grundeinstellungen ----------
@@ -628,7 +629,13 @@ def main():
     # Angezeigte Spiele (letzte Woche + kommend): nur Odds-API-Quoten, sonst keine
     for e in liste:
         k = (e["liga"], e["datum"], e["heim"], e["gast"])
-        zeilen[k] = odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
+        alt, neu = zeilen.get(k), odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
+        if neu is not None and alt is not None:          # Pinnacle-Schlussquote (nach dem Spiel) nur fuer CLV
+            for c in ("PSCH", "PSCD", "PSCA", "PC>2.5", "PC<2.5"):
+                v = alt.get(c) if hasattr(alt, "get") else None
+                if v is not None and not pd.isna(v):
+                    neu[c] = v
+        zeilen[k] = neu
     # Modell X · XGBoost (Markt + Schuesse), wird wie ein normales Prognose-Modell behandelt
     try:
         xp = xgb_modell.berechne(spiele, q, liste, zeilen, log)
@@ -640,6 +647,18 @@ def main():
         for i, e in enumerate(liste):
             if i in xp:
                 e["prog"]["xgb"] = xp[i]
+    # Modell RF · Random Forest (reine Statistik, ohne Quoten)
+    try:
+        import rf_modell
+        rp = rf_modell.berechne(spiele, liste, log)
+    except Exception as ex:
+        rp = {}
+        log("RandomForest fehlgeschlagen:", ex)
+    if rp:
+        ergebnis["modelle"].append(dict(rf_modell.INFO))
+        for i, e in enumerate(liste):
+            if i in rp:
+                e["prog"]["rf"] = rp[i]
     n_mk = 0
     for e in liste:
         try:
