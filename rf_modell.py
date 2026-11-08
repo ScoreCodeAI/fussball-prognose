@@ -76,7 +76,9 @@ def berechne(spiele, liste, log=print):
                   "bts": r0(pb[1]) if pb is not None else r0(f["sb"]),
                   "ht": [r0(x) for x in ph] if ph is not None else None,
                   "ht2": [r0(x) for x in ph2] if ph2 is not None else None,
-                  "tipp": f"{a}:{b}", "xg": [round(f["lh"], 2), round(f["la"], 2)], "value": []}
+                  "tipp": f"{a}:{b}", "xg": [round(f["lh"], 2), round(f["la"], 2)], "value": [],
+                  # Halbzeit OVER 0,5 aus den erwarteten Toren (Anteil 1. HZ 45 %, 2. HZ 55 %)
+                  "h1o05": r0(1 - np.exp(-0.45 * (f["lh"] + f["la"]))), "h2o05": r0(1 - np.exp(-0.55 * (f["lh"] + f["la"])))}
     log(f"RandomForest: {len(T)} Trainingsspiele, {len(modelle)} Märkte, {len(out)} Prognosen")
     return out
 

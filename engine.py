@@ -340,6 +340,11 @@ def _tt_kb(p):
             out[b] = [[s, r(v * 100, 2)] for s, v in top]
     if p.get("HF"):
         out["hf"] = {k: r(v * 100, 2) for k, v in p["HF"].items()}
+    # Halbzeit OVER 0,5: mindestens 1 Tor in der 1. bzw. 2. Halbzeit (1 - P(0:0) der Halbzeit-Matrix)
+    if p.get("CSH") and "0:0" in p["CSH"]:
+        out["h1o05"] = r((1 - p["CSH"]["0:0"]) * 100, 2)
+    if p.get("CS2") and "0:0" in p["CS2"]:
+        out["h2o05"] = r((1 - p["CS2"]["0:0"]) * 100, 2)
     return out
 
 
