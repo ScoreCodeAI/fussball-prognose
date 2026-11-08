@@ -363,6 +363,11 @@ def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_star
     tm = time.time()
     log("===== Stacking · Meta-Modell =====")
     st_bt, st_live, gew = stacking.berechne(bt, live_p, list(modelle), log)
+    try:
+        import bewertung
+        ergebnis["bewertung"] = bewertung.berechne(bt, log)
+    except Exception as ex:
+        log("Bewertung fehlgeschlagen:", ex)
     if not st_bt:
         return
     for sp in st_bt:
