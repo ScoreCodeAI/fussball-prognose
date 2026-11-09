@@ -238,6 +238,66 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .rfh b{font:700 10.5px system-ui,sans-serif;border-radius:999px;padding:2px 8px;background:#ffffff1a;color:#dfe4ff}.rfh b.on{background:#2bf5a0;color:#06202a}
 .rfz{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:#cfd6f5;margin-top:5px}
 .rfb{height:6px;border-radius:3px;background:#ffffff1a;margin-top:5px;overflow:hidden}.rfb i{display:block;height:100%;background:linear-gradient(90deg,#22e4ff,#2bf5a0)}
+@keyframes kglow{0%,100%{box-shadow:0 0 0 1px #b388ff66,0 0 14px #b388ff22}50%{box-shadow:0 0 0 1px #ff7ad9aa,0 0 22px #ff7ad944}}
+@keyframes ksheen{0%{background-position:-200% 0}100%{background-position:200% 0}}
+#konlist .card{background:linear-gradient(160deg,#1a1240,#0d0a26 60%,#1b0f33)!important;border:1px solid #b388ff55!important}
+#konlist .card b[style*="color"]{color:#e6d9ff!important}
+.ksb{position:relative;margin:12px 0;padding:10px 12px 12px 16px;border-radius:16px;background:linear-gradient(135deg,#3a2d78,#261d57);animation:kglow 4s ease-in-out infinite;overflow:hidden;cursor:pointer}
+.ksb:before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:linear-gradient(#b388ff,#ff7ad9)}
+.ksb:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 40%,#ffffff12 50%,transparent 60%);background-size:200% 100%;animation:ksheen 6s linear infinite;pointer-events:none}
+.ksb.win:before{background:linear-gradient(#2bf5a0,#22e4ff)}.ksb.los:before{background:linear-gradient(#ff7a9a,#ffb02b)}
+.ksh{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.ksh small{color:#d8ccff}
+.kein{text-align:center;border-radius:12px;padding:4px 10px;background:#b388ff22;border:1px solid #b388ff88}.kein b{display:block;font:700 15px Orbitron,sans-serif;color:#fff}.kein small{font-size:10px;color:#d8ccff}
+.kst{display:block;font-size:16px;color:#fff;margin:6px 0 2px}.kst i{font-style:normal;font-size:11px;color:#b388ff;margin:0 4px}
+@keyframes kgold{0%,100%{box-shadow:0 0 0 1.5px #ffd77a,0 0 10px #ffd77a44}50%{box-shadow:0 0 0 1.5px #ffe9a8,0 0 22px #ffd77a99}}
+#konlist .kbo{position:relative;overflow:hidden;animation:kgold 3s ease-in-out infinite}
+#konlist .kbo:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff40 50%,transparent 65%);background-size:250% 100%;animation:ksheen 4s linear infinite;pointer-events:none}
+#konlist .kbo.t{background:linear-gradient(135deg,#c99a3a,#ffd77a 55%,#e8b54d);border-color:transparent}#konlist .kbo.a{background:linear-gradient(135deg,#a8782a,#f1c76a 55%,#c99a3a);border-color:transparent}
+#konlist .kbo small,#konlist .kbo b,#konlist .kbo span{color:#2a1b02!important}#konlist .kbo b{font-size:17px!important}#konlist .kbo span{font-size:14.5px!important;font-weight:700}
+#konlist .kbo .pbar{background:#00000030}#konlist .kbo .pbar i{background:#2a1b02}
+@keyframes kgr{0%,100%{box-shadow:0 0 0 4px #2bf5a0,0 0 14px 2px #2bf5a088}50%{box-shadow:0 0 0 4px #7dffcf,0 0 28px 6px #2bf5a0cc}}
+@keyframes krt{0%,100%{box-shadow:0 0 0 4px #ff3b5c,0 0 14px 2px #ff3b5c88}50%{box-shadow:0 0 0 4px #ff8fa3,0 0 28px 6px #ff3b5ccc}}
+@keyframes kdreh{to{transform:rotate(360deg)}}
+/* Variante 1: dicker pulsierender Leuchtrand + Plakette */
+.v1 #konlist .kbo.y,#konlist.v1 .kbo.y{animation:kgr 1.8s ease-in-out infinite}
+.v1 #konlist .kbo.n,#konlist.v1 .kbo.n{animation:krt 1.8s ease-in-out infinite;filter:saturate(.75)}
+#konlist.v1 .kbo.y:before,#konlist.v1 .kbo.n:before{position:absolute;top:4px;right:6px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 15px system-ui;z-index:2}
+#konlist.v1 .kbo.y:before{content:"✓";background:#2bf5a0;color:#05301f;box-shadow:0 0 10px #2bf5a0}
+#konlist.v1 .kbo.n:before{content:"✕";background:#ff3b5c;color:#fff;box-shadow:0 0 10px #ff3b5c}
+/* Variante 2: umlaufender Farbring + Band unten */
+#konlist.v2 .kbo.y,#konlist.v2 .kbo.n{animation:none;padding-bottom:26px;box-shadow:none;border:0}
+#konlist.v2 .kbo.y:before,#konlist.v2 .kbo.n:before{content:"";position:absolute;inset:-60%;z-index:-1;animation:kdreh 2.6s linear infinite}
+#konlist.v2 .kbo.y:before{background:conic-gradient(#2bf5a0,#22e4ff,#ffffff,#2bf5a0)}#konlist.v2 .kbo.n:before{background:conic-gradient(#ff3b5c,#ffb02b,#ffffff,#ff3b5c)}
+#konlist.v2 .kbo.y,#konlist.v2 .kbo.n{isolation:isolate;background-clip:padding-box;outline:4px solid transparent}
+#konlist.v2 .kbo.y>*,#konlist.v2 .kbo.n>*{position:relative}
+#konlist.v2 .kbo.y{box-shadow:inset 0 0 0 4px transparent,0 0 18px #2bf5a0aa}#konlist.v2 .kbo.n{box-shadow:0 0 18px #ff3b5c99;filter:saturate(.8)}
+#konlist.v2 .kbo.y .pbar:after,#konlist.v2 .kbo.n .pbar:after{position:absolute;left:-12px;right:-12px;bottom:-26px;height:20px;font:800 11px Orbitron,sans-serif;letter-spacing:2px;display:flex;align-items:center;justify-content:center}
+#konlist.v2 .kbo.y .pbar:after{content:"✓ RICHTIG";background:#2bf5a0;color:#05301f}#konlist.v2 .kbo.n .pbar:after{content:"✕ FALSCH";background:#ff3b5c;color:#fff}
+#konlist.v2 .kbo .pbar{position:relative;overflow:visible}
+/* Konsens: Zaehler gold, Kombi-Groessen hellgruen, Spiele-Zahl gruen, Maerkte gold – alles mit Glanz */
+#konlist .zbox.zk div{position:relative;overflow:hidden;background:linear-gradient(135deg,#c99a3a,#ffd77a 55%,#e8b54d)!important;border:0!important;animation:kgold 3s ease-in-out infinite}
+#konlist .zbox.zk div:after,#konlist .bsw div:after,#konlist .chip:after,#konlist h3 span:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff55 50%,transparent 65%);background-size:250% 100%;animation:ksheen 4s linear infinite;pointer-events:none}
+#konlist .zbox.zk b{color:#2a1b02!important;text-shadow:none}#konlist .zbox.zk small{color:#3a2604!important;font-weight:700}
+#konlist .bsw div{font-size:11.5px!important;padding:8px 3px!important;overflow-wrap:anywhere;position:relative;overflow:hidden;background:linear-gradient(135deg,#a8782a,#f1c76a 55%,#c99a3a)!important;color:#2a1b02!important;border:0!important;opacity:.8}
+#konlist .bsw div.on{opacity:1;background:linear-gradient(135deg,#ffd77a,#fff1c2 50%,#ffd77a)!important;animation:kgold 2.4s ease-in-out infinite;font-weight:800}
+#konlist .chip{position:relative;overflow:hidden;background:linear-gradient(135deg,#1f8f63,#5cf0b4)!important;color:#03281a!important;border:0!important;font-weight:700;opacity:.75}
+#konlist .chip.on{opacity:1;background:linear-gradient(135deg,#7dffcf,#d6fff0 50%,#2bf5a0)!important;box-shadow:0 0 0 2px #fff,0 0 16px #2bf5a0cc!important}
+#konlist h3 span{position:relative;overflow:hidden;display:inline-block;padding:4px 12px;border-radius:999px;background:linear-gradient(135deg,#1fbf86,#7dffcf);color:#03281a!important;font-weight:800;box-shadow:0 0 14px #2bf5a088}
+/* Endgueltig: goldenes Feld mit Glanz + Plakette ✓/✕ + Band RICHTIG/FALSCH */
+#konlist .kbo.y,#konlist .kbo.n{animation:kgold 3s ease-in-out infinite;padding-bottom:28px;filter:none}
+#konlist .kbo.y:before,#konlist .kbo.n:before{position:absolute;top:4px;right:6px;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:900 15px system-ui;z-index:2}
+#konlist .kbo.y:before{content:"✓";background:#2bf5a0;color:#05301f;box-shadow:0 0 10px #2bf5a0}
+#konlist .kbo.n:before{content:"✕";background:#ff3b5c;color:#fff;box-shadow:0 0 10px #ff3b5c}
+#konlist .kbo .pbar{position:relative;overflow:visible}
+#konlist .kbo.y .pbar:after,#konlist .kbo.n .pbar:after{position:absolute;left:-14px;right:-14px;bottom:-30px;height:22px;font:800 11px Orbitron,sans-serif;letter-spacing:2px;display:flex;align-items:center;justify-content:center;z-index:1}
+#konlist .kbo.y .pbar:after{content:"✓ RICHTIG";background:#2bf5a0;color:#05301f!important;box-shadow:0 0 12px #2bf5a0aa}
+#konlist .kbo.n .pbar:after{content:"✕ FALSCH";background:#ff3b5c;color:#fff!important;box-shadow:0 0 12px #ff3b5caa}
+.kgs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.kgq{border-radius:16px;padding:10px 12px;text-align:center;position:relative;overflow:hidden}
+.kgq.t{background:linear-gradient(145deg,#5b3dff,#b388ff);box-shadow:0 0 22px #b388ff55}.kgq.a{background:linear-gradient(145deg,#0e5a7a,#22e4ff);box-shadow:0 0 22px #22e4ff44}
+.kgq:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff33 50%,transparent 65%);background-size:250% 100%;animation:ksheen 3.5s linear infinite}
+.kgq small{display:block;font:700 10px Orbitron,sans-serif;letter-spacing:1.5px;color:#ffffffdd}.kgq b{display:block;font:800 30px Orbitron,sans-serif;color:#fff;text-shadow:0 0 14px #ffffff88;margin:2px 0}
+.kgq span{font-size:12px;color:#fff}.kgc{height:6px;border-radius:3px;background:#00000040;margin:4px 0;overflow:hidden}.kgc i{display:block;height:100%;background:#fff}
 .kC{background:linear-gradient(180deg,#2f8a63,#226b4c)!important;border:1.5px solid #9dffd2!important;box-shadow:0 0 18px #2bf5a033}
 .abz{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}.bz{flex:none;white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px}.bz.k0{background:#2bf5a0;color:#063b27}.bz.k1{background:#ffe04d;color:#3d3000}.bz.k2{background:#ffb02b;color:#3d2400}.bz.k3{background:#ff4d7d;color:#fff}.bz.best{background:#ffe04d;color:#3d3000;border:1.5px solid #fff6c2;box-shadow:0 0 10px #ffe04daa;animation:tglow 2.4s infinite}.bz.mk{background:#ffffff2e;color:#fff}
 .eline{display:block;color:#fff!important;font-size:14px!important;font-weight:600;margin-top:2px}
@@ -1003,11 +1063,12 @@ function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<
  const sum=k=>{let g=1,c=1;for(const x of L){g*=x[k].q;c*=x[k].pr/100}return[g,c]},[gt,ct]=sum("tip"),[ga,ca]=sum("alt");
  const box=(x,typ)=>{const r=res(x.s),h=r?x.win(r):null;return `<div class="kbo ${typ}${h==null?'':h?' y':' n'}"><small>${typ=="t"?"TIPP":"ALTERNATIVE"}</small><b>${x.lab}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(x.pr.toFixed(1))} % · @ ${kom(x.q.toFixed(2))}</span><div class="pbar"><i style="width:${Math.min(100,x.pr)}%"></i></div></div>`};
  const it=L.map(x=>{const s=x.tip.s,r=res(s),fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
-  return `<div class="trow" style="display:block" onclick="openDetail(${s.id})"><div class="kzeit"><em>${wd(s.datum)} ${dm(s.datum)}</em>${s.zeit||""}</div><small style="color:#eef2ff">${fl?fl.flagge:""} ${ligaInfo[s.liga]} · Einigkeit ${x.ein} von ${x.N} Modellen</small><b style="display:block;font-size:15px">${s.heim} – ${s.gast}</b>${r?`<small class="eline">Endstand ${s.ergebnis}${s.ergebnis_ht?` · HZ ${s.ergebnis_ht}`:""}</small>`:""}<div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>`}).join("");
- const fz=(g,c)=>`<b style="font-family:Orbitron;font-size:18px;color:#fff">${kom(g.toFixed(2))}</b><small style="color:#eef2ff"> · Chance ${kom((c*100).toFixed(c<0.01?3:1))} %</small>`;
+  const ht=r?x.tip.win(r):null;
+  return `<div class="ksb${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})"><div class="ksh"><div><div class="kzeit"><em>${wd(s.datum)} ${dm(s.datum)}</em>${s.zeit||""}</div><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]}</small></div><span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span></div><b class="kst">${s.heim} <i>vs</i> ${s.gast}</b>${r?`<small class="eline">Endstand ${s.ergebnis}${s.ergebnis_ht?` · HZ ${s.ergebnis_ht}`:""}</small>`:""}<div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>`}).join("");
+ const fz=(g,c,t,cl)=>`<div class="kgq ${cl}"><small>${t}</small><b>${kom(g.toFixed(2))}</b><div class="kgc"><i style="width:${Math.min(100,c*100)}%"></i></div><span>Chance ${kom((c*100).toFixed(c<0.01?3:1))} %</span></div>`;
  return `<div class="card ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>
  <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}${it}
- <div style="margin-top:8px;padding-top:8px;border-top:1px solid #ffffff33"><div><small style="color:#eef2ff">QUOTE TIPP </small>${fz(gt,ct)}</div><div><small style="color:#eef2ff">QUOTE ALTERNATIVE </small>${fz(ga,ca)}</div></div></div>`}
+ <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div></div>`}
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${abSwitch()}${(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n))(S.abw||"c")}
@@ -1472,7 +1533,7 @@ document.querySelectorAll("#ptabs div").forEach(n=>n.onclick=()=>{S.seite=n.data
 function dashSet(d){S.dash=d;document.querySelectorAll("#dash div").forEach(n=>n.classList.toggle("on",n.dataset.d==d));document.querySelectorAll("#ptabs div").forEach(n=>n.classList.toggle("aus",n.dataset.d!=d))}
 document.querySelectorAll("#dash div").forEach(n=>n.onclick=()=>{dashSet(n.dataset.d);const f=document.querySelector(`#ptabs div[data-d="${n.dataset.d}"]`);S.seite=f.dataset.p;S.detail=null;render();scrollTo(0,0)});
 dashSet("1");
-function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if(!st||!st.n){el.innerHTML="";return}
+function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if(!st){el.innerHTML="";return}if(!st.n){el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b>sammelt Daten</b></div><div class="rfz"><span>0 / ${st.ziel||500} Spiele</span><span>Start nach 50 Trainingsspielen mit Kennzahlen</span></div><div class="rfb"><i style="width:1%"></i></div></div>`;return}
  const ziel=st.ziel||500,pz=Math.min(100,st.n/ziel*100),v=st.verlauf||[],d=((st.rps_alt||0)-(st.rps_neu||0))*1000,besser=d>0;
  let svg="";if(v.length>1){const ys=v.map(x=>x[2]),m=Math.max(1,...ys.map(Math.abs)),W=300,H=46,X=i=>i/(v.length-1)*W,Y=y=>H/2-y/m*(H/2-3);
   svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:46px;display:block;margin-top:6px"><line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#ffffff33" stroke-dasharray="4 4"/><polyline fill="none" stroke="${besser?'#2bf5a0':'#ff8fab'}" stroke-width="2" points="${v.map((x,i)=>X(i).toFixed(1)+","+Y(x[2]).toFixed(1)).join(" ")}"/></svg>`}
