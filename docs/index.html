@@ -225,6 +225,14 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .elg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.elk{background:#ffffff10;border-radius:10px;padding:8px}
 .elk small{display:block;color:#dfe4ff;font-size:12px}.elk b{display:block;font:700 22px Orbitron,sans-serif;color:#fff}.elk span{font-size:12px;color:#dfe4ff}.elk i{font-style:normal}
 .eld{display:flex;justify-content:space-between;font-size:12.5px;color:#dfe4ff;margin-top:4px}.elb{height:10px;border-radius:5px;background:#ff7a59;overflow:hidden;margin:5px 0 8px}.elb i{display:block;height:100%;background:#2bf5a0}
+.mchips.kgr{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;overflow:visible}
+.mchips.kgr .chip{padding:7px 0;text-align:center;font-size:12.5px;min-width:0}
+.pxb{border-radius:14px;padding:8px 10px;margin:8px 0}
+.pxb.qa1{border:1.5px solid #2bf5a0aa;background:#2bf5a00c}.pxb.qb1{border:1.5px solid #b388ffaa;background:#b388ff10}
+.pxb.qa2{border:1.5px solid #ffb02baa;background:#ffb02b0c}.pxb.qb2{border:1.5px solid #ff7ad9aa;background:#ff7ad910}
+.pxb.qa2 .pxs,.pxb.qa2 .pxm{color:#ffc76b}.pxb.qb2 .pxs,.pxb.qb2 .pxm{color:#ff9fe3}
+.pxb.qa2 .pxg div.gb{background:#ffb02b22;box-shadow:inset 0 0 0 1.5px #ffb02b}.pxb.qb2 .pxg div.gv{background:#ff7ad922;box-shadow:inset 0 0 0 1.5px #ff7ad9}
+.pxb.qa2 .pxr.g{background:#ffb02b1c;color:#ffc76b}.pxb.qb2 .pxr.v{background:#ff7ad91c;color:#ffb8ec}
 .kC{background:linear-gradient(180deg,#2f8a63,#226b4c)!important;border:1.5px solid #9dffd2!important;box-shadow:0 0 18px #2bf5a033}
 .abz{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}.bz{flex:none;white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px}.bz.k0{background:#2bf5a0;color:#063b27}.bz.k1{background:#ffe04d;color:#3d3000}.bz.k2{background:#ffb02b;color:#3d2400}.bz.k3{background:#ff4d7d;color:#fff}.bz.best{background:#ffe04d;color:#3d3000;border:1.5px solid #fff6c2;box-shadow:0 0 10px #ffe04daa;animation:tglow 2.4s infinite}.bz.mk{background:#ffffff2e;color:#fff}
 .eline{display:block;color:#fff!important;font-size:14px!important;font-weight:600;margin-top:2px}
@@ -929,7 +937,8 @@ function zaehlK(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;
  return `<div class="zbox zk"><div><b style="color:#2bf5a0">${w}</b><small>GEWONNEN</small></div><div><b style="color:#ffb3c6">${l}</b><small>VERLOREN</small></div><div><b>${o}</b><small>OFFEN</small></div><div><b>${f?Math.round(w/f*100)+" %":"–"}</b><small>TREFFER</small></div></div>`}
 function zaehl(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;else if(x.win(r))w++;else l++}
  const f=w+l;return `<div class="zbox"><div><b style="color:#2bf5a0">${w}</b><small>GEWONNEN</small></div><div><b style="color:#ff8fab">${l}</b><small>VERLOREN</small></div><div><b>${o}</b><small>OFFEN</small></div><div><b>${f?Math.round(w/f*100)+" %":"–"}</b><small>TREFFER</small></div></div><p class="hint" style="margin:2px 0 8px">Alle Tipps des Tages (je Spiel der Tipp aus Variante A): <b>${w} von ${f} gewonnen</b>${l?` · ${l} verloren`:""}${o?` · ${o} offen`:""}</p>`}
-function chipsN(k,cb,gr){gr=gr||[3,4,5,10,15,20,25,30];S[k]=S[k]||gr[0];return `<div class="mchips">${gr.map(n=>`<div class="chip${S[k]==n?' on':''}" onclick="S['${k}']=${n};${cb}">${n}er</div>`).join("")}</div>`}
+const KGR=[3,4,5,6,7,8,10,11,12,13,14,15,17,20];
+function chipsN(k,cb,gr){gr=KGR;if(!gr.includes(S[k]))S[k]=gr[0];return `<div class="mchips kgr">${gr.map(n=>`<div class="chip${S[k]==n?' on':''}" onclick="S['${k}']=${n};${cb}">${n}er</div>`).join("")}</div>`}
 function renderTK(art,ziel){if($("tmode"))$("tmode").innerHTML="";if($("mchips"))$("mchips").innerHTML="";const k="n_"+art,cb=`renderTK('${art}','${ziel}')`;
  const K=KART[art],tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,"x"));
  if(!D.spiele.some(s=>Object.values(s.prog).some(p=>p&&kPr(p,art,0)!=null))){$(ziel).innerHTML=`<h3>${K.ico} ${K.tab} · ${K.n.replace("&","&amp;")}</h3><div class="card kB"><p class="msub" style="color:#fff">Für diesen Markt wurden noch keine Daten berechnet. Bitte auf GitHub unter <b>Actions</b> den Workflow mit <b>Run workflow</b> starten.</p></div>`;return}
@@ -1051,14 +1060,16 @@ function payoutBlock(s){const sv=s.prog.sv,ms=TKM().map(m=>[m,s.prog[m.id]]).fil
   const A=sv&&sv[mk];if(A&&A.q&&A.shin){const pay=A.shin_check,ev=pay.map(x=>x-100),bi=ev.indexOf(Math.max(...ev)),wi=ev.indexOf(Math.min(...ev));
    a=`<div class="pxs">A · BUCHMACHER <span>Odds API</span></div><div class="pxg">${L.map((k,i)=>`<div class="${i==bi?'gb':''}"><small>${LN[i]}</small><b>${kom(pay[i].toFixed(2))}</b><span class="${ev[i]>0?'p':i==wi?'n':''}">EV ${ev[i]>0?"+":""}${kom(ev[i].toFixed(2))} %</span></div>`).join("")}</div>
    <div class="pxt"><div><span>Höchstquote</span>${A.q.map(x=>`<b>${kom(x.toFixed(2))}</b>`).join("")}</div><div><span>Wer zahlt</span>${(A.wer||[]).map(x=>`<b style="font-size:11px">${x}</b>`).join("")}</div><div><span>Faire Chance (Shin)</span>${A.shin.map(x=>`<b>${kom(x.toFixed(1))} %</b>`).join("")}</div><div><span>Marge je Ausgang</span>${pay.map(x=>`<b>${kom((100-x).toFixed(2))}</b>`).join("")}</div></div>
-   <div class="pxr g"><span>Bester Value</span><b>${LN[bi]} · @ ${kom(A.q[bi].toFixed(2))} · EV ${ev[bi]>0?"+":""}${kom(ev[bi].toFixed(2))} %${win(L[bi])!=null?(win(L[bi])?" ✓":" ✕"):""}</b></div><div class="pxr r"><span>Nicht empfohlen</span><b>${LN[wi]} · @ ${kom(A.q[wi].toFixed(2))} · EV ${kom(ev[wi].toFixed(2))} %</b></div>${ev[bi]>0?`<div class="pxv">VALUE-HINWEIS · EV über 0</div>`:""}`}
+   <div class="pxr g"><span>Bester Value</span><b>${LN[bi]} · @ ${kom(A.q[bi].toFixed(2))} · EV ${ev[bi]>0?"+":""}${kom(ev[bi].toFixed(2))} %${win(L[bi])!=null?(win(L[bi])?" ✓":" ✕"):""}</b></div><div class="pxr r"><span>Nicht empfohlen</span><b>${LN[wi]} · @ ${kom(A.q[wi].toFixed(2))} · EV ${ev[wi]>0?"+":""}${kom(ev[wi].toFixed(2))} %</b></div>${ev[bi]>0?`<div class="pxv">VALUE-HINWEIS · EV über 0</div>`:""}`}
   else a=`<div class="pxs">A · BUCHMACHER <span>keine Odds-API-Quoten</span></div>`;
+  const nr=mk=="x"?"1":"2";a=`<div class="pxb qa${nr}"><div class="pxm">${mk=="x"?"1X2":"OVER / UNDER 2,5"} · A</div>${a}</div>`;
   const V=ms.map(([m,p])=>[m,mk=="x"?[p.p1,p.px,p.p2]:p.ue25==null?null:[p.ue25,100-p.ue25]]).filter(x=>x[1]);
   if(V.length){const av=L.map((_,i)=>V.reduce((t,x)=>t+x[1][i],0)/V.length),mx=L.map((_,i)=>Math.max(...V.map(x=>x[1][i]))),wer=L.map((_,i)=>V.find(x=>x[1][i]==mx[i])[0].kurz),q=mx.map(x=>Math.round(10000/x)/100),pay=av.map((x,i)=>x*q[i]),bi=pay.indexOf(Math.max(...pay));
    b=`<div class="pxs v">B · MODELLE <span>alle Modelle, keine Quoten</span></div><div class="pxg v">${L.map((k,i)=>`<div class="${i==bi?'gv':''}"><small>${LN[i]}</small><b>${kom(pay[i].toFixed(2))}</b></div>`).join("")}</div>
    <div class="pxt"><div><span>Ø aller Modelle</span>${av.map(x=>`<b>${kom(x.toFixed(1))} %</b>`).join("")}</div><div><span>Höchste % (Modell)</span>${mx.map((x,i)=>`<b>${kom(x.toFixed(1))}<small> ${wer[i]}</small></b>`).join("")}</div><div><span>MAX-Quote</span>${q.map(x=>`<b>${kom(x.toFixed(2))}</b>`).join("")}</div><div><span>Payout = Ø × MAX-Quote</span>${pay.map(x=>`<b>${kom(x.toFixed(2))}</b>`).join("")}</div></div>
-   <div class="pxr v"><span>Tipp B (Modelle)</span><b>${LN[bi]} · ${kom(pay[bi].toFixed(2))}${win(L[bi])!=null?(win(L[bi])?" ✓":" ✕"):""}</b></div>`}
-  return `<div class="pxm">${mk=="x"?"1X2":"OVER / UNDER 2,5"}</div>`+a+b};
+   <div class="pxr v"><span>Tipp B (Modelle)</span><b>${LN[bi]} · ${kom(pay[bi].toFixed(2))}${win(L[bi])!=null?(win(L[bi])?" ✓":" ✕"):""}</b></div>`;
+   b=`<div class="pxb qb${mk=="x"?"1":"2"}"><div class="pxm">${mk=="x"?"1X2":"OVER / UNDER 2,5"} · B</div>${b}</div>`}
+  return a+b};
  return `<div class="dblk px"><div class="dbt">💰 PAYOUT JE AUSGANG</div>${teil("x",["1","X","2"],["1","X","2"])}${teil("ou",["O","U"],["OVER","UNDER"])}
  <p class="msub" style="color:#cfd6f5;margin:6px 0 0">A: faire Chance (Shin) × Höchstquote, EV = Payout − 100. B: Ø aller Modelle × beste Modell-Quote – je näher an 100, desto einiger die Modelle. Eigenständig, fließt in keinen anderen Prozess ein.</p></div>`}
 function eloBlock(s){const e=s.elo;if(!e||!e.h||!e.a)return"";const t=(n,x)=>`<div class="qer"><span style="font-size:14px">${n}</span><b style="color:#fff;font-size:14px">${x.elo}${x.rang?` · Rang ${x.rang}/${x.von}`:""}${x.trend!=null?` · <span style="color:${x.trend>=0?'#2bf5a0':'#ffb3c6'}">${x.trend>=0?"▲ +":"▼ "}${kom(x.trend)}</span>`:""}</b></div>`;
