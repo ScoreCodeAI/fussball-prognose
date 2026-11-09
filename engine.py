@@ -660,7 +660,9 @@ def main():
     # Modell RF · Random Forest (reine Statistik, ohne Quoten)
     try:
         import rf_modell
+        rf_modell.PFAD = os.path.join(ORDNER, "docs", "rf_plus.json")
         rp = rf_modell.berechne(spiele, liste, log)
+        ergebnis["rf_plus"] = rf_modell.vergleich_speichern(log)
     except Exception as ex:
         rp = {}
         log("RandomForest fehlgeschlagen:", ex)

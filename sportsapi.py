@@ -260,7 +260,9 @@ def ergaenze_df(df, a, log=print):
     neu_spalten = {"HXG": ("expectedGoals", 0), "AXG": ("expectedGoals", 1), "HXGOT": ("expectedGoalsOnTarget", 0),
                    "AXGOT": ("expectedGoalsOnTarget", 1), "HBC": ("bigChanceCreated", 0), "ABC": ("bigChanceCreated", 1),
                    "HSIB": ("totalShotsInsideBox", 0), "ASIB": ("totalShotsInsideBox", 1),
-                   "HXG2": ("expectedGoals", 0, "2ND"), "AXG2": ("expectedGoals", 1, "2ND")}
+                   "HXG2": ("expectedGoals", 0, "2ND"), "AXG2": ("expectedGoals", 1, "2ND"),
+                   "HGP": ("goalsPrevented", 0), "AGP": ("goalsPrevented", 1),
+                   "HBCM": ("bigChanceMissed", 0), "ABCM": ("bigChanceMissed", 1)}
     fuell = {"HS": ("totalShotsOnGoal", 0), "AS": ("totalShotsOnGoal", 1), "HST": ("shotsOnGoal", 0), "AST": ("shotsOnGoal", 1),
              "HC": ("cornerKicks", 0), "AC": ("cornerKicks", 1), "HY": ("yellowCards", 0), "AY": ("yellowCards", 1),
              "HR": ("redCards", 0), "AR": ("redCards", 1), "HF": ("fouls", 0), "AF": ("fouls", 1)}
