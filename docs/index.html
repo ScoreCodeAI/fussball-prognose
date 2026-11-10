@@ -274,6 +274,15 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 #konlist.v2 .kbo.y .pbar:after,#konlist.v2 .kbo.n .pbar:after{position:absolute;left:-12px;right:-12px;bottom:-26px;height:20px;font:800 11px Orbitron,sans-serif;letter-spacing:2px;display:flex;align-items:center;justify-content:center}
 #konlist.v2 .kbo.y .pbar:after{content:"✓ RICHTIG";background:#2bf5a0;color:#05301f}#konlist.v2 .kbo.n .pbar:after{content:"✕ FALSCH";background:#ff3b5c;color:#fff}
 #konlist.v2 .kbo .pbar{position:relative;overflow:visible}
+/* Konsens ruhig: keine Animationen, kein Glanz-Lauf */
+#konlist *,#konlist *:before,#konlist *:after{animation:none!important}
+#konlist .ksb:after,#konlist .kbo:after,#konlist .kgq:after,#konlist .zbox.zk div:after,#konlist .bsw div:after,#konlist .chip:after,#konlist h3 span:after{display:none!important}
+#konlist .ksb{box-shadow:0 0 0 1px #b388ff66!important}#konlist .kbo{box-shadow:0 0 0 1.5px #ffd77a!important}
+#konlist .kgq{box-shadow:none!important}#konlist .kgq b{text-shadow:none!important}#konlist h3 span{box-shadow:none!important}#konlist .chip.on{box-shadow:0 0 0 2px #fff!important}
+/* Zaehler: Werte farbig */
+#konlist .zbox.zk div:nth-child(1) b{color:#08703f!important}#konlist .zbox.zk div:nth-child(2) b{color:#c0213d!important}
+/* Gesamtquoten flacher */
+#konlist .kgs{margin:4px 0 10px}#konlist .kgq{padding:6px 10px;border-radius:12px}#konlist .kgq b{font-size:21px;margin:0}#konlist .kgq small{font-size:9.5px}#konlist .kgq span{font-size:11px}#konlist .kgc{height:4px;margin:3px 0}
 /* Konsens: Zaehler gold, Kombi-Groessen hellgruen, Spiele-Zahl gruen, Maerkte gold – alles mit Glanz */
 #konlist .zbox.zk div{position:relative;overflow:hidden;background:linear-gradient(135deg,#c99a3a,#ffd77a 55%,#e8b54d)!important;border:0!important;animation:kgold 3s ease-in-out infinite}
 #konlist .zbox.zk div:after,#konlist .bsw div:after,#konlist .chip:after,#konlist h3 span:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff55 50%,transparent 65%);background-size:250% 100%;animation:ksheen 4s linear infinite;pointer-events:none}
@@ -298,6 +307,7 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .kgq:after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 35%,#ffffff33 50%,transparent 65%);background-size:250% 100%;animation:ksheen 3.5s linear infinite}
 .kgq small{display:block;font:700 10px Orbitron,sans-serif;letter-spacing:1.5px;color:#ffffffdd}.kgq b{display:block;font:800 30px Orbitron,sans-serif;color:#fff;text-shadow:0 0 14px #ffffff88;margin:2px 0}
 .kgq span{font-size:12px;color:#fff}.kgc{height:6px;border-radius:3px;background:#00000040;margin:4px 0;overflow:hidden}.kgc i{display:block;height:100%;background:#fff}
+.back{display:block!important;width:100%;box-sizing:border-box;text-align:center;font-size:15px!important;font-weight:800!important;color:#2a1b02!important;background:linear-gradient(135deg,#c99a3a,#ffd77a 55%,#e8b54d)!important;border:0!important;border-radius:14px!important;padding:11px 12px!important}
 .kC{background:linear-gradient(180deg,#2f8a63,#226b4c)!important;border:1.5px solid #9dffd2!important;box-shadow:0 0 18px #2bf5a033}
 .abz{margin-top:4px;display:flex;flex-wrap:wrap;gap:4px}.bz{flex:none;white-space:nowrap;display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px}.bz.k0{background:#2bf5a0;color:#063b27}.bz.k1{background:#ffe04d;color:#3d3000}.bz.k2{background:#ffb02b;color:#3d2400}.bz.k3{background:#ff4d7d;color:#fff}.bz.best{background:#ffe04d;color:#3d3000;border:1.5px solid #fff6c2;box-shadow:0 0 10px #ffe04daa;animation:tglow 2.4s infinite}.bz.mk{background:#ffffff2e;color:#fff}
 .eline{display:block;color:#fff!important;font-size:14px!important;font-weight:600;margin-top:2px}
@@ -776,8 +786,8 @@ function row(s){if(isMM(S.modell))return mmRow(s);if(isL(S.modell))return lRow(s
  ${(()=>{const o=optionen(p).sort((a,b)=>b[2]-a[2])[0];return `<div class="rtip"><span class="tp">${{ht:"HZ1 ",ht2:"HZ2 ",bts:"BTTS "}[o[3]]||""}${tn(s,o[1])} · ${Math.round(o[2])}%</span><span class="ou">${o[0]}</span>${valBadge(p)}</div></div>`})()}`}
 
 /* ---------- Detail ---------- */
-function openDetail(id){S.detail=id;S.dtab=S.modell;S.seite="detail";render();scrollTo(0,0)}
-function closeDetail(){S.detail=null;S.seite="spiele";if(S.dtab&&D.modelle.some(m=>m.id==S.dtab))S.modell=S.dtab;render()}
+function openDetail(id){S.zurueck={seite:S.seite=="detail"?"spiele":S.seite,y:scrollY};S.detail=id;S.dtab=S.modell;S.seite="detail";render();scrollTo(0,0)}
+function closeDetail(){const z=S.zurueck||{seite:"spiele",y:0};S.detail=null;S.seite=z.seite;if(S.dtab&&D.modelle.some(m=>m.id==S.dtab))S.modell=S.dtab;render();requestAnimationFrame(()=>requestAnimationFrame(()=>scrollTo(0,z.y)))}
 function renderDetail(){const s=D.spiele.find(x=>x.id==S.detail),q=s.quoten,r=res(s);
  if(D.modelle.some(m=>m.id==S.dtab))theme(D.modelle.find(m=>m.id==S.dtab));
  $("vs").innerHTML=`<canvas class="mx" data-mx></canvas><i class="cn tl"></i><i class="cn tr"></i><i class="cn bl"></i><i class="cn br"></i><div class="vsd mono">${wd(s.datum)} ${dm(s.datum)} · ${s.zeit} · ${ligaInfo[s.liga]}</div>
@@ -1067,8 +1077,8 @@ function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<
   return `<div class="ksb${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})"><div class="ksh"><div><div class="kzeit"><em>${wd(s.datum)} ${dm(s.datum)}</em>${s.zeit||""}</div><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]}</small></div><span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span></div><b class="kst">${s.heim} <i>vs</i> ${s.gast}</b>${r?`<small class="eline">Endstand ${s.ergebnis}${s.ergebnis_ht?` · HZ ${s.ergebnis_ht}`:""}</small>`:""}<div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>`}).join("");
  const fz=(g,c,t,cl)=>`<div class="kgq ${cl}"><small>${t}</small><b>${kom(g.toFixed(2))}</b><div class="kgc"><i style="width:${Math.min(100,c*100)}%"></i></div><span>Chance ${kom((c*100).toFixed(c<0.01?3:1))} %</span></div>`;
  return `<div class="card ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>
- <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}${it}
- <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div></div>`}
+ <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}
+ <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div>${it}</div>`}
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${abSwitch()}${(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n))(S.abw||"c")}
