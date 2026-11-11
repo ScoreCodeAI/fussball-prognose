@@ -495,6 +495,7 @@ def main():
     except Exception as ex:
         oa_archiv, oa_status = {}, {"aktiv": False, "fehler": str(ex)}
         log("Odds API fehlgeschlagen:", ex)
+    fx_roh = fx.copy()           # nur fuer Sharp-Signal: fruehe Pinnacle-Quote als Vergleichswert (keine Anzeige-Quote)
     fx, n_oa = odds_api.fx_ersetzen(fx, oa_archiv)
     log(f"Kommende Spiele: {len(fx)} | davon mit Odds-API-Quoten: {n_oa} (football-data-Quoten entfernt)")
     log(f"Spiele: {len(spiele):,} | mit Halbzeit: {spiele['HTHG'].notna().sum():,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
@@ -636,6 +637,32 @@ def main():
     for _, z in fx.iterrows():
         if not pd.isna(z["Date"]):
             zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+    # Sharp-Signal (eigenstaendig): frueh = football-data-Pinnacle, jetzt = Odds API (bzw. Pinnacle-Schluss)
+    try:
+        import sharp
+        frueh = {}
+        for _, z in q.iterrows():
+            frueh[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["Home"], z["Away"])] = z
+        for _, z in fx_roh.iterrows():
+            if not pd.isna(z["Date"]):
+                frueh[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+        n_sh = 0
+        for e in liste:
+            k = (e["liga"], e["datum"], e["heim"], e["gast"])
+            jetzt = odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
+            if jetzt is None and k in frueh:         # ohne Odds API: Pinnacle-Schluss + Schluss-Durchschnitt als "jetzt"
+                z = frueh[k]
+                jetzt = {n: z.get(a) for n, a in (("PSH", "PSCH"), ("PSD", "PSCD"), ("PSA", "PSCA"), ("P>2.5", "PC>2.5"), ("P<2.5", "PC<2.5"),
+                                                   ("AvgH", "AvgCH"), ("AvgD", "AvgCD"), ("AvgA", "AvgCA"), ("Avg>2.5", "AvgC>2.5"), ("Avg<2.5", "AvgC<2.5"),
+                                                   ("MaxH", "MaxCH"), ("MaxD", "MaxCD"), ("MaxA", "MaxCA"), ("Max>2.5", "MaxC>2.5"), ("Max<2.5", "MaxC<2.5"))}
+            sh = sharp.spiel(frueh.get(k), jetzt)
+            if sh:
+                e["sharp"] = sh
+                n_sh += 1
+        log(f"Sharp-Signal: {n_sh} Spiele")
+        ergebnis["sharp_test"] = sharp.test(q, log)
+    except Exception as ex:
+        log("Sharp-Signal fehlgeschlagen:", ex)
     # Angezeigte Spiele (letzte Woche + kommend): nur Odds-API-Quoten, sonst keine
     for e in liste:
         k = (e["liga"], e["datum"], e["heim"], e["gast"])
