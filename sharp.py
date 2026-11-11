@@ -67,6 +67,7 @@ def test(q, log=print):
             o = _ausgang(r, mk)
             pin, avg, mx = _get(r, _pre(mk, "pin")), _get(r, _pre(mk, "avg")), _get(r, _pre(mk, "max"))
             pinc, mxc = _get(r, _pre(mk, "pinc")), _get(r, _pre(mk, "maxc"))
+            mxc = mxc or pinc                     # keine Schluss-Hoechstquote -> Pinnacle-Schlussquote (realistisch erreichbar)
             pp, pa = (shin(pin) if pin else None), (shin(avg) if avg else None)
             if pp is not None and pa is not None and mx:
                 d = (pp - pa) * 100
