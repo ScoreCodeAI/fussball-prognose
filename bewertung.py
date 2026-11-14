@@ -14,6 +14,9 @@ MAERKTE = {"x": ("1", "X", "2"), "ou25": ("O", "U"), "ht": ("1", "X", "2")}
 STUFEN = [(0, 50), (50, 60), (60, 70), (70, 80), (80, 101)]
 MIN_N = 100
 GROESSEN = (3, 5, 10)
+KGR = (3, 4, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15, 17, 20)   # Schein-Groessen wie auf der Seite
+MIN_TAGE = 30
+QK = {"x": ("1", "X", "2"), "ou25": ("Ü2.5", "U2.5")}
 
 
 def _r2(x):                      # wie Math.round(x*100)/100 in JavaScript
@@ -90,6 +93,50 @@ def _einzel_tipp(v, mk):
     return {"tk": [L[i] for i in tk], "pr": sum(v[i] for i in tk), "kontra": kg, "kons": ti in tk}
 
 
+def _quote(sp, mk, tk):
+    """Hoechstquote (football-data Max*) fuer den Tipp; Doppelte Chance = 1 / Summe(1/q). Ohne Quote -> None."""
+    qm = sp.get("qmax") or {}
+    if mk not in QK or not qm:
+        return None
+    L = MAERKTE[mk]
+    try:
+        qs = [float(qm[QK[mk][L.index(k)]]) for k in tk]
+    except Exception:
+        return None
+    if any(not q or q <= 1 for q in qs):
+        return None
+    return 1 / sum(1 / q for q in qs)
+
+
+def _schein_roi(tage, n):
+    """Je Tag ein n-er Schein wie auf der Seite (staerkste % zuerst, erst je Liga einer, dann auffuellen).
+    Gewinn je Schein in % bei Einsatz 1: Gesamtquote - 1 wenn alle richtig, sonst -1."""
+    werte, treffer = [], 0
+    for v in tage.values():
+        v = sorted(v, key=lambda t: -t[2]["pr"])
+        aus, ligen = [], set()
+        for t in v:
+            if len(aus) < n and t[5] not in ligen:
+                aus.append(t); ligen.add(t[5])
+        for t in v:
+            if len(aus) < n and t not in aus:
+                aus.append(t)
+        if len(aus) < n or any(t[2].get("q") is None for t in aus):
+            continue
+        ok = all(t[4] for t in aus)
+        g = 1.0
+        for t in aus:
+            g *= t[2]["q"]
+        werte.append((g if ok else 0.0) - 1)
+        treffer += ok
+    if len(werte) < MIN_TAGE:
+        return {"tage": len(werte)}
+    m = sum(werte) / len(werte)
+    sd = (sum((w - m) ** 2 for w in werte) / (len(werte) - 1)) ** 0.5
+    return {"tage": len(werte), "roi": round(m * 100, 1), "se": round(sd / len(werte) ** 0.5 * 100, 1),
+            "treffer": round(treffer / len(werte) * 100, 1)}
+
+
 def _stufe(pr):
     for a, b in STUFEN:
         if a <= pr < b:
@@ -120,12 +167,14 @@ def berechne(bt, log=print):
                 pxs = [x for x in (_vals(sp["p"], "x") for sp in ms.values()) if x]
                 t = _max_tipp(V, mk, sum(x[1] for x in pxs) / len(pxs) if pxs else None)
                 if t:
-                    tipps.append((k[1], "MAX", t, mk, echt in t["tk"]))
+                    t["q"] = _quote(sp0, mk, t["tk"])
+                    tipps.append((k[1], "MAX", t, mk, echt in t["tk"], k[0]))
             if mk != "ht" and "modell_elo" in ms:
                 v = _vals(ms["modell_elo"]["p"], mk)
                 t = _einzel_tipp(v, mk) if v else None
                 if t:
-                    tipps.append((k[1], "Elo", t, mk, echt in t["tk"]))
+                    t["q"] = _quote(sp0, mk, t["tk"])
+                    tipps.append((k[1], "Elo", t, mk, echt in t["tk"], k[0]))
     if not tipps:
         return None
     daten = sorted({t[0] for t in tipps})
@@ -160,6 +209,8 @@ def berechne(bt, log=print):
                                     "pruef": round(sum(t[4] for t in zp) / len(zp) * 100, 1) if len(zp) >= 30 else None,
                                     "n": len(zp)})
                     g["kal"] = kal
+                    if q == "MAX" and mk in QK:
+                        g["schein"] = {str(n): _schein_roi(tage, n) for n in KGR}
                 out["gruppen"][f"{q}|{mk}|{var}"] = g
                 st = {}
                 for a, b in STUFEN:
@@ -167,5 +218,20 @@ def berechne(bt, log=print):
                     if len(z) >= 30:
                         st[str(a)] = round(sum(t[4] for t in z) / len(z) * 100, 1)
                 out["stufen"][f"{q}|{mk}|{var}"] = st
+    out["beste"] = {}
+    for mk in QK:
+        for n in KGR:
+            v = {var: (out["gruppen"].get(f"MAX|{mk}|{var}", {}).get("schein") or {}).get(str(n), {}) for var in "abc"}
+            ok = {k: x for k, x in v.items() if "roi" in x}
+            e = {"werte": v}
+            if len(ok) >= 2:
+                rang = sorted(ok, key=lambda k: -ok[k]["roi"])
+                a1, a2 = ok[rang[0]], ok[rang[1]]
+                abstand = a1["roi"] - a2["roi"]
+                gz = max(2.0, (a1["se"] ** 2 + a2["se"] ** 2) ** 0.5)     # mind. 2 % und mehr als der Zufall
+                e["sieger"] = rang[0] if abstand > gz else None
+                e["abstand"], e["grenze"] = round(abstand, 1), round(gz, 1)
+            out["beste"][f"{mk}|{n}"] = e
+    log("Beste Variante (MAX-Kombi): " + ", ".join(f"{k}={v.get('sieger') or '–'}" for k, v in out["beste"].items() if k.endswith(("|3", "|5", "|10"))))
     log(f"Bewertung: {len(tipps)} Backtest-Tipps ({daten[0]} bis {daten[-1]}), Prüfzeitraum ab {grenze}")
     return out
