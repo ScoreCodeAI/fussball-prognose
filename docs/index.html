@@ -678,6 +678,31 @@ body.skin .tpl.y{background:#2bffa818!important;color:#b8f5dc!important;border:1
 body.skin .tpl.n{background:#ff4d6d18!important;color:#ffc2cf!important;border:1.5px solid #ff4d6daa!important}
 body.skin .tpl.a{background:#78aaff1c!important;color:#dfe8ff!important;border:1.5px solid #9fc2ffaa!important}
 body.skin .tpl.b{background:#ffc94d18!important;color:#ffe6a8!important;border:1.5px solid #ffc94daa!important}
+/* Verloren auch als schraeger Stempel, beide blinken kurz */
+body.skin .kblk.los .kres{display:inline-block;border:2px solid #ff4d6d;border-radius:6px;padding:3px 7px;transform:rotate(-6deg);color:#ff8fa6!important;text-shadow:0 0 8px #ff4d6d;box-shadow:0 0 10px #ff4d6d55}
+body.skin .kblk.los.fx .kres{animation:skStamp2 .5s cubic-bezier(.3,1.6,.4,1) .4s both,skBlinkR 2.4s ease-in-out 1s infinite}
+body.skin .kblk.win.fx .kres{animation:skStamp2 .5s cubic-bezier(.3,1.6,.4,1) .4s both,skBlinkG 2.4s ease-in-out 1s infinite}
+@keyframes skBlinkG{0%,30%,100%{box-shadow:0 0 10px #2bffa855;filter:none}8%,22%{box-shadow:0 0 22px #2bffa8,0 0 6px #2bffa8 inset;filter:brightness(1.5)}15%{box-shadow:0 0 6px #2bffa833;filter:brightness(.85)}}
+@keyframes skBlinkR{0%,30%,100%{box-shadow:0 0 10px #ff4d6d55;filter:none}8%,22%{box-shadow:0 0 22px #ff4d6d,0 0 6px #ff4d6d inset;filter:brightness(1.5)}15%{box-shadow:0 0 6px #ff4d6d33;filter:brightness(.85)}}
+body.nofx .kblk.los .kres{opacity:1}
+/* Tabs: nur der aktive leuchtet */
+body.skin .ptabs div.chrometab{border:1px solid transparent!important;background:transparent!important;animation:none!important;box-shadow:none!important;color:var(--mu)!important}
+body.skin .ptabs div.on,body.skin .ptabs div.chrometab.on{color:#fff!important;border:2px solid transparent!important;background:linear-gradient(#1a2552,#1a2552) padding-box,linear-gradient(135deg,#ffffff,#9fc2ff 30%,#ffffff 50%,#a07bff 75%,#e8f0ff) border-box!important;box-shadow:0 0 20px #78aaffaa!important}
+/* RF+ Verbesserungs-Test lebendig */
+body.skin .rfp{position:relative;overflow:hidden;border-color:#78aaff55;background:linear-gradient(170deg,#10183ecc,#070b1fcc);box-shadow:0 0 18px #78aaff22}
+body.skin .rfp:before{content:"";position:absolute;top:0;bottom:0;width:30%;left:-35%;background:linear-gradient(100deg,transparent,#9fc2ff1f,transparent);animation:skScan 4.5s ease-in-out infinite;pointer-events:none}
+@keyframes skScan{0%,20%{left:-35%}100%{left:110%}}
+body.skin .rfh span{color:#cfe0ff;text-shadow:0 0 8px #78aaff}
+body.skin .rfh b{position:relative;padding-left:18px}
+body.skin .rfh b:before{content:"";position:absolute;left:7px;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:#2bffa8;box-shadow:0 0 8px #2bffa8;animation:skPing 1.4s ease-out infinite}
+@keyframes skPing{0%{box-shadow:0 0 0 0 #2bffa8aa}100%{box-shadow:0 0 0 9px #2bffa800}}
+body.skin .rfb,body.skin .rfp .rfbar{position:relative;overflow:hidden}
+body.skin .rfp [style*="width"]:not(svg){position:relative}
+body.skin .rfp .skbar:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,#ffffffaa,transparent);background-size:40% 100%;background-repeat:no-repeat;animation:skFill 2s linear infinite}
+@keyframes skFill{0%{background-position:-60% 0}100%{background-position:160% 0}}
+body.skin .rfp polyline.skl{stroke-dasharray:900;stroke-dashoffset:900;animation:skDraw 2s ease-out forwards;filter:drop-shadow(0 0 4px currentColor)}
+body.skin .rfp circle.skd{filter:drop-shadow(0 0 5px #fff)}
+body.nofx .rfp polyline.skl{stroke-dashoffset:0}
 </style></head><body class="skin">
 <div class="phone"><div class="wrap">
 <div class="top"><span id="stand">LADE …</span><span class="live"><i></i>AUTO-UPDATE</span></div><div id="credits" class="credits"></div>
@@ -1395,7 +1420,7 @@ function renderSB(){const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("s
  <p class="hint">Ein Spiel kommt nur hinein, wenn Konsens, EV-Tipp und MAX-Kombi genau denselben Tipp haben (keine Doppelte Chance). Quote groß = echte Höchstquote (Odds API), klein = Modell-Quote (100 ÷ Konsens-%). Weniger einige Spiele als gewählt = es wird nicht aufgefüllt. Eigenständig, verändert keinen anderen Bereich.</p>`}
 function renderEV(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.sv),chips=chipsN("evn","renderEV()"),n=S.evn;const sw=mkSwitch("evm","renderEV()"),m=S.evm;
  $("evlist").innerHTML=`<h3>💎 EV-Tipp · SV <span>${tag.length} Spiele</span></h3>${sw}${chips}
- ${kSchein("a",qaAuswahl(tag,false,n,m,"ev"),n,"GESAMTQUOTE").replace("A · Höchste Wahrscheinlichkeit","A · Alle EV-Tipps")}${kSchein("b",qaAuswahl(tag,true,n,m,"ev"),n,"GESAMTQUOTE").replace("B · Nur mit Übereinstimmung","B · EV-Tipp mit Spalten-Check über 100 %")}${kSchein("c",qaAuswahl(tag,"c",n,m,"ev"),n,"GESAMTQUOTE").replace("C · Ohne Widerspruch (Kontra 0)","C · EV-Tipp und QA-Tipp gleich")}
+ ${["ma","mb","mc"].map((ab,j)=>kSchein(ab,qaAuswahl(tag,[false,true,"c"][j],n,m,"ev"),n,"GESAMTQUOTE")).join("").replace(">C · Konsens / höchste %<",">C · EV = QA-Tipp<").replace(">A · Übereinst. ✓<",">A · Alle EV-Tipps<").replace(">B · ✓ + Kontra 0</div>",">B · Spalten-Check</div>").replace("A · MAX-Übereinstimmung ✓","A · Alle EV-Tipps").replace(">B · ✓ + Kontra 0</b>",">B · EV-Tipp mit Spalten-Check über 100 %</b>").replace("C · ✓ + Konsens gleich","C · EV-Tipp und QA-Tipp gleich")}
  <p class="hint">Nur Modell SV. EV-TIPP = Ausgang, dessen EV der Marge entspricht (bei 2 Haken = Doppelte Chance, z. B. X2). Alles aus den höchsten Quoten. B: im Spalten-Check (höchste Quote × faire Chance) über 100 % · C: QA-Tipp zeigt auf denselben Ausgang.</p>`}
 function renderQA(){const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.sv),gr=[1,2,3,4,5,10,15,20,25,30],chips=chipsN("qan","renderQA()",gr),n=S.qan;S.qaa="qa";const sw="";
  $("qalist").innerHTML=`<h3>🧮 SV · ${S.qaa=="qa"?"Tipp Quoten-Analyse":"EV-Tipp"} <span>${tag.length} Spiele</span></h3>${sw}${mkSwitch("qam","renderQA()")}${chips}
@@ -1793,6 +1818,12 @@ if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now())
    if(k.classList.contains("win"))k.insertAdjacentHTML("beforeend",`<svg class="skr"><rect x="1" y="1" rx="15" width="${k.offsetWidth-2}" height="${k.offsetHeight-2}"/></svg>`);
    else if(k.classList.contains("los")){const tb=k.querySelector(".kst");k.insertAdjacentHTML("beforeend",'<span class="strike"></span>');if(tb){const st=k.lastElementChild,kr=k.getBoundingClientRect(),br=tb.getBoundingClientRect();st.style.top=(br.top-kr.top+br.height/2)+"px";st.style.width="0"}}
    else k.classList.add("sk-off");setTimeout(()=>k.classList.add("fx"),130*(i++)+200)});
+  const rp=document.querySelector("#rfplus .rfp:not([data-sk])");if(rp){rp.dataset.sk=1;
+   rp.querySelectorAll("i[style*='width']").forEach(x=>x.classList.add("skbar"));
+   const pl=rp.querySelector("polyline");if(pl){pl.classList.add("skl");pl.style.color=pl.getAttribute("stroke");const pts=pl.getAttribute("points").trim().split(/\s+/);
+    const d="M"+pts.join(" L");const ns="http://www.w3.org/2000/svg",c=document.createElementNS(ns,"circle");c.setAttribute("r","3.5");c.setAttribute("fill","#fff");c.setAttribute("class","skd");
+    const am=document.createElementNS(ns,"animateMotion");am.setAttribute("dur","5s");am.setAttribute("repeatCount","indefinite");am.setAttribute("path",d);c.appendChild(am);pl.parentNode.appendChild(c)}
+   rp.querySelectorAll(".rfz span").forEach(s=>{const m=s.textContent.match(/^(\d+) \/ (\d+)/);if(m&&!B.classList.contains("nofx")){const z=+m[1],rest=s.textContent.slice(m[1].length),t0=performance.now();(function f(n){const p=Math.min(1,(n-t0)/1200);s.textContent=Math.round(z*p)+rest;if(p<1)requestAnimationFrame(f)})(t0)}})}
   document.querySelectorAll(".zbox b:not([data-sk])").forEach(b=>{b.dataset.sk=1;const m=b.textContent.trim().match(/^(\d+)(\s*%)?$/);if(m)count(b,+m[1],700,m[2]||"",0)})}
  let tm;new MutationObserver(ms=>{if(!ms.some(m=>[...m.addedNodes].some(n=>n.nodeType==1&&!(n.classList&&(n.classList.contains("laser")||n.classList.contains("skr")||n.classList.contains("stamp")||n.classList.contains("strike"))))))return;clearTimeout(tm);tm=setTimeout(after,40)}).observe(document.querySelector(".wrap"),{childList:true,subtree:true});
  setTimeout(after,300)})();
