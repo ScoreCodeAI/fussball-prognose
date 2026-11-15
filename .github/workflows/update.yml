@@ -18,12 +18,16 @@ jobs:
         with:
           python-version: "3.12"
       - name: Pakete installieren
-        run: pip install pandas numpy scipy statsmodels requests scikit-learn
+        run: pip install pandas numpy scipy statsmodels requests scikit-learn pillow
       - name: Motor starten
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           SPORTSAPIPRO_KEY: ${{ secrets.SPORTSAPIPRO_KEY }}
         run: python engine.py
+      - name: Wappen nachladen (TheSportsDB)
+        continue-on-error: true
+        timeout-minutes: 15
+        run: python logos.py
       - name: Ergebnis speichern
         run: |
           git config user.name "score-code-bot"
@@ -32,6 +36,7 @@ jobs:
           git add docs/odds_archiv.json || true
           git add docs/rf_plus.json || true
           git add archiv/sportsapi.json.gz || true
+          git add docs/logos || true
           git commit -m "Daten-Update $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
           git pull --rebase origin main
           git push
