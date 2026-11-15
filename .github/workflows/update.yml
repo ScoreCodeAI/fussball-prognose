@@ -33,4 +33,5 @@ jobs:
           git add docs/rf_plus.json || true
           git add archiv/sportsapi.json.gz || true
           git commit -m "Daten-Update $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git pull --rebase origin main
           git push
