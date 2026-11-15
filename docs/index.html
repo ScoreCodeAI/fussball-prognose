@@ -557,6 +557,108 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 @keyframes svp{50%{box-shadow:0 0 38px #ff4d7dcc,0 0 70px #ff2bd655}}
 .sve{font-family:Orbitron;font-size:12px;color:#fff;background:linear-gradient(90deg,#ff2b55,#ff2bd6);padding:4px 9px;border-radius:8px;font-weight:700;box-shadow:0 0 12px #ff4d7d77}
 </style>
+<style id="gk">.rfgauge .rfneedle{transform-origin:100px 100px;transform:rotate(var(--a));animation:rfNeedle 1.6s cubic-bezier(.3,1.5,.4,1)}
+@keyframes rfNeedle{0%{transform:rotate(-90deg)}100%{transform:rotate(var(--a))}}
+.rfgauge .rfbar{animation:rfBar .8s cubic-bezier(.3,1.4,.4,1) both}
+@keyframes rfBar{0%{transform:scaleY(0)}100%{transform:scaleY(1)}}
+.rfvl{font-size:10px;letter-spacing:1px;color:#cfd6f5aa;text-align:center;margin-top:2px}
+body.nofx .rfgauge .rfneedle,body.nofx .rfgauge .rfbar{animation:none!important}
+/* ===== Gold-Spielkarte ===== */
+body.skin .kblk.gk,body.skin #konlist .ksb.gk{position:relative;padding:14px 16px 14px!important;margin:16px 0!important;border-radius:22px!important;border:1px solid #d4af3766!important;background:radial-gradient(120% 60% at 50% 110%,#d4af3722,transparent 60%),linear-gradient(180deg,#121214,#0b0b0d)!important;box-shadow:0 10px 30px #000a,0 0 0 1px #00000080 inset,0 18px 40px -20px #d4af3766!important;animation:none}
+body.skin #konlist .ksb.gk:before{display:none}
+.gk .gkh{display:flex;align-items:center;gap:10px;justify-content:center;margin:2px 0 6px}
+.gk .gkh i{flex:1;height:1px;background:linear-gradient(90deg,transparent,#d4af37aa)}.gk .gkh i:last-child{background:linear-gradient(90deg,#d4af37aa,transparent)}
+.gk .gkh span{font:700 10px Orbitron,sans-serif;letter-spacing:4px;color:#e9c766;text-shadow:0 0 8px #d4af3755}
+.gk .gkmeta{text-align:center;font-size:11px;letter-spacing:1.5px;color:#cdb98a;text-transform:uppercase}
+.gk .gkmeta .kein{display:inline-flex!important;width:auto!important;height:auto!important;background:none!important;border:1px solid #d4af3788!important;border-radius:999px!important;padding:1px 8px!important;gap:4px;align-items:center;flex-direction:row!important}
+.gk .gkmeta .kein:before{display:none!important}.gk .gkmeta .kein b,.gk .gkmeta .kein small{font-size:10px!important;color:#e9c766!important}
+.gk .gkt{display:block;text-align:center;font:600 18px system-ui,sans-serif!important;letter-spacing:2px;text-transform:uppercase;color:#f1efe8!important;margin:6px 0 2px!important}
+.gk .gkt em{font-style:normal;color:#e9c766;font-size:13px;margin:0 6px}
+.gk .gkline{width:50px;height:1px;background:#d4af37;margin:6px auto 10px}
+.gk .gkr{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px}
+.gk .gkte{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0}
+.gk .gkte small{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#d9d6cc;text-align:center;overflow-wrap:anywhere}
+.gk .gkl{width:58px;height:58px;object-fit:contain;filter:drop-shadow(0 4px 10px #0009)}
+.gk .gkm{width:58px;height:58px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:800 15px Orbitron,sans-serif;color:#e9c766;border:1.5px solid #d4af3788;background:radial-gradient(#2a2416,#121008)}
+.gk .gkc{text-align:center;padding:0 12px;border-left:1px solid #d4af3733;border-right:1px solid #d4af3733;min-width:104px}
+.gk .gks{font:300 42px system-ui,sans-serif;color:#fff;line-height:1.05;letter-spacing:1px}
+.gk .gks.gko{font-size:30px;color:#f1efe8}
+.gk .gkht{font-size:12px;letter-spacing:1.5px;color:#e9c766;margin-top:2px}
+.gk .gksec{border-top:1px solid #ffffff14;margin-top:12px;padding-top:10px;text-align:center}
+.gk .gksec>small{display:block;font-size:10.5px;letter-spacing:3px;color:#e9c766;margin-bottom:6px}
+.gk .gktip{font:500 22px system-ui,sans-serif;color:#f6f4ee;display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap}
+.gk .gkok{font-style:normal;width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:15px;border:1.5px solid #e9c766;color:#e9c766}
+.gk .gkok.n{border-color:#ff6b8a;color:#ff6b8a}
+.gk .gkst{border-top:1px solid #ffffff14;margin-top:12px;padding-top:12px;text-align:center}
+.gk .gkst>small{display:block;font-size:12px;color:#a9a59a;margin:6px 0 8px}
+body.skin .gk .kres{font:800 15px Orbitron,sans-serif!important;letter-spacing:2px}
+.gk .gkof{font:700 13px Orbitron,sans-serif;letter-spacing:2px;color:#ffc94d}
+.gk .gkbar{height:6px;border-radius:4px;background:#ffffff14;margin:0 16px;overflow:hidden}
+.gk .gkbar i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#b8902c,#f3d27a)}
+.gk .gkch{display:block;font-size:11px;color:#a9a59a;margin-top:5px}
+.gk .gkq{margin:12px 22px 4px;border:1px solid #ffffff1c;border-radius:14px;background:#ffffff06;padding:8px;text-align:center}
+.gk .gkq small{display:block;font-size:10.5px;letter-spacing:3px;color:#a9a59a}
+.gk .gkq b{display:block;font:500 26px system-ui,sans-serif;color:#e9c766}
+.gk .gkq .qsrc{display:inline-block;margin-top:2px}
+.gk .gkinfo{text-align:center;color:#8f8b80!important;font-size:11.5px;margin-top:8px}
+.gk .kbf{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}
+.gk details.gkd{margin-top:8px;border-top:1px solid #ffffff14;padding-top:6px}
+.gk details.gkd summary{cursor:pointer;text-align:center;font-size:11px;letter-spacing:2px;color:#cdb98a;list-style:none}
+.gk details.gkd summary:before{content:"▸ "}.gk details.gkd[open] summary:before{content:"▾ "}
+body.skin #konlist .ksb.gk .kbg2{margin-top:2px}
+body.skin .gk .kbh{display:block!important}
+body.skin #shlist .kblk.gk,body.skin .kblk.gk{color:#f1efe8}
+body.skin #shlist .kblk.gk{background:radial-gradient(120% 60% at 50% 110%,#d4af3722,transparent 60%),linear-gradient(180deg,#121214,#0b0b0d)!important}
+body.skin #shlist .gk .gkt,body.skin #shlist .gk .gktip,body.skin #shlist .gk .gks{color:#f6f4ee!important}
+body.skin #shlist .gk .gkmeta,body.skin #shlist .gk .gkte small{color:#cdb98a!important}
+body.skin #shlist .gk .gkinfo,body.skin #shlist .gk small{color:#a9a59a}
+body.skin .ksb.gk.win .kres,body.skin .ksb.gk.los .kres{display:inline-block;border:2px solid;border-radius:6px;padding:3px 7px;transform:rotate(-6deg)}
+body.skin .ksb.gk.win .kres{color:#2bffa8;border-color:#2bffa8;text-shadow:0 0 8px #2bffa8;animation:skStamp2 .5s cubic-bezier(.3,1.6,.4,1) .4s both,skBlinkG 2.4s ease-in-out 1s infinite!important}
+body.skin .ksb.gk.los .kres{color:#ff8fa6;border-color:#ff4d6d;text-shadow:0 0 8px #ff4d6d;animation:skStamp2 .5s cubic-bezier(.3,1.6,.4,1) .4s both,skBlinkR 2.4s ease-in-out 1s infinite!important}
+body.skin #shlist .kblk.gk{border:1px solid #d4af3766!important;color:#f1efe8}
+body.skin #shlist .kblk.gk.win{border-color:#2bffa8aa!important}body.skin #shlist .kblk.gk.los{border-color:#ff4d6daa!important}
+body.skin #shlist .gk .gksec>small,body.skin #shlist .gk .gkht,body.skin #shlist .gk .gkh span{color:#e9c766!important}
+body.skin #shlist .gk .gkst>small,body.skin #shlist .gk .gkch,body.skin #shlist .gk .gkq small,body.skin #shlist .gk .gkinfo{color:#a9a59a!important}
+body.skin #shlist .gk .gkmeta,body.skin #shlist .gk .gkte small{color:#cdb98a!important}
+body.skin #shlist .gk .kbt{color:#f1efe8!important}
+body.skin #shlist .kblk.gk.win .kres{color:#2bffa8!important;opacity:1}
+body.skin #shlist .kblk.gk.los .kres{color:#ff8fa6!important;opacity:1}
+/* ===== Konsens Tipp/Alternative im Gold-Stil ===== */
+body.skin #konlist .ksb.gk .kbo,body.skin #konlist .ksb.gk .kbo.a,body.skin #konlist .ksb.gk .kbo.y,body.skin #konlist .ksb.gk .kbo.n{background:#ffffff05!important;border:1px solid #d4af3755!important;box-shadow:none!important;opacity:1;padding:10px 8px 12px!important;border-radius:14px!important;outline:0!important;filter:none!important}
+body.skin #konlist .ksb.gk .kbo:before,body.skin #konlist .ksb.gk .kbo .pbar:after{display:none!important;content:none!important}
+body.skin #konlist .ksb.gk .kbo small{color:#a9a59a!important;font-size:10px!important;letter-spacing:3px}
+body.skin #konlist .ksb.gk .kbo b{color:#f6f4ee!important;font:500 19px system-ui,sans-serif!important;text-decoration:none!important;margin:4px 0}
+body.skin #konlist .ksb.gk .kbo span{color:#e9c766!important;font-size:13.5px!important;font-weight:500!important}
+body.skin #konlist .ksb.gk .kbo .pbar{background:#ffffff12!important;height:4px!important;margin-top:8px;border-radius:3px}
+body.skin #konlist .ksb.gk .kbo .pbar i{background:linear-gradient(90deg,#b8902c,#f3d27a)!important;box-shadow:none!important}
+body.skin #konlist .ksb.gk .kbo.y{border-color:#2bffa877!important}
+body.skin #konlist .ksb.gk .kbo.y b{color:#d8fff0!important}
+body.skin #konlist .ksb.gk .kbo.n{border-color:#ff4d6d77!important}
+body.skin #konlist .ksb.gk .kbo.n b{color:#ffd0da!important;text-decoration:line-through!important;text-decoration-color:#ff4d6d!important}
+/* ===== Kombi-Kopf (Titel, Zaehler, Quoten) im Gold-Stil ===== */
+body.skin .card.gkc,body.skin #konlist .card.gkc,body.skin #shlist .card.gkc{background:radial-gradient(120% 50% at 50% 0%,#d4af3718,transparent 60%),linear-gradient(180deg,#121214,#0b0b0d)!important;border:1px solid #d4af3766!important;border-radius:22px!important;box-shadow:0 10px 30px #000a!important}
+body.skin .card.gkc>div:first-child>b,body.skin #konlist .card.gkc>div:first-child>b,body.skin #shlist .card.gkc b[style*="color"]{color:#e9c766!important;font:700 13px Orbitron,sans-serif!important;letter-spacing:2px;text-transform:uppercase;text-shadow:none!important}
+body.skin .card.gkc>div:first-child>span{color:#a9a59a!important;letter-spacing:1px}
+body.skin .card.gkc .ueg{color:#e9c766!important;font:600 10px Orbitron,sans-serif;letter-spacing:4px;text-align:center;margin:12px 0 4px}
+body.skin .card.gkc .zbox.zk div,body.skin #konlist .card.gkc .zbox.zk div,body.skin #shlist .card.gkc .zbox.zk div{background:#ffffff05!important;border:1px solid #d4af3740!important;box-shadow:none!important;border-radius:14px!important}
+body.skin .card.gkc .zbox.zk b,body.skin #konlist .card.gkc .zbox.zk b,body.skin #shlist .card.gkc .zbox.zk b{font:300 26px system-ui,sans-serif!important;text-shadow:none!important;color:#f6f4ee!important}
+body.skin .card.gkc .zbox.zk div:nth-child(1) b,body.skin #konlist .card.gkc .zbox.zk div:nth-child(1) b,body.skin #shlist .card.gkc .zbox.zk div:nth-child(1) b{color:#5fe8b2!important}
+body.skin .card.gkc .zbox.zk div:nth-child(2) b,body.skin #konlist .card.gkc .zbox.zk div:nth-child(2) b,body.skin #shlist .card.gkc .zbox.zk div:nth-child(2) b{color:#ff8fa6!important}
+body.skin .card.gkc .zbox.zk div:nth-child(3) b,body.skin #konlist .card.gkc .zbox.zk div:nth-child(3) b,body.skin #shlist .card.gkc .zbox.zk div:nth-child(3) b{color:#e9c766!important}
+body.skin .card.gkc .zbox.zk small,body.skin #konlist .card.gkc .zbox.zk small,body.skin #shlist .card.gkc .zbox.zk small{color:#a9a59a!important;font-size:9px!important;letter-spacing:2px;font-weight:500!important}
+body.skin #konlist .card.gkc .kgq,body.skin #konlist .card.gkc .kgq.a{background:#ffffff05!important;border:1px solid #d4af3755!important;box-shadow:none!important;border-radius:14px!important}
+body.skin #konlist .card.gkc .kgq small{color:#a9a59a!important;letter-spacing:3px}
+body.skin #konlist .card.gkc .kgq b,body.skin #konlist .card.gkc .kgq.a b{color:#e9c766!important;font:500 28px system-ui,sans-serif!important;text-shadow:none!important}
+body.skin #konlist .card.gkc .kgq .kgc{background:#ffffff12!important;height:4px!important;border-radius:3px}
+body.skin #konlist .card.gkc .kgq .kgc i,body.skin #konlist .card.gkc .kgq.a .kgc i{background:linear-gradient(90deg,#b8902c,#f3d27a)!important;box-shadow:none!important}
+body.skin #konlist .card.gkc .kgq span{color:#a9a59a!important}
+body.skin .card.gkc .gkfu small{color:#a9a59a!important;letter-spacing:2px;font-size:10px!important}
+body.skin .card.gkc .gkfu>div>div{font:500 26px system-ui,sans-serif!important;color:#e9c766!important}
+body.skin .card.gkc .gkfu{border-color:#d4af3740!important}
+body.skin .card.gkc .zbox.zk b,body.skin #konlist .card.gkc .zbox.zk b,body.skin #shlist .card.gkc .zbox.zk b{font-size:22px!important;white-space:nowrap}
+body.skin .card.gkc .zbox.zk small{letter-spacing:1px!important}
+body.skin #konlist .card.gkc .ueg{color:#e9c766!important}
+</style>
 <style id="skin15">/* ===== DESIGN 15 · 3D-PROJEKTOR (nur Optik, keine Berechnung) ===== */
 body.skin{--cy:#78aaff!important;--vi:#a07bff!important;--panel:#0a0f2a!important;--panel2:#10173a!important;--line:#78aaff2e!important;--bg:#03040c!important;background:#03040c}
 body.skin:before{content:"";position:fixed;inset:0;z-index:-2;background:radial-gradient(70% 45% at 50% 18%,#141d4a,#03040c 72%)}
@@ -1174,17 +1276,36 @@ const SCH={ga:["A · MAX-Übereinstimmung ✓","kGa","#ffd77a"],gb:["B · ✓ + 
 const ABV={ma:"a",ga:"a",mb:"b",gb:"b",mc:"c",gc:"c"};
 function abSwitch(){S.abw=S.abw||"c";return `<div class="abw">${[["c","C · Konsens / höchste %"],["a","A · Übereinst. ✓"],["b","B · ✓ + Kontra 0"]].map(([k,t])=>`<div class="${S.abw==k?'on':''}" onclick="S.abw='${k}';render()">${t}</div>`).join("")}</div>`}
 function kSchein(ab,L,n,qname,mega){if(ABV[ab]){S.abw=S.abw||"c";if(ABV[ab]!=S.abw)return "";return abSwitch()+kSchein0(ab,L,n,qname,mega)}return kSchein0(ab,L,n,qname,mega)}
+/* ===== NEUE SPIELKARTE (Gold-Design) · nur Darstellung, gleiche Daten ===== */
+let LOGO={};fetch("logos/logos.json").then(r=>r.ok?r.json():{}).then(j=>{LOGO=j||{};if(Object.keys(LOGO).length&&typeof render=="function")render()}).catch(()=>{});
+function gkLogo(t){const f=LOGO[t];if(f)return `<img class="gkl" src="logos/${f}" alt="" loading="lazy" onerror="this.outerHTML='<span class=gkm>${t.replace(/'/g,"").split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase()}</span>'">`;
+ return `<span class="gkm">${t.split(/\s+/).map(w=>w[0]).join("").slice(0,3).toUpperCase()}</span>`}
+function gkKopf(s,extra){const fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
+ return `<div class="gkh"><i></i><span>SCORE CODE AGENT</span><i></i></div><div class="gkmeta">${wd(s.datum)} ${dm(s.datum)} · ${s.zeit||""} · ${fl?fl.flagge:""} ${ligaInfo[s.liga]}${extra||""}</div><b class="kbt gkt">${s.heim} <em>vs</em> ${s.gast}</b><div class="gkline"></div>`}
+function gkMitte(s){const r=res(s),folgt=!r&&s.datum<HEUTE_STR;
+ const mid=r?`<div class="gks">${s.ergebnis.replace("-",":")}</div>${s.ergebnis_ht?`<div class="gkht">HZ ${s.ergebnis_ht}</div>`:""}${s.ecken?`<div class="gkht">Ecken ${s.ecken[0]}:${s.ecken[1]}</div>`:""}${s.equelle?`<span class="qsrc api">${s.equelle}</span>`:""}`
+  :`<div class="gks gko">${s.zeit||"–"}</div><div class="gkht">${folgt?"⏳ Ergebnis folgt":"ANSTOSS"}</div>`;
+ return `<div class="gkr"><div class="gkte">${gkLogo(s.heim)}<small>${s.heim}</small></div><div class="gkc">${mid}</div><div class="gkte">${gkLogo(s.gast)}<small>${s.gast}</small></div></div>`}
+function gkStatus(h,pr){return `<div class="gkst">${h==null?`<b class="gkof">● OFFEN</b><small>Spiel noch nicht entschieden</small>`:`<b class="kres">${h?"GEWONNEN ✓":"VERLOREN ✕"}</b><small>${h?"Tipp war korrekt":"Tipp war falsch"}</small>`}
+ <div class="gkbar"><i style="width:${Math.min(100,pr)}%"></i></div><small class="gkch">Chance ${kom(pr.toFixed(1))} %</small></div>`}
+function gkCard(x,ab,mega){const s=x.s,r=res(s),h=r?x.win(r):null,tips=String(x.lab).split(" / ");
+ return `<div class="kblk gk ${h==null?'':h?'win':'los'}"><div class="kbh" onclick="openDetail(${s.id})">${gkKopf(s)}${gkMitte(s)}</div>
+ <div class="gksec"><small>DEIN TIPP</small><div class="gktip">${tips.map(t=>`<span>${t}</span>`).join(" · ")}${h!=null?`<i class="gkok ${h?'y':'n'}">${h?"✓":"✕"}</i>`:""}</div></div>
+ ${gkStatus(h,x.pr)}
+ <div class="gkq"><small>QUOTE</small><b>@ ${kom(x.q.toFixed(2))}</b>${x.src?`<span class="qsrc ${x.src=="Modell"?"fd":"api"}">${x.src}</span>`:qsrc(s,x.qm)}</div>
+ <div class="kbm gkinfo">${x.mod}${x.gp!=null?` <span class="gpb">geprüft ${kom(x.gp.toFixed(1))} %</span>`:""}</div>
+ ${x.box?`<details class="gkd"><summary>Details · Tabelle</summary>${x.box}</details>`:""}<div class="kbf">${abz(x,mega)}</div></div>`}
+function gkKons(x,box){const s=x.tip.s,r=res(s),ht=r?x.tip.win(r):null;
+ return `<div class="ksb gk${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})">${gkKopf(s,` · <span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span>`).replace('class="kbt gkt"','class="kst gkt"')}${gkMitte(s)}
+ <div class="gksec"><small>DEIN TIPP · ALTERNATIVE</small><div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>
+ ${gkStatus(ht,x.tip.pr)}<div class="gkq"><small>QUOTE TIPP</small><b>@ ${kom(x.tip.q.toFixed(2))}</b><span class="qsrc fd">Modell</span></div></div>`}
+
 function kSchein0(ab,L,n,qname,mega){const[titel,cls,col]=SCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
  let ges=1,ch=1,richtig=0,offen=0;for(const x of L){ges*=x.q;ch*=x.pr/100;const r=res(x.s);if(!r)offen++;else if(x.win(r))richtig++}
- const it=L.map(x=>{const r=res(x.s),h=r?x.win(r):null,fl=D.laender.find(z=>z.ligen.some(g=>g.code==x.s.liga)),folgt=!r&&x.s.datum<HEUTE_STR;
-  const tips=String(x.lab).split(" / "),cls=h==null?(ab=="b"||ab=="mb"||ab=="gb"?"b":"a"):h?"y":"n";
-  return `<div class="kblk ${h==null?'':h?'win':'los'}"><div class="kbh" onclick="openDetail(${x.s.id})"><div class="kbl"><div class="kzeit"><em>${wd(x.s.datum)} ${dm(x.s.datum)}</em>${x.s.zeit||""}</div><small>${fl?fl.flagge:""} ${ligaInfo[x.s.liga]}</small><b class="kbt">${x.s.heim} – ${x.s.gast}</b>${r?`<small class="eline">${x.s.equelle?`<span class="qsrc api">${x.s.equelle}</span> `:""}Endstand ${x.s.ergebnis}${x.s.ergebnis_ht?` · HZ ${x.s.ergebnis_ht}`:""}${x.s.ecken?` · Ecken ${x.s.ecken[0]}:${x.s.ecken[1]}`:""}</small>`:folgt?`<small style="color:#ffe9a8">⏳ Ergebnis folgt (nächstes Update)</small>`:""}</div>
-  <div class="kbr"><div class="kq">@ ${kom(x.q.toFixed(2))}</div>${x.src?`<span class="qsrc ${x.src=="Modell"?"fd":"api"}">${x.src}</span>`:qsrc(x.s,x.qm)}</div></div>
-  <div class="kbtip">${tips.map(t=>`<span class="tpl ${cls}">${t}</span>`).join("")}${h!=null?`<b class="kres" style="color:${h?'#2bf5a0':'#ffb3c6'}">${h?"GEWONNEN ✓":"VERLOREN ✕"}</b>`:""}</div>
-  <div class="kbm">${x.mod} · Chance ${kom(x.pr.toFixed(2))} %${x.gp!=null?`<span class="gpb">geprüft ${kom(x.gp.toFixed(1))} %</span>`:""}</div><div class="pbar"><i style="width:${Math.min(100,x.pr)}%"></i></div>${x.box||""}<div class="kbf">${abz(x,mega)}</div></div>`}).join("");
+ const it=L.map(x=>gkCard(x,ab,mega)).join("");
  const st=offen?(L.length-offen?`<b>${richtig} von ${L.length-offen} richtig · ${offen} offen</b>`:""):richtig==L.length?`<b style="color:#2bf5a0">✓ Schein gewonnen</b>`:`<b style="color:#ffb3c6">✕ Schein verloren · ${richtig} von ${L.length} richtig</b>`;
- const fu=`<div style="display:flex;justify-content:space-between;${S.qOben?"margin:2px 0 10px;padding:8px 0;border-top:1px solid #ffffff33;border-bottom:1px solid #ffffff33":"margin-top:8px;padding-top:8px;border-top:1px solid #ffffff33"};gap:6px"><div><small style="color:#eef2ff">${qname}</small><div style="font-family:Orbitron;font-size:22px;color:#fff">${kom(ges.toFixed(2))}</div>${L.every(x=>x.q2)?`<small style="color:#eef2ff">Modell-Quote ${kom(L.reduce((t,x)=>t*x.q2,1).toFixed(2))}</small>`:""}</div><div style="text-align:center;font-size:12px;align-self:center">${st}</div><div style="text-align:right"><small style="color:#eef2ff">CHANCE LAUT MODELL</small><div style="font-family:Orbitron;font-size:22px;color:#fff">${kom((ch*100).toFixed(ch<0.01?3:1))}%</div></div></div>`;
- return `<div class="card ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff;white-space:nowrap">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>${zaehlK(L)}${S.qOben?fu+it:it+fu}</div>`}
+ const fu=`<div class="gkfu" style="display:flex;justify-content:space-between;${S.qOben?"margin:2px 0 10px;padding:8px 0;border-top:1px solid #ffffff33;border-bottom:1px solid #ffffff33":"margin-top:8px;padding-top:8px;border-top:1px solid #ffffff33"};gap:6px"><div><small style="color:#eef2ff">${qname}</small><div style="font-family:Orbitron;font-size:22px;color:#fff">${kom(ges.toFixed(2))}</div>${L.every(x=>x.q2)?`<small style="color:#eef2ff">Modell-Quote ${kom(L.reduce((t,x)=>t*x.q2,1).toFixed(2))}</small>`:""}</div><div style="text-align:center;font-size:12px;align-self:center">${st}</div><div style="text-align:right"><small style="color:#eef2ff">CHANCE LAUT MODELL</small><div style="font-family:Orbitron;font-size:22px;color:#fff">${kom((ch*100).toFixed(ch<0.01?3:1))}%</div></div></div>`;
+ return `<div class="card gkc ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff;white-space:nowrap">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>${zaehlK(L)}${S.qOben?fu+it:it+fu}</div>`}
 function zaehlK(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;else if(x.win(r))w++;else l++}const f=w+l;
  return `<div class="zbox zk"><div><b style="color:#2bf5a0">${w}</b><small>GEWONNEN</small></div><div><b style="color:#ffb3c6">${l}</b><small>VERLOREN</small></div><div><b>${o}</b><small>OFFEN</small></div><div><b>${f?Math.round(w/f*100)+" %":"–"}</b><small>TREFFER</small></div></div>`}
 function zaehl(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;else if(x.win(r))w++;else l++}
@@ -1249,11 +1370,9 @@ const KSCH={a:["A · Höchste Einigkeit","kA","#c9f8ff"],b:["B · Alle Modelle e
 function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
  const sum=k=>{let g=1,c=1;for(const x of L){g*=x[k].q;c*=x[k].pr/100}return[g,c]},[gt,ct]=sum("tip"),[ga,ca]=sum("alt");
  const box=(x,typ)=>{const r=res(x.s),h=r?x.win(r):null;return `<div class="kbo ${typ}${h==null?'':h?' y':' n'}"><small>${typ=="t"?"TIPP":"ALTERNATIVE"}</small><b>${x.lab}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(x.pr.toFixed(1))} % · @ ${kom(x.q.toFixed(2))}</span><div class="pbar"><i style="width:${Math.min(100,x.pr)}%"></i></div></div>`};
- const it=L.map(x=>{const s=x.tip.s,r=res(s),fl=D.laender.find(z=>z.ligen.some(g=>g.code==s.liga));
-  const ht=r?x.tip.win(r):null;
-  return `<div class="ksb${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})"><div class="ksh"><div><div class="kzeit"><em>${wd(s.datum)} ${dm(s.datum)}</em>${s.zeit||""}</div><small>${fl?fl.flagge:""} ${ligaInfo[s.liga]}</small></div><span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span></div><b class="kst">${s.heim} <i>vs</i> ${s.gast}</b>${r?`<small class="eline">Endstand ${s.ergebnis}${s.ergebnis_ht?` · HZ ${s.ergebnis_ht}`:""}</small>`:""}<div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>`}).join("");
+ const it=L.map(x=>gkKons(x,box)).join("");
  const fz=(g,c,t,cl)=>`<div class="kgq ${cl}"><small>${t}</small><b>${kom(g.toFixed(2))}</b><div class="kgc"><i style="width:${Math.min(100,c*100)}%"></i></div><span>Chance ${kom((c*100).toFixed(c<0.01?3:1))} %</span></div>`;
- return `<div class="card ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>
+ return `<div class="card gkc ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>
  <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}
  <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div>${it}</div>`}
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
@@ -1768,12 +1887,20 @@ document.querySelectorAll("#dash div").forEach(n=>n.onclick=()=>{dashSet(n.datas
 dashSet("1");
 function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if(!st){el.innerHTML="";return}if(!st.n){el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b>sammelt Daten</b></div><div class="rfz"><span>0 / ${st.ziel||500} Spiele</span><span>Start nach 50 Trainingsspielen mit Kennzahlen</span></div><div class="rfb"><i style="width:1%"></i></div></div>`;return}
  const ziel=st.ziel||500,pz=Math.min(100,st.n/ziel*100),v=st.verlauf||[],d=((st.rps_alt||0)-(st.rps_neu||0))*1000,besser=d>0;
- let svg="";if(v.length>1){const ys=v.map(x=>x[2]),m=Math.max(1,...ys.map(Math.abs)),W=300,H=46,X=i=>i/(v.length-1)*W,Y=y=>H/2-y/m*(H/2-3);
-  svg=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:46px;display:block;margin-top:6px"><line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#ffffff33" stroke-dasharray="4 4"/><polyline fill="none" stroke="${besser?'#2bf5a0':'#ff8fab'}" stroke-width="2" points="${v.map((x,i)=>X(i).toFixed(1)+","+Y(x[2]).toFixed(1)).join(" ")}"/></svg>`}
+ let svg="";{const m=Math.max(0.5,Math.abs(d),...v.map(x=>Math.abs(x[2]))),k=Math.max(-1,Math.min(1,d/m)),ang=k*90;
+  const arc=(a0,a1,r)=>{const p=a=>[100+r*Math.cos((a-180)*Math.PI/180),100+r*Math.sin((a-180)*Math.PI/180)];const[x0,y0]=p(a0),[x1,y1]=p(a1);return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`};
+  const ticks=[...Array(13)].map((_,j)=>{const a=j*15,r1=78,r2=j%3?72:66,c=Math.cos((a-180)*Math.PI/180),s=Math.sin((a-180)*Math.PI/180);return `<line x1="${(100+r1*c).toFixed(1)}" y1="${(100+r1*s).toFixed(1)}" x2="${(100+r2*c).toFixed(1)}" y2="${(100+r2*s).toFixed(1)}" stroke="#ffffff66" stroke-width="${j%3?1:1.6}"/>`}).join("");
+  const W=300,H=60,bw=Math.min(28,W/Math.max(1,v.length)-6),bars=v.map((x,j)=>{const hh=Math.abs(x[2])/m*(H/2-6),up=x[2]>0,xx=(j+0.5)*W/v.length-bw/2;return `<rect class="rfbar" x="${xx.toFixed(1)}" y="${up?(H/2-hh).toFixed(1):H/2}" width="${bw.toFixed(1)}" height="${Math.max(1.5,hh).toFixed(1)}" rx="3" fill="${up?'#2bf5a0':'#ff8fab'}" style="transform-origin:${(xx+bw/2).toFixed(1)}px ${H/2}px;animation-delay:${(j*0.08).toFixed(2)}s"/><text x="${(xx+bw/2).toFixed(1)}" y="${H-1}" text-anchor="middle" font-size="7" fill="#ffffff88">${x[0].slice(8,10)}.${x[0].slice(5,7)}.</text>`}).join("");
+  svg=`<div class="rfgauge"><svg viewBox="0 0 200 132" style="width:100%;max-width:300px;display:block;margin:6px auto 0"><defs><linearGradient id="rfg" x1="0" x2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset=".5" stop-color="#ffc94d"/><stop offset="1" stop-color="#2bf5a0"/></linearGradient></defs>
+  <path d="${arc(0,180,84)}" fill="none" stroke="#ffffff14" stroke-width="12" stroke-linecap="round"/><path d="${arc(0,180,84)}" fill="none" stroke="url(#rfg)" stroke-width="12" stroke-linecap="round" opacity=".85"/>${ticks}
+  <text x="16" y="110" font-size="8" fill="#ff8fab">RF besser</text><text x="184" y="110" font-size="8" fill="#2bf5a0" text-anchor="end">RF+ besser</text><text x="100" y="12" font-size="8" fill="#ffffff99" text-anchor="middle">gleich</text>
+  <g class="rfneedle" style="--a:${ang.toFixed(1)}deg"><line x1="100" y1="100" x2="100" y2="26" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="100" cy="100" r="7" fill="#0b1224" stroke="#fff" stroke-width="2"/></g>
+  <text x="100" y="128" font-size="15" font-weight="700" fill="${besser?'#2bf5a0':'#ff8fab'}" text-anchor="middle">${d>0?"+":""}${kom(d.toFixed(2))} ‰</text></svg>
+  ${v.length?`<div class="rfvl">Verlauf je Tag (Balken oben = RF+ besser)</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:60px;display:block"><line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#ffffff33" stroke-dasharray="3 3"/>${bars}</svg>`:""}</div>`}
  el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b class="${st.aktiv?'on':''}">${st.aktiv?"RF+ AKTIV":"läuft"}</b></div>
  <div class="rfz"><span>${st.n} / ${ziel} Spiele</span><span>RPS RF ${kom(st.rps_alt.toFixed(4))} · RF+ ${kom(st.rps_neu.toFixed(4))}</span></div>
  <div class="rfb"><i style="width:${pz}%"></i></div>${svg}
- <div class="rfz"><span>über Linie = RF+ besser</span><span style="color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0} von ${st.n} Spielen besser</span></div></div>`}
+ <div class="rfz"><span>Zeiger rechts = RF+ besser</span><span style="color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0} von ${st.n} Spielen besser</span></div></div>`}
 function render(){renderRfPlus();if(S.seite!="detail")theme(M());renderDays();renderSwitch();
  ["spiele","detail","top","values","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","bilanz"].forEach(k=>$("p-"+k).style.display=k==S.seite?"":"none");
  $("mswitch").style.display=S.seite=="detail"||S.seite=="values"||["top","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","values"].includes(S.seite)?"none":"";$("days").style.display=S.seite=="bilanz"||S.seite=="detail"?"none":"";
@@ -1800,7 +1927,7 @@ if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now())
  function sichtbar(){return [...document.querySelectorAll("section")].find(s=>s.style.display!="none"&&s.offsetParent!==null)}
  function after(){const sec=sichtbar(),on=document.querySelector("#ptabs div.on"),key=on?on.dataset.p:null;
   if(key!==last.tab){if(on&&last.tab!==undefined&&!B.classList.contains("nofx")){on.classList.remove("zap");void on.offsetWidth;on.classList.add("zap")}last.tab=key}
-  let qEl=null;if(sec&&sec.id!="p-detail"){const sm=[...sec.querySelectorAll("small")].find(x=>/^(GESAMTQUOTE|QUOTE)/.test(x.textContent.trim()));if(sm)qEl=sm.nextElementSibling}
+  let qEl=null;if(sec&&sec.id!="p-detail"){const sm=[...sec.querySelectorAll("small")].find(x=>!x.closest(".gk")&&/^(GESAMTQUOTE|QUOTE)/.test(x.textContent.trim()));if(sm)qEl=sm.nextElementSibling}
   if(qEl&&!/–|-/.test(qEl.textContent)){if(!qEl.dataset.v){qEl.dataset.v=parseFloat(qEl.textContent.replace(/\./g,"").replace(",","."))||0;count(qEl,+qEl.dataset.v,900,"",2)}
    const val=+qEl.dataset.v,title=on?on.firstChild.textContent.trim().replace(/^\S+\s+/,""):"";P.style.display="";
    if(title!==last.title||val!==last.q){const tx=P.querySelector(".tx");tx.querySelector("b").textContent=title.toUpperCase();tx.classList.remove("go");void tx.offsetWidth;tx.classList.add("go");count(tx.querySelector(".q"),val,1100,"",2);last.title=title;last.q=val}}
