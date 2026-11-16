@@ -557,14 +557,19 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 @keyframes svp{50%{box-shadow:0 0 38px #ff4d7dcc,0 0 70px #ff2bd655}}
 .sve{font-family:Orbitron;font-size:12px;color:#fff;background:linear-gradient(90deg,#ff2b55,#ff2bd6);padding:4px 9px;border-radius:8px;font-weight:700;box-shadow:0 0 12px #ff4d7d77}
 </style>
-<style id="gk">.rfv2 .rfl{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:rfDr 2.2s ease-out forwards;filter:drop-shadow(0 0 4px currentColor)}
+<style id="gk">#rfplus .rfp{padding:8px 12px!important}
+#rfplus .rfp .rfz{margin:2px 0!important;font-size:12px}
+#rfplus .rfp>p,#rfplus .rfp .rff{display:flex;justify-content:space-between;gap:8px;font-size:11px!important;margin:2px 0 0!important;line-height:1.3}
+#rfplus .rfp .rfv2 .rfl{stroke-width:1.6;vector-effect:non-scaling-stroke}
+#rfplus .rfp .rfv2 circle{r:3}
+.rfv2 .rfl{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:rfDr 2.2s ease-out forwards;filter:drop-shadow(0 0 4px currentColor)}
 @keyframes rfDr{to{stroke-dashoffset:0}}.rfv2 .rfa{opacity:0;animation:rfFa 1s 1.4s forwards}@keyframes rfFa{to{opacity:1}}
 .rfv2 .rfpu{animation:rfPu 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}@keyframes rfPu{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(3.5)}}
 body.nofx .rfv2 .rfl{stroke-dashoffset:0;animation:none}body.nofx .rfv2 .rfa{opacity:1}
-.skdots{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:6px 0 2px;font:700 10px sans-serif;letter-spacing:1px}
-.skdots i{width:9px;height:9px;border-radius:50%;opacity:0;animation:skPop .3s forwards}
+.skdots{display:flex!important;justify-content:flex-start!important;align-items:center;flex-wrap:wrap;gap:4px;margin:6px 0 2px;font:700 10px sans-serif;letter-spacing:1px}
+.skdots i{width:9px;height:9px;border-radius:50%;opacity:1;animation:skPop .3s both!important}
 .skdots i.w{background:#2bffa8;box-shadow:0 0 6px #2bffa8}.skdots i.l{background:#ff4d6d;box-shadow:0 0 6px #ff4d6d}.skdots i.o{background:#ffc94d33;border:1px solid #ffc94d}
-.skdots b{margin-left:6px}@keyframes skPop{0%{transform:scale(0)}100%{opacity:1;transform:scale(1)}}
+.skdots b{margin-left:6px;color:inherit!important;text-shadow:none!important}@keyframes skPop{0%{transform:scale(0)}100%{opacity:1;transform:scale(1)}}
 body.nofx .skdots i{opacity:1}
 .rfgauge .rfneedle{transform-origin:100px 100px;transform:rotate(var(--a));animation:rfNeedle 1.6s cubic-bezier(.3,1.5,.4,1)}
 @keyframes rfNeedle{0%{transform:rotate(-90deg)}100%{transform:rotate(var(--a))}}
@@ -1898,7 +1903,7 @@ function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if
  const ziel=st.ziel||500,pz=Math.min(100,st.n/ziel*100),v=st.verlauf||[],d=((st.rps_alt||0)-(st.rps_neu||0))*1000,besser=d>0;
  let svg="";if(v.length>1){const W=340,H=90,p=8,mx=Math.max(0.05,...v.map(x=>Math.abs(x[2]))),z=H/2;let dd="";v.forEach((x,j)=>{const X=p+j/(v.length-1)*(W-2*p),Y=z-x[2]/mx*(z-p);dd+=j?` H${X.toFixed(1)} V${Y.toFixed(1)}`:`M${X.toFixed(1)} ${Y.toFixed(1)}`});
   const lx=W-p,ly=z-v[v.length-1][2]/mx*(z-p),lc=v[v.length-1][2]>=0?"#2bf5a0":"#ff6b8a";
-  svg=`<svg class="rfv2" viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;display:block;margin-top:6px"><defs><clipPath id="rfu"><rect width="${W}" height="${z}"/></clipPath><clipPath id="rfd"><rect y="${z}" width="${W}" height="${z}"/></clipPath></defs>
+  svg=`<svg class="rfv2" viewBox="0 0 ${W} ${H}" style="width:100%;height:44px;display:block;margin-top:4px" preserveAspectRatio="none"><defs><clipPath id="rfu"><rect width="${W}" height="${z}"/></clipPath><clipPath id="rfd"><rect y="${z}" width="${W}" height="${z}"/></clipPath></defs>
   <line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="#ffffff33" stroke-dasharray="3 4"/>
   <g clip-path="url(#rfu)"><path class="rfa" d="${dd} V${z} H${p} Z" fill="#2bf5a033"/><path class="rfl" d="${dd}" stroke="#2bf5a0"/></g>
   <g clip-path="url(#rfd)"><path class="rfa" d="${dd} V${z} H${p} Z" fill="#ff4d6d33"/><path class="rfl" d="${dd}" stroke="#ff6b8a"/></g>
@@ -1906,7 +1911,7 @@ function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if
  el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b class="${st.aktiv?'on':''}">${st.aktiv?"RF+ AKTIV":"läuft"}</b></div>
  <div class="rfz"><span>${st.n} / ${ziel} Spiele</span><span>RPS RF ${kom(st.rps_alt.toFixed(4))} · RF+ ${kom(st.rps_neu.toFixed(4))}</span></div>
  <div class="rfb"><i style="width:${pz}%"></i></div>${svg}
- <div class="rfz"><span>über Linie = RF+ besser</span><span style="color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0} von ${st.n} Spielen besser</span></div></div>`}
+ <div class="rfz"><span style="font-size:10.5px;opacity:.75">über Linie = RF+ besser</span><span style="font-size:11px;color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0}/${st.n}</span></div></div>`}
 function render(){renderRfPlus();if(S.seite!="detail")theme(M());renderDays();renderSwitch();
  ["spiele","detail","top","values","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","bilanz"].forEach(k=>$("p-"+k).style.display=k==S.seite?"":"none");
  $("mswitch").style.display=S.seite=="detail"||S.seite=="values"||["top","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","values"].includes(S.seite)?"none":"";$("days").style.display=S.seite=="bilanz"||S.seite=="detail"?"none":"";
@@ -1960,7 +1965,7 @@ if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now())
   document.querySelectorAll(".card.gkc:not([data-skd])").forEach(c=>{c.dataset.skd=1;const g=[...c.querySelectorAll(".kblk.gk,.ksb.gk")];if(!g.length)return;
    const s=g.map(x=>x.classList.contains("win")?"w":x.classList.contains("los")?"l":"o"),w=s.filter(x=>x=="w").length,l=s.filter(x=>x=="l").length,o=s.length-w-l;
    const txt=l?["VERLOREN ✕","#ff8fa6"]:o?["LÄUFT · "+w+" ✓ · "+o+" offen","#ffc94d"]:["GEWONNEN ✓","#2bffa8"];
-   const d=document.createElement("div");d.className="skdots";d.innerHTML=s.map((x,k)=>`<i class="${x}" style="animation-delay:${k*.1}s"></i>`).join("")+`<b style="color:${txt[1]}">SCHEIN ${txt[0]}</b>`;
+   const d=document.createElement("div");d.className="skdots";d.style.color=txt[1];d.innerHTML=s.map((x,k)=>`<i class="${x}" style="animation-delay:${k*.1}s"></i>`).join("")+`<b style="color:${txt[1]}">SCHEIN ${txt[0]}</b>`;
    const h=c.firstElementChild;h.insertAdjacentElement("afterend",d)});
   document.querySelectorAll(".zbox b:not([data-sk])").forEach(b=>{b.dataset.sk=1;const m=b.textContent.trim().match(/^(\d+)(\s*%)?$/);if(m)count(b,+m[1],700,m[2]||"",0)})}
  let tm;new MutationObserver(ms=>{if(!ms.some(m=>[...m.addedNodes].some(n=>n.nodeType==1&&!(n.classList&&(n.classList.contains("laser")||n.classList.contains("skr")||n.classList.contains("stamp")||n.classList.contains("strike"))))))return;clearTimeout(tm);tm=setTimeout(after,40)}).observe(document.querySelector(".wrap"),{childList:true,subtree:true});
