@@ -1,0 +1,33 @@
+name: Abend-Ergebnisse
+
+on:
+  schedule:
+    - cron: "43 22 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  abend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Pakete installieren
+        run: pip install requests pandas numpy scipy
+      - name: Ergebnisse eintragen
+        env:
+          SPORTSAPIPRO_KEY: ${{ secrets.SPORTSAPIPRO_KEY }}
+        run: python abend.py
+      - name: Speichern
+        run: |
+          git config user.name "score-code-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/daten.json
+          git commit -m "Abend-Ergebnisse $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git pull --rebase origin main
+          git push
