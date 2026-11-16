@@ -557,7 +557,16 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 @keyframes svp{50%{box-shadow:0 0 38px #ff4d7dcc,0 0 70px #ff2bd655}}
 .sve{font-family:Orbitron;font-size:12px;color:#fff;background:linear-gradient(90deg,#ff2b55,#ff2bd6);padding:4px 9px;border-radius:8px;font-weight:700;box-shadow:0 0 12px #ff4d7d77}
 </style>
-<style id="gk">.rfgauge .rfneedle{transform-origin:100px 100px;transform:rotate(var(--a));animation:rfNeedle 1.6s cubic-bezier(.3,1.5,.4,1)}
+<style id="gk">.rfv2 .rfl{fill:none;stroke-width:2.2;stroke-linejoin:round;stroke-dasharray:1200;stroke-dashoffset:1200;animation:rfDr 2.2s ease-out forwards;filter:drop-shadow(0 0 4px currentColor)}
+@keyframes rfDr{to{stroke-dashoffset:0}}.rfv2 .rfa{opacity:0;animation:rfFa 1s 1.4s forwards}@keyframes rfFa{to{opacity:1}}
+.rfv2 .rfpu{animation:rfPu 1.6s ease-out infinite;transform-box:fill-box;transform-origin:center}@keyframes rfPu{0%{opacity:.8;transform:scale(1)}100%{opacity:0;transform:scale(3.5)}}
+body.nofx .rfv2 .rfl{stroke-dashoffset:0;animation:none}body.nofx .rfv2 .rfa{opacity:1}
+.skdots{display:flex;align-items:center;flex-wrap:wrap;gap:4px;margin:6px 0 2px;font:700 10px sans-serif;letter-spacing:1px}
+.skdots i{width:9px;height:9px;border-radius:50%;opacity:0;animation:skPop .3s forwards}
+.skdots i.w{background:#2bffa8;box-shadow:0 0 6px #2bffa8}.skdots i.l{background:#ff4d6d;box-shadow:0 0 6px #ff4d6d}.skdots i.o{background:#ffc94d33;border:1px solid #ffc94d}
+.skdots b{margin-left:6px}@keyframes skPop{0%{transform:scale(0)}100%{opacity:1;transform:scale(1)}}
+body.nofx .skdots i{opacity:1}
+.rfgauge .rfneedle{transform-origin:100px 100px;transform:rotate(var(--a));animation:rfNeedle 1.6s cubic-bezier(.3,1.5,.4,1)}
 @keyframes rfNeedle{0%{transform:rotate(-90deg)}100%{transform:rotate(var(--a))}}
 .rfgauge .rfbar{animation:rfBar .8s cubic-bezier(.3,1.4,.4,1) both}
 @keyframes rfBar{0%{transform:scaleY(0)}100%{transform:scaleY(1)}}
@@ -1887,20 +1896,17 @@ document.querySelectorAll("#dash div").forEach(n=>n.onclick=()=>{dashSet(n.datas
 dashSet("1");
 function renderRfPlus(){const el=$("rfplus");if(!el)return;const st=D.rf_plus;if(!st){el.innerHTML="";return}if(!st.n){el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b>sammelt Daten</b></div><div class="rfz"><span>0 / ${st.ziel||500} Spiele</span><span>Start nach 50 Trainingsspielen mit Kennzahlen</span></div><div class="rfb"><i style="width:1%"></i></div></div>`;return}
  const ziel=st.ziel||500,pz=Math.min(100,st.n/ziel*100),v=st.verlauf||[],d=((st.rps_alt||0)-(st.rps_neu||0))*1000,besser=d>0;
- let svg="";{const m=Math.max(0.5,Math.abs(d),...v.map(x=>Math.abs(x[2]))),k=Math.max(-1,Math.min(1,d/m)),ang=k*90;
-  const arc=(a0,a1,r)=>{const p=a=>[100+r*Math.cos((a-180)*Math.PI/180),100+r*Math.sin((a-180)*Math.PI/180)];const[x0,y0]=p(a0),[x1,y1]=p(a1);return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`};
-  const ticks=[...Array(13)].map((_,j)=>{const a=j*15,r1=78,r2=j%3?72:66,c=Math.cos((a-180)*Math.PI/180),s=Math.sin((a-180)*Math.PI/180);return `<line x1="${(100+r1*c).toFixed(1)}" y1="${(100+r1*s).toFixed(1)}" x2="${(100+r2*c).toFixed(1)}" y2="${(100+r2*s).toFixed(1)}" stroke="#ffffff66" stroke-width="${j%3?1:1.6}"/>`}).join("");
-  const W=300,H=60,bw=Math.min(28,W/Math.max(1,v.length)-6),bars=v.map((x,j)=>{const hh=Math.abs(x[2])/m*(H/2-6),up=x[2]>0,xx=(j+0.5)*W/v.length-bw/2;return `<rect class="rfbar" x="${xx.toFixed(1)}" y="${up?(H/2-hh).toFixed(1):H/2}" width="${bw.toFixed(1)}" height="${Math.max(1.5,hh).toFixed(1)}" rx="3" fill="${up?'#2bf5a0':'#ff8fab'}" style="transform-origin:${(xx+bw/2).toFixed(1)}px ${H/2}px;animation-delay:${(j*0.08).toFixed(2)}s"/><text x="${(xx+bw/2).toFixed(1)}" y="${H-1}" text-anchor="middle" font-size="7" fill="#ffffff88">${x[0].slice(8,10)}.${x[0].slice(5,7)}.</text>`}).join("");
-  svg=`<div class="rfgauge"><svg viewBox="0 0 200 132" style="width:100%;max-width:300px;display:block;margin:6px auto 0"><defs><linearGradient id="rfg" x1="0" x2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset=".5" stop-color="#ffc94d"/><stop offset="1" stop-color="#2bf5a0"/></linearGradient></defs>
-  <path d="${arc(0,180,84)}" fill="none" stroke="#ffffff14" stroke-width="12" stroke-linecap="round"/><path d="${arc(0,180,84)}" fill="none" stroke="url(#rfg)" stroke-width="12" stroke-linecap="round" opacity=".85"/>${ticks}
-  <text x="16" y="110" font-size="8" fill="#ff8fab">RF besser</text><text x="184" y="110" font-size="8" fill="#2bf5a0" text-anchor="end">RF+ besser</text><text x="100" y="12" font-size="8" fill="#ffffff99" text-anchor="middle">gleich</text>
-  <g class="rfneedle" style="--a:${ang.toFixed(1)}deg"><line x1="100" y1="100" x2="100" y2="26" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/><circle cx="100" cy="100" r="7" fill="#0b1224" stroke="#fff" stroke-width="2"/></g>
-  <text x="100" y="128" font-size="15" font-weight="700" fill="${besser?'#2bf5a0':'#ff8fab'}" text-anchor="middle">${d>0?"+":""}${kom(d.toFixed(2))} ‰</text></svg>
-  ${v.length?`<div class="rfvl">Verlauf je Tag (Balken oben = RF+ besser)</div><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:60px;display:block"><line x1="0" y1="${H/2}" x2="${W}" y2="${H/2}" stroke="#ffffff33" stroke-dasharray="3 3"/>${bars}</svg>`:""}</div>`}
+ let svg="";if(v.length>1){const W=340,H=90,p=8,mx=Math.max(0.05,...v.map(x=>Math.abs(x[2]))),z=H/2;let dd="";v.forEach((x,j)=>{const X=p+j/(v.length-1)*(W-2*p),Y=z-x[2]/mx*(z-p);dd+=j?` H${X.toFixed(1)} V${Y.toFixed(1)}`:`M${X.toFixed(1)} ${Y.toFixed(1)}`});
+  const lx=W-p,ly=z-v[v.length-1][2]/mx*(z-p),lc=v[v.length-1][2]>=0?"#2bf5a0":"#ff6b8a";
+  svg=`<svg class="rfv2" viewBox="0 0 ${W} ${H}" style="width:100%;height:90px;display:block;margin-top:6px"><defs><clipPath id="rfu"><rect width="${W}" height="${z}"/></clipPath><clipPath id="rfd"><rect y="${z}" width="${W}" height="${z}"/></clipPath></defs>
+  <line x1="0" x2="${W}" y1="${z}" y2="${z}" stroke="#ffffff33" stroke-dasharray="3 4"/>
+  <g clip-path="url(#rfu)"><path class="rfa" d="${dd} V${z} H${p} Z" fill="#2bf5a033"/><path class="rfl" d="${dd}" stroke="#2bf5a0"/></g>
+  <g clip-path="url(#rfd)"><path class="rfa" d="${dd} V${z} H${p} Z" fill="#ff4d6d33"/><path class="rfl" d="${dd}" stroke="#ff6b8a"/></g>
+  <circle class="rfpu" cx="${lx}" cy="${ly.toFixed(1)}" r="4" fill="${lc}"/><circle cx="${lx}" cy="${ly.toFixed(1)}" r="4" fill="${lc}"/></svg>`}
  el.innerHTML=`<div class="rfp${S.dash=="2"?" aus":""}"><div class="rfh"><span>🔬 VERBESSERUNGS-TEST · RF+ (neue Kennzahlen)</span><b class="${st.aktiv?'on':''}">${st.aktiv?"RF+ AKTIV":"läuft"}</b></div>
  <div class="rfz"><span>${st.n} / ${ziel} Spiele</span><span>RPS RF ${kom(st.rps_alt.toFixed(4))} · RF+ ${kom(st.rps_neu.toFixed(4))}</span></div>
  <div class="rfb"><i style="width:${pz}%"></i></div>${svg}
- <div class="rfz"><span>Zeiger rechts = RF+ besser</span><span style="color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0} von ${st.n} Spielen besser</span></div></div>`}
+ <div class="rfz"><span>über Linie = RF+ besser</span><span style="color:${besser?'#2bf5a0':'#ff8fab'}">${besser?"RF+ vorn":"RF vorn"} · ${st.besser_neu||0} von ${st.n} Spielen besser</span></div></div>`}
 function render(){renderRfPlus();if(S.seite!="detail")theme(M());renderDays();renderSwitch();
  ["spiele","detail","top","values","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","bilanz"].forEach(k=>$("p-"+k).style.display=k==S.seite?"":"none");
  $("mswitch").style.display=S.seite=="detail"||S.seite=="values"||["top","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","values"].includes(S.seite)?"none":"";$("days").style.display=S.seite=="bilanz"||S.seite=="detail"?"none":"";
@@ -1951,6 +1957,11 @@ if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now())
     const d="M"+pts.join(" L");const ns="http://www.w3.org/2000/svg",c=document.createElementNS(ns,"circle");c.setAttribute("r","3.5");c.setAttribute("fill","#fff");c.setAttribute("class","skd");
     const am=document.createElementNS(ns,"animateMotion");am.setAttribute("dur","5s");am.setAttribute("repeatCount","indefinite");am.setAttribute("path",d);c.appendChild(am);pl.parentNode.appendChild(c)}
    rp.querySelectorAll(".rfz span").forEach(s=>{const m=s.textContent.match(/^(\d+) \/ (\d+)/);if(m&&!B.classList.contains("nofx")){const z=+m[1],rest=s.textContent.slice(m[1].length),t0=performance.now();(function f(n){const p=Math.min(1,(n-t0)/1200);s.textContent=Math.round(z*p)+rest;if(p<1)requestAnimationFrame(f)})(t0)}})}
+  document.querySelectorAll(".card.gkc:not([data-skd])").forEach(c=>{c.dataset.skd=1;const g=[...c.querySelectorAll(".kblk.gk,.ksb.gk")];if(!g.length)return;
+   const s=g.map(x=>x.classList.contains("win")?"w":x.classList.contains("los")?"l":"o"),w=s.filter(x=>x=="w").length,l=s.filter(x=>x=="l").length,o=s.length-w-l;
+   const txt=l?["VERLOREN ✕","#ff8fa6"]:o?["LÄUFT · "+w+" ✓ · "+o+" offen","#ffc94d"]:["GEWONNEN ✓","#2bffa8"];
+   const d=document.createElement("div");d.className="skdots";d.innerHTML=s.map((x,k)=>`<i class="${x}" style="animation-delay:${k*.1}s"></i>`).join("")+`<b style="color:${txt[1]}">SCHEIN ${txt[0]}</b>`;
+   const h=c.firstElementChild;h.insertAdjacentElement("afterend",d)});
   document.querySelectorAll(".zbox b:not([data-sk])").forEach(b=>{b.dataset.sk=1;const m=b.textContent.trim().match(/^(\d+)(\s*%)?$/);if(m)count(b,+m[1],700,m[2]||"",0)})}
  let tm;new MutationObserver(ms=>{if(!ms.some(m=>[...m.addedNodes].some(n=>n.nodeType==1&&!(n.classList&&(n.classList.contains("laser")||n.classList.contains("skr")||n.classList.contains("stamp")||n.classList.contains("strike"))))))return;clearTimeout(tm);tm=setTimeout(after,40)}).observe(document.querySelector(".wrap"),{childList:true,subtree:true});
  setTimeout(after,300)})();
