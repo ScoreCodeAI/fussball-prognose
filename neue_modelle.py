@@ -155,6 +155,16 @@ class Verlauf:
             pass
         return out + mq
 
+    @staticmethod
+    def ou_markt(quoten):
+        try:
+            o, u = float(quoten["Ü2.5"]), float(quoten["U2.5"])
+            if o > 1 and u > 1:
+                return [(1 / o) / (1 / o + 1 / u), 1.0]
+        except Exception:
+            pass
+        return [0.0, 0.0]
+
     def folge(self, div, h, a):
         def f(q):
             v = list(q)
@@ -188,6 +198,8 @@ def durchlauf(H, ziele):
     RX, RY, RD = [], [], []
     HX, HY, HD = [], [], []
     H1X, H1Y = [], []
+    TX, T1, T2 = [], [], []
+    zt = {}
     zf, zr, zh, zh1 = {}, {}, {}, {}
     zi = 0
     for row in H.itertuples(index=False):
@@ -206,6 +218,8 @@ def durchlauf(H, ziele):
             h1 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"), halb=1)
             if h1:
                 zh1[z["key"]] = h1
+            if h2 and h1:
+                zt[z["key"]] = h1 + h2[:4] + V.ou_markt(z.get("quoten") or {})
             zi += 1
         ht_ok = row.HTHG == row.HTHG and row.HTAG == row.HTAG
         if ht_ok:
@@ -215,6 +229,8 @@ def durchlauf(H, ziele):
                 HX.append(h2); HY.append(0 if g2h > g2a else (1 if g2h == g2a else 2)); HD.append(d)
                 h1 = V.hz2(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2}, halb=1)
                 H1X.append(h1); H1Y.append(0 if row.HTHG > row.HTAG else (1 if row.HTHG == row.HTAG else 2))
+                TX.append(h1 + h2[:4] + V.ou_markt({"Ü2.5": row.OO, "U2.5": row.OU}))
+                T1.append(1 if row.HTHG + row.HTAG >= 2 else 0); T2.append(1 if g2h + g2a >= 2 else 0)
         V._ht = (float(row.HTHG), float(row.HTAG)) if ht_ok else None
         r = V.remis(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2})
         if r:
@@ -238,11 +254,14 @@ def durchlauf(H, ziele):
         h1 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"), halb=1)
         if h1:
             zh1[z["key"]] = h1
+        if h2 and h1:
+            zt[z["key"]] = h1 + h2[:4] + V.ou_markt(z.get("quoten") or {})
         zi += 1
     return (np.array(X), np.array(S1), np.array(S2), np.array(Y), np.array(D), zf,
             (np.array(RX), np.array(RY), np.array(RD), zr),
             (np.array(HX), np.array(HY), np.array(HD), zh),
-            (np.array(H1X), np.array(H1Y), zh1))
+            (np.array(H1X), np.array(H1Y), zh1),
+            (np.array(TX), np.array(T1), np.array(T2), zt))
 
 
 # ---------------- SVR ----------------
@@ -251,15 +270,15 @@ def mit_quoten(H):
     import daten
     H = H.copy()
     try:
-        q = pd.read_csv(daten._xgabora_url(), usecols=["Division", "MatchDate", "HomeTeam", "AwayTeam", "OddHome", "OddDraw", "OddAway"], low_memory=False)
-        q.columns = ["Div", "Date", "Home", "Away", "OD1", "ODX", "OD2"]
+        q = pd.read_csv(daten._xgabora_url(), usecols=["Division", "MatchDate", "HomeTeam", "AwayTeam", "OddHome", "OddDraw", "OddAway", "Over25", "Under25"], low_memory=False)
+        q.columns = ["Div", "Date", "Home", "Away", "OD1", "ODX", "OD2", "OO", "OU"]
         q["Date"] = pd.to_datetime(q["Date"], errors="coerce").dt.normalize().astype("datetime64[ns]")
         H["Date"] = pd.to_datetime(H["Date"], errors="coerce").dt.normalize().astype("datetime64[ns]")
         q = q.drop_duplicates(subset=["Div", "Date", "Home", "Away"])
         H = H.merge(q, on=["Div", "Date", "Home", "Away"], how="left")
     except Exception as ex:
         log("Quoten der Historie nicht geladen:", ex)
-    for c in ("OD1", "ODX", "OD2"):
+    for c in ("OD1", "ODX", "OD2", "OO", "OU"):
         if c not in H:
             H[c] = np.nan
     for c in ("HST", "AST"):
@@ -310,6 +329,17 @@ def h2_modell(HX, HY, HD, grenze, schluessel="ht2", name="2.-HZ-Modell"):
         p = [round(float(x) * 100, 2) for x in lr.predict_proba(sk.transform([f]))[0]]
         return {"p1": p[0], "px": p[1], "p2": p[2], schluessel: p}
     return vorhersage
+
+
+# ---------------- TORE JE HALBZEIT: 0-1 oder 2+ ----------------
+def tor_modell(TX, T, HD, grenze, name):
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    ok = HD < grenze
+    sk = StandardScaler().fit(TX[ok])
+    lr = LogisticRegression(max_iter=3000).fit(sk.transform(TX[ok]), T[ok])
+    log(f"{name} trainiert mit {ok.sum()} Spielen (2+ Tore: {T[ok].mean():.1%})")
+    return lambda f: round(float(lr.predict_proba(sk.transform([f]))[0][1]) * 100, 2)
 
 
 # ---------------- TCN ----------------
@@ -529,7 +559,7 @@ def main():
     log(f"Historie: {len(H)} Spiele, davon {H['ODX'].notna().sum()} mit Remis-Quote")
     ziele = [{"key": i, "liga": s["liga"], "datum": s["datum"], "heim": s["heim"], "gast": s["gast"], "quoten": s.get("quoten")} for i, s in enumerate(spiele)]
     grenze = min(s["datum"] for s in spiele)
-    X, S1, S2, Y, D, zf, (RX, RY, RD, zr), (HX, HY, HD, zh), (H1X, H1Y, zh1) = durchlauf(H, ziele)
+    X, S1, S2, Y, D, zf, (RX, RY, RD, zr), (HX, HY, HD, zh), (H1X, H1Y, zh1), (TX, T1, T2, zt) = durchlauf(H, ziele)
     log(f"{len(X)} Trainingszeilen, Merkmale fuer {len(zf)} von {len(spiele)} Spielen")
 
     # Halbzeit-Anteil je Liga (fuer HZ-Maerkte von SVR/TCN)
@@ -538,7 +568,12 @@ def main():
         tot = (g["HG"] + g["AG"]).sum()
         share[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
 
-    svr = tcn = remis = h2m = h1m = None
+    svr = tcn = remis = h2m = h1m = t1m = t2m = None
+    try:
+        t1m = tor_modell(TX, T1, HD, grenze, "Tore 1. HZ")
+        t2m = tor_modell(TX, T2, HD, grenze, "Tore 2. HZ")
+    except Exception as ex:
+        log("Tor-Modell nicht moeglich:", ex)
     try:
         h1m = h2_modell(H1X, H1Y, HD, grenze, "ht", "1.-HZ-Modell")
     except Exception as ex:
@@ -590,12 +625,16 @@ def main():
         if h1m and i in zh1:
             try:
                 p["h1m"] = h1m(zh1[i])
+                if t1m and i in zt:
+                    p["h1m"]["t2p"] = t1m(zt[i])
                 n_h1 += 1
             except Exception:
                 pass
         if h2m and i in zh:
             try:
                 p["h2m"] = h2m(zh[i])
+                if t2m and i in zt:
+                    p["h2m"]["t2p"] = t2m(zt[i])
                 n_h2 += 1
             except Exception:
                 pass
