@@ -2,6 +2,7 @@
 # Laeuft NACH dem Morgenlauf (eigener Workflow). Liest docs/daten.json und die Historie
 # (daten.alle_spiele), rechnet je Spiel und ergaenzt NUR neue Eintraege in spiel["prog"]:
 #   svr, tcn                  -> eigene Tabs in Analyse 1
+#   remis                     -> Remis-Radar (eigenes 1X2-Modell mit Remis-Merkmalen, ohne Liga-Merkmal)
 #   k2_korr, k2_rating, k2_hz, k2_reines, k2_xg -> Bausteine fuer Konsens 2
 # Bestehende Eintraege, Modelle und Berechnungen werden nicht veraendert.
 # Ohne Daten-Leck: Training nur mit Spielen VOR dem fruehesten Spiel in daten.json,
@@ -93,6 +94,18 @@ class Verlauf:
         return [m(th, 0, 10), m(th, 1, 10), m(ta, 0, 10), m(ta, 1, 10),
                 m(th, 0, 5), m(th, 1, 5), m(ta, 0, 5), m(ta, 1, 5), lh, la]
 
+    def remis(self, div, h, a):
+        th, ta = list(self.team[(div, h)]), list(self.team[(div, a)])
+        if len(th) < 5 or len(ta) < 5:
+            return None
+        m = lambda v, k: sum(x[k] for x in v) / len(v)
+        gfh, gah, gfa, gaa = m(th, 0), m(th, 1), m(ta, 0), m(ta, 1)
+        diff = (gfh - gah) - (gfa - gaa)
+        rem = lambda v: sum(1 for x in v if x[0] == x[1]) / len(v)
+        arm = lambda v: sum(1 for x in v if x[0] + x[1] <= 2) / len(v)
+        return [gfh, gah, gfa, gaa, diff, abs(diff), (gfh + gaa) / 2 + (gfa + gah) / 2,
+                rem(th), rem(ta), arm(th), arm(ta)]
+
     def folge(self, div, h, a):
         def f(q):
             v = list(q)
@@ -111,7 +124,8 @@ def durchlauf(H, ziele):
     ziele = sorted(ziele, key=lambda z: z["datum"])
     V = Verlauf()
     X, S1, S2, Y, D = [], [], [], [], []
-    zf = {}
+    RX, RY, RD = [], [], []
+    zf, zr = {}, {}
     zi = 0
     for row in H.itertuples(index=False):
         d = row.Date.strftime("%Y-%m-%d")
@@ -120,7 +134,13 @@ def durchlauf(H, ziele):
             f = V.merkmale(z["liga"], z["heim"], z["gast"])
             if f:
                 zf[z["key"]] = (f, *V.folge(z["liga"], z["heim"], z["gast"]))
+            r = V.remis(z["liga"], z["heim"], z["gast"])
+            if r:
+                zr[z["key"]] = r
             zi += 1
+        r = V.remis(row.Div, row.Home, row.Away)
+        if r:
+            RX.append(r); RY.append(0 if row.HG > row.AG else (1 if row.HG == row.AG else 2)); RD.append(d)
         f = V.merkmale(row.Div, row.Home, row.Away)
         if f:
             s1, s2 = V.folge(row.Div, row.Home, row.Away)
@@ -131,8 +151,12 @@ def durchlauf(H, ziele):
         f = V.merkmale(z["liga"], z["heim"], z["gast"])
         if f:
             zf[z["key"]] = (f, *V.folge(z["liga"], z["heim"], z["gast"]))
+        r = V.remis(z["liga"], z["heim"], z["gast"])
+        if r:
+            zr[z["key"]] = r
         zi += 1
-    return np.array(X), np.array(S1), np.array(S2), np.array(Y), np.array(D), zf
+    return (np.array(X), np.array(S1), np.array(S2), np.array(Y), np.array(D), zf,
+            (np.array(RX), np.array(RY), np.array(RD), zr))
 
 
 # ---------------- SVR ----------------
@@ -146,6 +170,24 @@ def svr_modell(X, Y, D, grenze):
     ma = SVR(kernel="rbf", C=1.0, epsilon=0.1).fit(sk.transform(Xt), Yt[:, 1])
     log(f"SVR trainiert mit {len(Xt)} Spielen (bis {grenze})")
     return lambda f: (float(mh.predict(sk.transform([f]))[0]), float(ma.predict(sk.transform([f]))[0]))
+
+
+# ---------------- REMIS-RADAR ----------------
+N_REMIS = 40000
+
+
+def remis_modell(RX, RY, RD, grenze):
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    ok = RD < grenze
+    Xt, Yt = RX[ok][-N_REMIS:], RY[ok][-N_REMIS:]
+    sk = StandardScaler().fit(Xt)
+    lr = LogisticRegression(max_iter=1000).fit(sk.transform(Xt), Yt)
+    log(f"Remis-Radar trainiert mit {len(Xt)} Spielen (bis {grenze}), Remis-Anteil {np.mean(Yt == 1):.1%}")
+    def vorhersage(r):
+        p = lr.predict_proba(sk.transform([r]))[0]
+        return {"p1": round(float(p[0]) * 100, 2), "px": round(float(p[1]) * 100, 2), "p2": round(float(p[2]) * 100, 2)}
+    return vorhersage
 
 
 # ---------------- TCN ----------------
@@ -364,7 +406,7 @@ def main():
     log(f"Historie: {len(H)} Spiele")
     ziele = [{"key": i, "liga": s["liga"], "datum": s["datum"], "heim": s["heim"], "gast": s["gast"]} for i, s in enumerate(spiele)]
     grenze = min(s["datum"] for s in spiele)
-    X, S1, S2, Y, D, zf = durchlauf(H, ziele)
+    X, S1, S2, Y, D, zf, (RX, RY, RD, zr) = durchlauf(H, ziele)
     log(f"{len(X)} Trainingszeilen, Merkmale fuer {len(zf)} von {len(spiele)} Spielen")
 
     # Halbzeit-Anteil je Liga (fuer HZ-Maerkte von SVR/TCN)
@@ -373,7 +415,11 @@ def main():
         tot = (g["HG"] + g["AG"]).sum()
         share[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
 
-    svr = tcn = None
+    svr = tcn = remis = None
+    try:
+        remis = remis_modell(RX, RY, RD, grenze)
+    except Exception as ex:
+        log("Remis-Radar nicht moeglich:", ex)
     try:
         svr = svr_modell(X, Y, D, grenze)
     except Exception as ex:
@@ -392,7 +438,7 @@ def main():
                               "ft": [int(r.HG), int(r.AG)], "ht": ht})
     xg = lade_xg()
 
-    n_svr = n_tcn = n_k2 = 0
+    n_svr = n_tcn = n_k2 = n_rem = 0
     for i, s in enumerate(spiele):
         p = s.setdefault("prog", {})
         sh = share.get(s["liga"], 0.44)
@@ -410,6 +456,12 @@ def main():
                     n_tcn += 1
                 except Exception:
                     pass
+        if remis and i in zr:
+            try:
+                p["remis"] = remis(zr[i])
+                n_rem += 1
+            except Exception:
+                pass
         try:
             k2 = konsens2(s, saison.get(s["liga"], []), xg.get(s["liga"], []))
             if k2:
@@ -420,7 +472,7 @@ def main():
 
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"SVR {n_svr} · TCN {n_tcn} · Konsens 2 {n_k2} von {len(spiele)} Spielen")
+    log(f"SVR {n_svr} · TCN {n_tcn} · Konsens 2 {n_k2} · Remis-Radar {n_rem} von {len(spiele)} Spielen")
 
 
 if __name__ == "__main__":
