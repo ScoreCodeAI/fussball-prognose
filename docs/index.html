@@ -1936,7 +1936,10 @@ function konsKand(s,mk,ids){const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1
  if(mk=="ht"||mk=="ht2"){const H2=mk=="ht2",DCH=[[0,1],[1,2],[0,2]],bestDC=v=>DCH.reduce((b,d)=>v[d[0]]+v[d[1]]>v[b[0]]+v[b[1]]?d:b),a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),dd=bestDC(a),pr=a[dd[0]]+a[dd[1]],K=dd.map(i=>["1","X","2"][i]);
   const ein=mods.filter(p=>bestDC(get(p))===dd||bestDC(get(p)).join()==dd.join()).length,mkok=ein>=Math.ceil(N*0.75);
   const tip={s,pr,mod:H2?"2.-HZ-Modell":"1.-HZ-Modell",q:Math.round(10000/pr)/100,src:"Modell",qm:"x",lab:(H2?"2.HZ ":"1.HZ ")+K.join(""),win:r=>r.hh==null?null:K.includes(H2?sg(r.h-r.hh,r.a-r.ha):sg(r.hh,r.ha)),ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
-  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
+  const tp=mods[0]&&mods[0].t2p;let alt=null;
+  if(tp!=null){const zw=tp>=50,pa=zw?tp:100-tp,tor=r=>r.hh==null?null:(H2?(r.h-r.hh)+(r.a-r.ha):r.hh+r.ha);
+   alt={s,pr:pa,mod:tip.mod,q:Math.round(10000/pa)/100,qm:"ou",lab:(H2?"2.HZ ":"1.HZ ")+(zw?"2+ Tore":"0–1 Tore"),win:r=>{const t=tor(r);return t==null?null:zw?t>=2:t<=1},ue:[],ueOk:true,kontra:[],von:"Konsens",ein,N}}
+  return{tip,alt:alt||tip,ein,N,mkok,nurTipp:!alt}}
  if(mk3){const a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),ti=a.indexOf(Math.max(...a)),L=["1","X","2"];
   const ein=mods.filter(p=>{const v=get(p);return v.indexOf(Math.max(...v))==ti}).length,mkok=ein>=Math.ceil(N*0.75);
   const dc=[["1X",a[0]+a[1],["1","X"]],["X2",a[1]+a[2],["X","2"]],["12",a[0]+a[2],["1","2"]]].filter(d=>d[0].includes(L[ti])).sort((x,y)=>y[1]-x[1])[0];
@@ -1964,7 +1967,7 @@ function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${abSwitch()}${(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n))(S.abw||"c")}
- <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Bei der 1. HZ und der 2. HZ (1X2) ist der Tipp direkt die Doppelte Chance mit der höchsten Wahrscheinlichkeit: 1X, X2 oder 12 (ohne Alternative). Beide Halbzeiten kommen in allen Tabs aus eigenen Halbzeit-Modellen, die nur das Ergebnis der jeweiligen Halbzeit lernen. Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
+ <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Bei der 1. HZ und der 2. HZ (1X2) ist der Tipp direkt die Doppelte Chance mit der höchsten Wahrscheinlichkeit: 1X, X2 oder 12. Alternative dort: Tore in dieser Halbzeit, 0–1 oder 2+. Beide Halbzeiten kommen in allen Tabs aus eigenen Halbzeit-Modellen, die nur das Ergebnis der jeweiligen Halbzeit lernen. Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
 /* ---------- 🗳 KONSENS 2 · eigene fuenf Modelle, gleicher Aufbau wie der Konsens (eigenstaendig) ---------- */
 const K2IDS=["k2_korr","k2_rating","k2_hz","k2_reines","k2_xg"];
 function renderK2(){S.k2mk=S.k2mk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("k2n","renderK2()"),n=S.k2n,ab=S.abw||"c";
