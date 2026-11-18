@@ -1826,9 +1826,9 @@ const MXM={
 };
 ["csg","csh","cs2"].forEach(art=>MXM[art]={tab:"Ergebnis",hz:art!="csg",L:(s,ms)=>{const ls=ms.filter(x=>x.p[art]&&x.p[art].length).map(x=>x.p[art].map(e=>e[0]));return ls.length?ls[0].filter(sc=>ls.every(l=>l.includes(sc))):[]},
  get:null,lab:(L,i)=>(art=="csg"?"":art=="csh"?"1.HZ ":"2.HZ ")+L[i],win:(L,i,r)=>{const e=csEcht(art,r);return e==null?null:e[0]+":"+e[1]==L[i]}});
-function mxKand(s,mk,modus){const D2=MXM[mk],ms=TKM().map(m=>({m,p:s.prog[m.id]})).filter(x=>x.p);if(!ms.length)return null;const r=res(s);if(D2.hz&&r&&r.hh==null)return null;
+function mxKand(s,mk,modus){const D2=MXM[mk],ms=(mk=="ht2"?[{m:{id:"h2m",kurz:"2.-HZ-Modell"},p:s.prog.h2m}]:mk=="ht"?[{m:{id:"h1m",kurz:"1.-HZ-Modell"},p:s.prog.h1m}]:TKM().map(m=>({m,p:s.prog[m.id]}))).filter(x=>x.p);if(!ms.length)return null;const r=res(s);if(D2.hz&&r&&r.hh==null)return null;
  const L=D2.L(s,ms);if(L.length<2)return null;const get=D2.get||(p=>{const m={};(p[mk]||[]).forEach(([sc,v])=>m[sc]=v);return L.map(sc=>m[sc])});
- const c=mxCore(ms,L,get);if(!c||c.i<0)return null;const T=mk=="ht"||mk=="ht2"?[[0,1],[1,2],[0,2]].reduce((m,d)=>c.norm[d[0]]+c.norm[d[1]]>c.norm[m[0]]+c.norm[m[1]]?d:m):c.tk.slice().sort((a,b)=>a-b),kg=[];
+ const c=mxCore(ms,L,get);if(!c||(c.i<0&&mk!="ht2"&&mk!="ht"))return null;const T=mk=="ht"||mk=="ht2"?[[0,1],[1,2],[0,2]].reduce((m,d)=>c.norm[d[0]]+c.norm[d[1]]>c.norm[m[0]]+c.norm[m[1]]?d:m):c.tk.slice().sort((a,b)=>a-b),kg=[];
  if(c.n>1&&c.spread>15)kg.push("Modelle uneinig");
  if(D2.a&&T.length==1){const a=D2.a(L,T[0]),px=ms.filter(x=>x.p.px!=null).reduce((t,x,_,A)=>t+x.p.px/A.length,0);if(a&&a!="X"&&!a.includes("X")&&px>=28)gr0(kg,"Remis-Gefahr")}
  if(modus===true&&kg.length)return null;if(modus=="c"&&!T.includes(c.kons))return null;
@@ -1878,7 +1878,7 @@ function gkCard(x,ab,mega){const s=x.s,r=res(s),h=r?x.win(r):null,tips=String(x.
  <div class="kbm gkinfo">${x.mod}${x.gp!=null?` <span class="gpb">geprüft ${kom(x.gp.toFixed(1))} %</span>`:""}</div>
  ${x.box?`<details class="gkd"><summary>Details · Tabelle</summary>${x.box}</details>`:""}<div class="kbf">${abz(x,mega)}</div></div>`}
 function gkKons(x,box){const s=x.tip.s,r=res(s),ht=r?x.tip.win(r):null;
- return `<div class="ksb gk${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})">${gkKopf(s,` · <span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span>`).replace('class="kbt gkt"','class="kst gkt"')}${gkMitte(s)}
+ return `<div class="ksb gk${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})">${gkKopf(s,` · <span class="kein">${/^[12]\.-HZ-Modell$/.test(x.tip.mod)?"<b>"+x.tip.mod[0]+".HZ</b><small>Modell</small>":`<b>${x.ein}/${x.N}</b><small>einig</small>`}</span>`).replace('class="kbt gkt"','class="kst gkt"')}${gkMitte(s)}
  <div class="gksec"><small>${x.nurTipp?"DEIN TIPP":"DEIN TIPP · ALTERNATIVE"}</small><div class="kbg2"${x.nurTipp?' style="display:block"':''}>${box(x.tip,"t")}${x.nurTipp?"":box(x.alt,"a")}</div></div>
  ${gkStatus(ht,x.tip.pr)}<div class="gkq"><small>QUOTE TIPP</small><b>@ ${kom(x.tip.q.toFixed(2))}</b><span class="qsrc fd">Modell</span></div></div>`}
 
@@ -1925,9 +1925,9 @@ function alleBlock(s){const mods=TKM().filter(m=>s.prog[m.id]&&s.prog[m.id].p1!=
    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px"><small style="color:#dff4ff">MESSUNG · Einigkeit ${ein} % · Streuung ±${kom(sd.toFixed(1))}${ein<70?" · uneinig":""}</small><b class="amg">${labs[ti]}</b></div></div>`};
  return `<div class="qban amb"><small style="font-size:12px">PROGNOSEN ALLER MODELLE</small>`+teil("1X2",[s.heim,"X",s.gast],p=>[p.p1,p.px,p.p2])+teil("OVER / UNDER 2,5",["OVER","UNDER"],p=>[p.ue25,c100(p.ue25)])+`</div>`}
 /* ---------- Konsens-Kombi ---------- */
-const KMK={x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",ht:"1. HZ 1X2",h1:"1. HZ OVER/UNDER 0,5",h2:"2. HZ OVER/UNDER 0,5",ht2:"2. HZ 1X2"};
+const KMK={x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",ht:"1. HZ 1X2",h2:"2. HZ OVER/UNDER 0,5",ht2:"2. HZ 1X2"};
 const h1o=p=>p.h1o05!=null?p.h1o05:null,h2o=p=>p.h2o05!=null?p.h2o05:null;
-function konsKand(s,mk,ids){const N0=(ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
+function konsKand(s,mk,ids){const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
  if((mk=="ht"||mk=="ht2"||mk=="h1"||mk=="h2")&&r0&&r0.hh==null)return null;
  const mk3=mk=="x"||mk=="ht"||mk=="ht2",get=mk=="x"?p=>[p.p1,p.px,p.p2]:mk=="ht"?p=>p.ht:mk=="ht2"?p=>p.ht2:mk=="ou"?p=>p.ue25:mk=="h1"?h1o:h2o;
  const mods=N0.filter(p=>{const v=get(p);return v!=null&&(!mk3||v.every(y=>y!=null))});const N=mods.length;if(!N)return null;
@@ -1935,7 +1935,7 @@ function konsKand(s,mk,ids){const N0=(ids?ids.map(id=>s.prog[id]):TKM().map(m=>s
  const W3=(k,r)=>hz?(r.hh==null?null:sg(r.hh,r.ha)==k):sg(r.h,r.a)==k;
  if(mk=="ht"||mk=="ht2"){const H2=mk=="ht2",DCH=[[0,1],[1,2],[0,2]],bestDC=v=>DCH.reduce((b,d)=>v[d[0]]+v[d[1]]>v[b[0]]+v[b[1]]?d:b),a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),dd=bestDC(a),pr=a[dd[0]]+a[dd[1]],K=dd.map(i=>["1","X","2"][i]);
   const ein=mods.filter(p=>bestDC(get(p))===dd||bestDC(get(p)).join()==dd.join()).length,mkok=ein>=Math.ceil(N*0.75);
-  const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/pr)/100,src:"Modell",qm:"x",lab:(H2?"2.HZ ":"1.HZ ")+K.join(""),win:r=>r.hh==null?null:K.includes(H2?sg(r.h-r.hh,r.a-r.ha):sg(r.hh,r.ha)),ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
+  const tip={s,pr,mod:H2?"2.-HZ-Modell":"1.-HZ-Modell",q:Math.round(10000/pr)/100,src:"Modell",qm:"x",lab:(H2?"2.HZ ":"1.HZ ")+K.join(""),win:r=>r.hh==null?null:K.includes(H2?sg(r.h-r.hh,r.a-r.ha):sg(r.hh,r.ha)),ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
   return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
  if(mk3){const a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),ti=a.indexOf(Math.max(...a)),L=["1","X","2"];
   const ein=mods.filter(p=>{const v=get(p);return v.indexOf(Math.max(...v))==ti}).length,mkok=ein>=Math.ceil(N*0.75);
@@ -1964,7 +1964,7 @@ function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${abSwitch()}${(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n))(S.abw||"c")}
- <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Bei der 1. HZ und der 2. HZ (1X2) ist der Tipp direkt die Doppelte Chance mit der höchsten Wahrscheinlichkeit: 1X, X2 oder 12 (ohne Alternative). Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
+ <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Bei der 1. HZ und der 2. HZ (1X2) ist der Tipp direkt die Doppelte Chance mit der höchsten Wahrscheinlichkeit: 1X, X2 oder 12 (ohne Alternative). Beide Halbzeiten kommen in allen Tabs aus eigenen Halbzeit-Modellen, die nur das Ergebnis der jeweiligen Halbzeit lernen. Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
 /* ---------- 🗳 KONSENS 2 · eigene fuenf Modelle, gleicher Aufbau wie der Konsens (eigenstaendig) ---------- */
 const K2IDS=["k2_korr","k2_rating","k2_hz","k2_reines","k2_xg"];
 function renderK2(){S.k2mk=S.k2mk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("k2n","renderK2()"),n=S.k2n,ab=S.abw||"c";
@@ -2188,7 +2188,7 @@ function renderMXK(){S.mxkm=S.mxkm||"x";const tag=D.spiele.filter(s=>s.datum==S.
  S.qOben=1;$("mxklist").innerHTML=`<h3>👑 MAX-Kombi · ${MXN[mk]} <span>${tag.length} Spiele</span></h3>${sw}${chips}${["ga","gb","gc"].map((ab,j)=>kSchein(ab,mxAuswahl(tag,[false,true,"c"][j],n,mk),n,"GESAMTQUOTE")).join("")}${MXHINT}`;S.qOben=0}
 /* ---------- EIN-MODELL-KOMBI (z. B. Random Forest): nur dieses Modell, Übereinstimmungs-Regel ---------- */
 const SGN={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2",h1:"1. HZ O/U 0,5",h2:"2. HZ O/U 0,5"};
-const ELOM={x:"1X2",ou25:"O/U 2,5",ht:"1. HZ 1X2",h1:"1. HZ O/U 0,5",h2:"2. HZ O/U 0,5",ht2:"2. HZ 1X2"},RFM={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2"};
+const ELOM={x:"1X2",ou25:"O/U 2,5",ht:"1. HZ 1X2",h2:"2. HZ O/U 0,5",ht2:"2. HZ 1X2"},RFM={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2"};
 function sgBuch(s,mid,mk){const p=s.prog[mid];if(!p)return null;
  const D3={x:[["1","X","2"],[p.p1,p.px,p.p2]],ou25:[["O","U"],p.ue25==null?null:[p.ue25,c100(p.ue25)]],bts:[["J","N"],p.bts==null?null:[p.bts,c100(p.bts)]],ht:[["1","X","2"],p.ht],ht2:[["1","X","2"],p.ht2],h1:[["O","U"],p.h1o05==null?null:[p.h1o05,c100(p.h1o05)]],h2:[["O","U"],p.h2o05==null?null:[p.h2o05,c100(p.h2o05)]]}[mk];
  const[L,ps]=D3;if(!ps||ps.some(x=>x==null||x<=0))return null;const q=ps.map(x=>Math.round(10000/x)/100),u=ueCalc(q),kat=L.filter((_,i)=>u.ue[i]==u.pay);
@@ -2196,15 +2196,15 @@ function sgBuch(s,mid,mk){const p=s.prog[mid];if(!p)return null;
 function sgWin(mk,k,r){if(mk=="x")return sg(r.h,r.a)==k;if(mk=="ou25")return(r.h+r.a>2)==(k=="O");if(mk=="bts")return(r.h>0&&r.a>0)==(k=="J");
  if(r.hh==null)return null;if(mk=="h1")return(r.hh+r.ha>0)==(k=="O");if(mk=="h2")return((r.h-r.hh)+(r.a-r.ha)>0)==(k=="O");return mk=="ht"?sg(r.hh,r.ha)==k:sg(r.h-r.hh,r.a-r.ha)==k}
 function sgAuswahl(tag,modus,n,mid,mk){const l=[],NMk={O:"OVER",U:"UNDER",J:"JA",N:"NEIN"},pre=mk=="ht"||mk=="h1"?"1.HZ ":mk=="ht2"||mk=="h2"?"2.HZ ":"",suf=mk=="ou25"?" 2,5":mk=="h1"||mk=="h2"?" 0,5":mk=="bts"?" (Beide treffen)":"";
- for(const s of tag){const b=sgBuch(s,mid,mk);if(b&&(mk=="ht"||mk=="ht2"))b.kat=[["1","X"],["X","2"],["1","2"]].reduce((m,d)=>{const v=k=>b.ps[["1","X","2"].indexOf(k)];return v(d[0])+v(d[1])>v(m[0])+v(m[1])?d:m});if(!b||!b.kat.length)continue;const r=res(s);if(["ht","ht2","h1","h2"].includes(mk)&&r&&r.hh==null)continue;
+ for(const s of tag){const midB=mk=="ht2"?"h2m":mk=="ht"?"h1m":mid,b=sgBuch(s,midB,mk);if(b&&(mk=="ht"||mk=="ht2"))b.kat=[["1","X"],["X","2"],["1","2"]].reduce((m,d)=>{const v=k=>b.ps[["1","X","2"].indexOf(k)];return v(d[0])+v(d[1])>v(m[0])+v(m[1])?d:m});if(!b||!b.kat.length)continue;const r=res(s);if(["ht","ht2","h1","h2"].includes(mk)&&r&&r.hh==null)continue;
   const ks=b.kat.map(k=>b.L.indexOf(k)),kg=[],L3=b.L.length==3;
   if(L3&&ks.length==1&&b.L[ks[0]]!="X"&&b.ps[1]>=28)kg.push("Remis-Gefahr");
   if(modus===true&&kg.length)continue;if(modus=="c"&&!ks.includes(b.ti))continue;
   const NM=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":NMk[k]||k,prs=ks.reduce((t,j)=>t+b.ps[j],0),qq=ks.length==1?b.q[ks[0]]:Math.round(10000/prs)/100;
-  const box=mxBox((D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz.toUpperCase()+"-QUOTEN · PAYOUT · ÜBEREINSTIMMUNG",b.L.map((k,j)=>({lab:NMk[k]||k,p:b.ps[j],q:b.q[j],pp:b.ps[j]*b.q[j],ue:b.u.ue[j],ok:b.kat.includes(k)})),b.u.pay,b.u.marge,b.kat.map(NM).join(" · "),"elo");
+  const box=mxBox((midB=="h2m"?"2.-HZ-Modell":midB=="h1m"?"1.-HZ-Modell":(D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz).toUpperCase()+"-QUOTEN · PAYOUT · ÜBEREINSTIMMUNG",b.L.map((k,j)=>({lab:NMk[k]||k,p:b.ps[j],q:b.q[j],pp:b.ps[j]*b.q[j],ue:b.u.ue[j],ok:b.kat.includes(k)})),b.u.pay,b.u.marge,b.kat.map(NM).join(" · "),"elo");
   const lab=mk=="ht"||mk=="ht2"?pre+b.kat.join(""):pre+(L3?(ks.length>1?b.kat.join("")+" · "+b.kat.map(NM).join("/"):b.kat[0]+(b.kat[0]=="X"?" · Remis":" · "+NM(b.kat[0]))):NMk[b.kat[0]]+suf);
   const gp=mid=="modell_elo"&&(mk=="x"||mk=="ou25")?gepr("Elo",mk,prs):null;
-  l.push({s,box,gp,pr:prs,mod:`${(D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz} · Übereinst. ✓${ks.length>1?" (2 Haken)":""}`,q:qq,src:"Modell",qm:"x",lab,win:r=>{const w=ks.map(j=>sgWin(mk,b.L[j],r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:mid=="modell_elo"?"Elo":"RF"})}
+  l.push({s,box,gp,pr:prs,mod:`${(midB=="h2m"?"2.-HZ-Modell":midB=="h1m"?"1.-HZ-Modell":(D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz)} · Übereinst. ✓${ks.length>1?" (2 Haken)":""}`,q:qq,src:"Modell",qm:"x",lab,win:r=>{const w=ks.map(j=>sgWin(mk,b.L[j],r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:mid=="modell_elo"?"Elo":"RF"})}
  return kWahl(l,n)}
 function renderRF(){S.rfm=S.rfm||"x";const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.rf),chips=chipsN("rfn","renderRF()",[1,2,3,4,5,10,15,20,25,30]),n=S.rfn,mk=S.rfm;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(RFM).map(([k,t])=>`<div class="${mk==k?'on':''}" onclick="S.rfm='${k}';renderRF()">${t}</div>`).join("")}</div>`;
