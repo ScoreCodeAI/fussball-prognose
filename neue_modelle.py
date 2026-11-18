@@ -81,6 +81,8 @@ class Verlauf:
     def __init__(self):
         self.team = defaultdict(lambda: deque(maxlen=SEQ))   # (gf, ga, heim)
         self.liga = defaultdict(lambda: deque(maxlen=300))   # (hg, ag)
+        self.elo = defaultdict(lambda: 1500.0)               # eigene Elo, fuer alle Ligen gleich gerechnet
+        self.sot = defaultdict(lambda: deque(maxlen=SEQ))    # (Schuesse aufs Tor fuer, gegen)
 
     def merkmale(self, div, h, a):
         th, ta, lg = self.team[(div, h)], self.team[(div, a)], self.liga[div]
@@ -94,17 +96,33 @@ class Verlauf:
         return [m(th, 0, 10), m(th, 1, 10), m(ta, 0, 10), m(ta, 1, 10),
                 m(th, 0, 5), m(th, 1, 5), m(ta, 0, 5), m(ta, 1, 5), lh, la]
 
-    def remis(self, div, h, a):
+    def remis(self, div, h, a, quoten=None):
         th, ta = list(self.team[(div, h)]), list(self.team[(div, a)])
         if len(th) < 5 or len(ta) < 5:
             return None
+        eh, ea = self.elo[(div, h)], self.elo[(div, a)]
+        sh, sa = list(self.sot[(div, h)]), list(self.sot[(div, a)])
+        if len(sh) >= 3 and len(sa) >= 3:
+            bal = abs((sum(x[0] - x[1] for x in sh) / len(sh)) - (sum(x[0] - x[1] for x in sa) / len(sa)))
+            s_ok = 1.0
+        else:
+            bal, s_ok = 0.0, 0.0
+        mx, m_ok = 0.0, 0.0
+        try:
+            q1, qx, q2 = (float(quoten[k]) for k in ("1", "X", "2"))
+            if min(q1, qx, q2) > 1:
+                mx = (1 / qx) / (1 / q1 + 1 / qx + 1 / q2)
+                m_ok = 1.0
+        except Exception:
+            pass
         m = lambda v, k: sum(x[k] for x in v) / len(v)
         gfh, gah, gfa, gaa = m(th, 0), m(th, 1), m(ta, 0), m(ta, 1)
         diff = (gfh - gah) - (gfa - gaa)
         rem = lambda v: sum(1 for x in v if x[0] == x[1]) / len(v)
         arm = lambda v: sum(1 for x in v if x[0] + x[1] <= 2) / len(v)
         return [gfh, gah, gfa, gaa, diff, abs(diff), (gfh + gaa) / 2 + (gfa + gah) / 2,
-                rem(th), rem(ta), arm(th), arm(ta)]
+                rem(th), rem(ta), arm(th), arm(ta),
+                (eh - ea) / 100, abs(eh - ea) / 100, bal, s_ok, mx, m_ok]
 
     def folge(self, div, h, a):
         def f(q):
@@ -113,10 +131,18 @@ class Verlauf:
             return pad + v
         return f(self.team[(div, h)]), f(self.team[(div, a)])
 
-    def eintragen(self, div, h, a, hg, ag):
+    def eintragen(self, div, h, a, hg, ag, hst=None, ast=None):
         self.team[(div, h)].append((hg, ag, 1.0))
         self.team[(div, a)].append((ag, hg, 0.0))
         self.liga[div].append((hg, ag))
+        rh, ra = self.elo[(div, h)], self.elo[(div, a)]
+        e = 1 / (1 + 10 ** ((ra - rh - 65) / 400))
+        erg = 1.0 if hg > ag else (0.5 if hg == ag else 0.0)
+        self.elo[(div, h)] = rh + 20 * (erg - e)
+        self.elo[(div, a)] = ra - 20 * (erg - e)
+        if hst is not None and ast is not None and hst == hst and ast == ast:
+            self.sot[(div, h)].append((float(hst), float(ast)))
+            self.sot[(div, a)].append((float(ast), float(hst)))
 
 
 def durchlauf(H, ziele):
@@ -134,24 +160,24 @@ def durchlauf(H, ziele):
             f = V.merkmale(z["liga"], z["heim"], z["gast"])
             if f:
                 zf[z["key"]] = (f, *V.folge(z["liga"], z["heim"], z["gast"]))
-            r = V.remis(z["liga"], z["heim"], z["gast"])
+            r = V.remis(z["liga"], z["heim"], z["gast"], z.get("quoten"))
             if r:
                 zr[z["key"]] = r
             zi += 1
-        r = V.remis(row.Div, row.Home, row.Away)
+        r = V.remis(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2})
         if r:
             RX.append(r); RY.append(0 if row.HG > row.AG else (1 if row.HG == row.AG else 2)); RD.append(d)
         f = V.merkmale(row.Div, row.Home, row.Away)
         if f:
             s1, s2 = V.folge(row.Div, row.Home, row.Away)
             X.append(f); S1.append(s1); S2.append(s2); Y.append((row.HG, row.AG)); D.append(d)
-        V.eintragen(row.Div, row.Home, row.Away, float(row.HG), float(row.AG))
+        V.eintragen(row.Div, row.Home, row.Away, float(row.HG), float(row.AG), row.HST, row.AST)
     while zi < len(ziele):
         z = ziele[zi]
         f = V.merkmale(z["liga"], z["heim"], z["gast"])
         if f:
             zf[z["key"]] = (f, *V.folge(z["liga"], z["heim"], z["gast"]))
-        r = V.remis(z["liga"], z["heim"], z["gast"])
+        r = V.remis(z["liga"], z["heim"], z["gast"], z.get("quoten"))
         if r:
             zr[z["key"]] = r
         zi += 1
@@ -160,6 +186,27 @@ def durchlauf(H, ziele):
 
 
 # ---------------- SVR ----------------
+def mit_quoten(H):
+    """Haengt 1X2-Quoten der Historie an (xgabora OddHome/OddDraw/OddAway). Ohne Quoten bleibt die Spalte leer."""
+    import daten
+    H = H.copy()
+    try:
+        q = pd.read_csv(daten._xgabora_url(), usecols=["Division", "MatchDate", "HomeTeam", "AwayTeam", "OddHome", "OddDraw", "OddAway"], low_memory=False)
+        q.columns = ["Div", "Date", "Home", "Away", "OD1", "ODX", "OD2"]
+        q["Date"] = pd.to_datetime(q["Date"], errors="coerce").dt.normalize().astype("datetime64[ns]")
+        H["Date"] = pd.to_datetime(H["Date"], errors="coerce").dt.normalize().astype("datetime64[ns]")
+        q = q.drop_duplicates(subset=["Div", "Date", "Home", "Away"])
+        H = H.merge(q, on=["Div", "Date", "Home", "Away"], how="left")
+    except Exception as ex:
+        log("Quoten der Historie nicht geladen:", ex)
+    for c in ("OD1", "ODX", "OD2"):
+        if c not in H:
+            H[c] = np.nan
+    for c in ("HST", "AST"):
+        H[c] = pd.to_numeric(H[c], errors="coerce")
+    return H.sort_values("Date").reset_index(drop=True)
+
+
 def svr_modell(X, Y, D, grenze):
     from sklearn.svm import SVR
     from sklearn.preprocessing import StandardScaler
@@ -403,8 +450,9 @@ def main():
     H = H[H["Date"] >= pd.Timestamp(AB)].copy()
     H["HTHG"] = pd.to_numeric(H["HTHG"], errors="coerce")
     H["HTAG"] = pd.to_numeric(H["HTAG"], errors="coerce")
-    log(f"Historie: {len(H)} Spiele")
-    ziele = [{"key": i, "liga": s["liga"], "datum": s["datum"], "heim": s["heim"], "gast": s["gast"]} for i, s in enumerate(spiele)]
+    H = mit_quoten(H)
+    log(f"Historie: {len(H)} Spiele, davon {H['ODX'].notna().sum()} mit Remis-Quote")
+    ziele = [{"key": i, "liga": s["liga"], "datum": s["datum"], "heim": s["heim"], "gast": s["gast"], "quoten": s.get("quoten")} for i, s in enumerate(spiele)]
     grenze = min(s["datum"] for s in spiele)
     X, S1, S2, Y, D, zf, (RX, RY, RD, zr) = durchlauf(H, ziele)
     log(f"{len(X)} Trainingszeilen, Merkmale fuer {len(zf)} von {len(spiele)} Spielen")
