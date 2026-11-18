@@ -3,6 +3,8 @@
 # (daten.alle_spiele), rechnet je Spiel und ergaenzt NUR neue Eintraege in spiel["prog"]:
 #   svr, tcn                  -> eigene Tabs in Analyse 1
 #   remis                     -> Remis-Radar (eigenes 1X2-Modell mit Remis-Merkmalen, ohne Liga-Merkmal)
+#   h2m                       -> 2.-HZ-Modell: lernt nur das Ergebnis der 2. Halbzeit (fuer den Markt 2. HZ 1X2)
+#   h1m                       -> 1.-HZ-Modell: lernt nur das Ergebnis der 1. Halbzeit (fuer den Markt 1. HZ 1X2)
 #   k2_korr, k2_rating, k2_hz, k2_reines, k2_xg -> Bausteine fuer Konsens 2
 # Bestehende Eintraege, Modelle und Berechnungen werden nicht veraendert.
 # Ohne Daten-Leck: Training nur mit Spielen VOR dem fruehesten Spiel in daten.json,
@@ -82,7 +84,9 @@ class Verlauf:
         self.team = defaultdict(lambda: deque(maxlen=SEQ))   # (gf, ga, heim)
         self.liga = defaultdict(lambda: deque(maxlen=300))   # (hg, ag)
         self.elo = defaultdict(lambda: 1500.0)               # eigene Elo, fuer alle Ligen gleich gerechnet
+        self._ht = None
         self.sot = defaultdict(lambda: deque(maxlen=SEQ))    # (Schuesse aufs Tor fuer, gegen)
+        self.h2 = defaultdict(lambda: deque(maxlen=SEQ))     # (Tore fuer, gegen, HZ fuer, HZ gegen) nur Spiele mit Halbzeitstand
 
     def merkmale(self, div, h, a):
         th, ta, lg = self.team[(div, h)], self.team[(div, a)], self.liga[div]
@@ -124,6 +128,33 @@ class Verlauf:
                 rem(th), rem(ta), arm(th), arm(ta),
                 (eh - ea) / 100, abs(eh - ea) / 100, bal, s_ok, mx, m_ok]
 
+    def hz2(self, div, h, a, quoten=None, halb=2):
+        """Merkmale fuer das HZ-Modell: Tore/Ergebnisse der Halbzeit (halb=1 oder 2) je Team, dazu Vollzeit, Elo, Quoten."""
+        t1, t2 = list(self.h2[(div, h)]), list(self.h2[(div, a)])
+        if len(t1) < 8 or len(t2) < 8:
+            return None
+        m = lambda q, f: sum(f(x) for x in q) / len(q)
+        if halb == 1:
+            f2 = lambda x: x[2]
+            g2 = lambda x: x[3]
+        else:
+            f2 = lambda x: x[0] - x[2]
+            g2 = lambda x: x[1] - x[3]
+        out = [m(t1, f2), m(t1, g2), m(t2, f2), m(t2, g2),
+               m(t1, lambda x: 1 if f2(x) > g2(x) else 0), m(t1, lambda x: 1 if f2(x) == g2(x) else 0),
+               m(t2, lambda x: 1 if f2(x) > g2(x) else 0), m(t2, lambda x: 1 if f2(x) == g2(x) else 0),
+               m(t1, lambda x: x[0]), m(t1, lambda x: x[1]), m(t2, lambda x: x[0]), m(t2, lambda x: x[1]),
+               (self.elo[(div, h)] - self.elo[(div, a)]) / 100]
+        mq = [0.0, 0.0, 0.0, 0.0]
+        try:
+            q = [float(quoten[k]) for k in ("1", "X", "2")]
+            if min(q) > 1:
+                inv = [1 / v for v in q]
+                mq = [v / sum(inv) for v in inv] + [1.0]
+        except Exception:
+            pass
+        return out + mq
+
     def folge(self, div, h, a):
         def f(q):
             v = list(q)
@@ -140,6 +171,10 @@ class Verlauf:
         erg = 1.0 if hg > ag else (0.5 if hg == ag else 0.0)
         self.elo[(div, h)] = rh + 20 * (erg - e)
         self.elo[(div, a)] = ra - 20 * (erg - e)
+        if self._ht is not None:
+            hh, ha = self._ht
+            self.h2[(div, h)].append((hg, ag, hh, ha))
+            self.h2[(div, a)].append((ag, hg, ha, hh))
         if hst is not None and ast is not None and hst == hst and ast == ast:
             self.sot[(div, h)].append((float(hst), float(ast)))
             self.sot[(div, a)].append((float(ast), float(hst)))
@@ -151,7 +186,9 @@ def durchlauf(H, ziele):
     V = Verlauf()
     X, S1, S2, Y, D = [], [], [], [], []
     RX, RY, RD = [], [], []
-    zf, zr = {}, {}
+    HX, HY, HD = [], [], []
+    H1X, H1Y = [], []
+    zf, zr, zh, zh1 = {}, {}, {}, {}
     zi = 0
     for row in H.itertuples(index=False):
         d = row.Date.strftime("%Y-%m-%d")
@@ -163,7 +200,22 @@ def durchlauf(H, ziele):
             r = V.remis(z["liga"], z["heim"], z["gast"], z.get("quoten"))
             if r:
                 zr[z["key"]] = r
+            h2 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"))
+            if h2:
+                zh[z["key"]] = h2
+            h1 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"), halb=1)
+            if h1:
+                zh1[z["key"]] = h1
             zi += 1
+        ht_ok = row.HTHG == row.HTHG and row.HTAG == row.HTAG
+        if ht_ok:
+            h2 = V.hz2(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2})
+            if h2:
+                g2h, g2a = row.HG - row.HTHG, row.AG - row.HTAG
+                HX.append(h2); HY.append(0 if g2h > g2a else (1 if g2h == g2a else 2)); HD.append(d)
+                h1 = V.hz2(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2}, halb=1)
+                H1X.append(h1); H1Y.append(0 if row.HTHG > row.HTAG else (1 if row.HTHG == row.HTAG else 2))
+        V._ht = (float(row.HTHG), float(row.HTAG)) if ht_ok else None
         r = V.remis(row.Div, row.Home, row.Away, {"1": row.OD1, "X": row.ODX, "2": row.OD2})
         if r:
             RX.append(r); RY.append(0 if row.HG > row.AG else (1 if row.HG == row.AG else 2)); RD.append(d)
@@ -180,9 +232,17 @@ def durchlauf(H, ziele):
         r = V.remis(z["liga"], z["heim"], z["gast"], z.get("quoten"))
         if r:
             zr[z["key"]] = r
+        h2 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"))
+        if h2:
+            zh[z["key"]] = h2
+        h1 = V.hz2(z["liga"], z["heim"], z["gast"], z.get("quoten"), halb=1)
+        if h1:
+            zh1[z["key"]] = h1
         zi += 1
     return (np.array(X), np.array(S1), np.array(S2), np.array(Y), np.array(D), zf,
-            (np.array(RX), np.array(RY), np.array(RD), zr))
+            (np.array(RX), np.array(RY), np.array(RD), zr),
+            (np.array(HX), np.array(HY), np.array(HD), zh),
+            (np.array(H1X), np.array(H1Y), zh1))
 
 
 # ---------------- SVR ----------------
@@ -234,6 +294,21 @@ def remis_modell(RX, RY, RD, grenze):
     def vorhersage(r):
         p = lr.predict_proba(sk.transform([r]))[0]
         return {"p1": round(float(p[0]) * 100, 2), "px": round(float(p[1]) * 100, 2), "p2": round(float(p[2]) * 100, 2)}
+    return vorhersage
+
+
+# ---------------- 2.-HZ-MODELL ----------------
+def h2_modell(HX, HY, HD, grenze, schluessel="ht2", name="2.-HZ-Modell"):
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.preprocessing import StandardScaler
+    ok = HD < grenze
+    Xt, Yt = HX[ok], HY[ok]
+    sk = StandardScaler().fit(Xt)
+    lr = LogisticRegression(max_iter=2000).fit(sk.transform(Xt), Yt)
+    log(f"{name} trainiert mit {len(Xt)} Spielen (bis {grenze})")
+    def vorhersage(f):
+        p = [round(float(x) * 100, 2) for x in lr.predict_proba(sk.transform([f]))[0]]
+        return {"p1": p[0], "px": p[1], "p2": p[2], schluessel: p}
     return vorhersage
 
 
@@ -454,7 +529,7 @@ def main():
     log(f"Historie: {len(H)} Spiele, davon {H['ODX'].notna().sum()} mit Remis-Quote")
     ziele = [{"key": i, "liga": s["liga"], "datum": s["datum"], "heim": s["heim"], "gast": s["gast"], "quoten": s.get("quoten")} for i, s in enumerate(spiele)]
     grenze = min(s["datum"] for s in spiele)
-    X, S1, S2, Y, D, zf, (RX, RY, RD, zr) = durchlauf(H, ziele)
+    X, S1, S2, Y, D, zf, (RX, RY, RD, zr), (HX, HY, HD, zh), (H1X, H1Y, zh1) = durchlauf(H, ziele)
     log(f"{len(X)} Trainingszeilen, Merkmale fuer {len(zf)} von {len(spiele)} Spielen")
 
     # Halbzeit-Anteil je Liga (fuer HZ-Maerkte von SVR/TCN)
@@ -463,7 +538,15 @@ def main():
         tot = (g["HG"] + g["AG"]).sum()
         share[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
 
-    svr = tcn = remis = None
+    svr = tcn = remis = h2m = h1m = None
+    try:
+        h1m = h2_modell(H1X, H1Y, HD, grenze, "ht", "1.-HZ-Modell")
+    except Exception as ex:
+        log("1.-HZ-Modell nicht moeglich:", ex)
+    try:
+        h2m = h2_modell(HX, HY, HD, grenze)
+    except Exception as ex:
+        log("2.-HZ-Modell nicht moeglich:", ex)
     try:
         remis = remis_modell(RX, RY, RD, grenze)
     except Exception as ex:
@@ -486,7 +569,7 @@ def main():
                               "ft": [int(r.HG), int(r.AG)], "ht": ht})
     xg = lade_xg()
 
-    n_svr = n_tcn = n_k2 = n_rem = 0
+    n_svr = n_tcn = n_k2 = n_rem = n_h2 = n_h1 = 0
     for i, s in enumerate(spiele):
         p = s.setdefault("prog", {})
         sh = share.get(s["liga"], 0.44)
@@ -504,6 +587,18 @@ def main():
                     n_tcn += 1
                 except Exception:
                     pass
+        if h1m and i in zh1:
+            try:
+                p["h1m"] = h1m(zh1[i])
+                n_h1 += 1
+            except Exception:
+                pass
+        if h2m and i in zh:
+            try:
+                p["h2m"] = h2m(zh[i])
+                n_h2 += 1
+            except Exception:
+                pass
         if remis and i in zr:
             try:
                 p["remis"] = remis(zr[i])
@@ -520,7 +615,7 @@ def main():
 
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"SVR {n_svr} · TCN {n_tcn} · Konsens 2 {n_k2} · Remis-Radar {n_rem} von {len(spiele)} Spielen")
+    log(f"SVR {n_svr} · TCN {n_tcn} · Konsens 2 {n_k2} · Remis-Radar {n_rem} · 1.-HZ-Modell {n_h1} · 2.-HZ-Modell {n_h2} von {len(spiele)} Spielen")
 
 
 if __name__ == "__main__":
