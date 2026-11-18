@@ -1827,7 +1827,7 @@ const MXM={
  get:null,lab:(L,i)=>(art=="csg"?"":art=="csh"?"1.HZ ":"2.HZ ")+L[i],win:(L,i,r)=>{const e=csEcht(art,r);return e==null?null:e[0]+":"+e[1]==L[i]}});
 function mxKand(s,mk,modus){const D2=MXM[mk],ms=TKM().map(m=>({m,p:s.prog[m.id]})).filter(x=>x.p);if(!ms.length)return null;const r=res(s);if(D2.hz&&r&&r.hh==null)return null;
  const L=D2.L(s,ms);if(L.length<2)return null;const get=D2.get||(p=>{const m={};(p[mk]||[]).forEach(([sc,v])=>m[sc]=v);return L.map(sc=>m[sc])});
- const c=mxCore(ms,L,get);if(!c||c.i<0)return null;const T=c.tk.slice().sort((a,b)=>a-b),kg=[];
+ const c=mxCore(ms,L,get);if(!c||c.i<0)return null;const T=mk=="ht"?(c.norm[0]+c.norm[1]>=c.norm[1]+c.norm[2]?[0,1]:[1,2]):c.tk.slice().sort((a,b)=>a-b),kg=[];
  if(c.n>1&&c.spread>15)kg.push("Modelle uneinig");
  if(D2.a&&T.length==1){const a=D2.a(L,T[0]),px=ms.filter(x=>x.p.px!=null).reduce((t,x,_,A)=>t+x.p.px/A.length,0);if(a&&a!="X"&&!a.includes("X")&&px>=28)gr0(kg,"Remis-Gefahr")}
  if(modus===true&&kg.length)return null;if(modus=="c"&&!T.includes(c.kons))return null;
@@ -1835,7 +1835,7 @@ function mxKand(s,mk,modus){const D2=MXM[mk],ms=TKM().map(m=>({m,p:s.prog[m.id]}
  const lab=T.length==1?D2.lab(L,T[0],s):(mk=="x"?T.map(i=>L[i]).join("")+" · "+T.map(i=>i==1?"Remis":i==0?s.heim:s.gast).join("/"):mk=="ht"?"1.HZ "+T.map(i=>L[i]).join(""):T.map(i=>D2.lab(L,i,s)).join(" / "));
  const u=ueCalc(c.q),LB=i=>mk=="x"||mk=="ht"?L[i]:Array.isArray(L[i])?(L[i][0]?L[i][0]+" & ":"")+L[i][1]:mk=="ou25"||mk=="ou15"?(i?"UNDER":"OVER"):mk=="bts"?(i?"NEIN":"JA"):L[i];
  const box=mxBox("MAX-QUOTEN · HÖCHSTE % JE AUSGANG",L.map((_,i)=>({lab:LB(i),wer:c.wer[i],p:c.mx[i],q:c.q[i],pp:c.mx[i]*c.q[i],ue:c.ue[i],ok:T.includes(i)})),u.pay,u.marge,T.map(i=>mk=="x"?(i==1?"Remis":i==0?s.heim:s.gast):LB(i)).join(" · "));
- const gp=["x","ou25","ht"].includes(mk)?gepr("MAX",mk,pr):null;
+ const gp=["x","ou25"].includes(mk)?gepr("MAX",mk,pr):null;
  return{s,box,gp,pr,mod:`Übereinst. ${T.map(i=>kom(c.ue[i].toFixed(2))).join(" · ")} ✓${T.length>1?" ("+T.length+" Haken)":""} · max ${T.map(i=>kom(c.mx[i].toFixed(1))+"% ("+c.wer[i]+")").join(" · ")}`,q,src:"MAX",qm:"x",lab,win:r=>{const w=T.map(i=>D2.win(L,i,r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:D2.tab,tk:T.map(i=>L[i])}}
 function gr0(a,x){if(!a.includes(x))a.push(x)}
 function mxAuswahl(tag,modus,n,mk){return kWahl(tag.map(s=>mxKand(s,mk,modus)).filter(x=>x),n)}
@@ -1878,7 +1878,7 @@ function gkCard(x,ab,mega){const s=x.s,r=res(s),h=r?x.win(r):null,tips=String(x.
  ${x.box?`<details class="gkd"><summary>Details · Tabelle</summary>${x.box}</details>`:""}<div class="kbf">${abz(x,mega)}</div></div>`}
 function gkKons(x,box){const s=x.tip.s,r=res(s),ht=r?x.tip.win(r):null;
  return `<div class="ksb gk${ht==null?'':ht?' win':' los'}" onclick="openDetail(${s.id})">${gkKopf(s,` · <span class="kein"><b>${x.ein}/${x.N}</b><small>einig</small></span>`).replace('class="kbt gkt"','class="kst gkt"')}${gkMitte(s)}
- <div class="gksec"><small>DEIN TIPP · ALTERNATIVE</small><div class="kbg2">${box(x.tip,"t")}${box(x.alt,"a")}</div></div>
+ <div class="gksec"><small>${x.nurTipp?"DEIN TIPP":"DEIN TIPP · ALTERNATIVE"}</small><div class="kbg2"${x.nurTipp?' style="display:block"':''}>${box(x.tip,"t")}${x.nurTipp?"":box(x.alt,"a")}</div></div>
  ${gkStatus(ht,x.tip.pr)}<div class="gkq"><small>QUOTE TIPP</small><b>@ ${kom(x.tip.q.toFixed(2))}</b><span class="qsrc fd">Modell</span></div></div>`}
 
 function kSchein0(ab,L,n,qname,mega){const[titel,cls,col]=SCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
@@ -1932,6 +1932,10 @@ function konsKand(s,mk,ids){const N0=(ids?ids.map(id=>s.prog[id]):TKM().map(m=>s
  const mods=N0.filter(p=>{const v=get(p);return v!=null&&(!mk3||v.every(y=>y!=null))});const N=mods.length;if(!N)return null;
  const pre=mk=="ht"||mk=="h1"?"1.HZ ":mk=="h2"?"2.HZ ":"",hz=mk=="ht";
  const W3=(k,r)=>hz?(r.hh==null?null:sg(r.hh,r.ha)==k):sg(r.h,r.a)==k;
+ if(mk=="ht"){const a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),lx=a[0]+a[1]>=a[1]+a[2],pr=lx?a[0]+a[1]:a[1]+a[2],K=lx?["1","X"]:["X","2"];
+  const ein=mods.filter(p=>{const v=get(p);return(v[0]+v[1]>=v[1]+v[2])==lx}).length,mkok=ein>=Math.ceil(N*0.75);
+  const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/pr)/100,src:"Modell",qm:"x",lab:"1.HZ "+K.join(""),win:r=>r.hh==null?null:K.includes(sg(r.hh,r.ha)),ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
+  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
  if(mk3){const a=[0,1,2].map(i=>mods.reduce((t,p)=>t+get(p)[i],0)/N),ti=a.indexOf(Math.max(...a)),L=["1","X","2"];
   const ein=mods.filter(p=>{const v=get(p);return v.indexOf(Math.max(...v))==ti}).length,mkok=ein>=Math.ceil(N*0.75);
   const dc=[["1X",a[0]+a[1],["1","X"]],["X2",a[1]+a[2],["X","2"]],["12",a[0]+a[2],["1","2"]]].filter(d=>d[0].includes(L[ti])).sort((x,y)=>y[1]-x[1])[0];
@@ -1951,15 +1955,15 @@ const KSCH={a:["A · Höchste Einigkeit","kA","#c9f8ff"],b:["B · Alle Modelle e
 function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
  const sum=k=>{let g=1,c=1;for(const x of L){g*=x[k].q;c*=x[k].pr/100}return[g,c]},[gt,ct]=sum("tip"),[ga,ca]=sum("alt");
  const box=(x,typ)=>{const r=res(x.s),h=r?x.win(r):null;return `<div class="kbo ${typ}${h==null?'':h?' y':' n'}"><small>${typ=="t"?"TIPP":"ALTERNATIVE"}</small><b>${x.lab}${h!=null?(h?" ✓":" ✕"):""}</b><span>${kom(x.pr.toFixed(1))} % · @ ${kom(x.q.toFixed(2))}</span><div class="pbar"><i style="width:${Math.min(100,x.pr)}%"></i></div></div>`};
- const it=L.map(x=>gkKons(x,box)).join("");
+ const it=L.map(x=>gkKons(x,box)).join(""),nur=L.every(x=>x.nurTipp);
  const fz=(g,c,t,cl)=>`<div class="kgq ${cl}"><small>${t}</small><b>${kom(g.toFixed(2))}</b><div class="kgc"><i style="width:${Math.min(100,c*100)}%"></i></div><span>Chance ${kom((c*100).toFixed(c<0.01?3:1))} %</span></div>`;
  return `<div class="card gkc ${cls}" style="padding:8px 14px;margin-bottom:12px"><div style="display:flex;justify-content:space-between;align-items:center"><b style="color:${col};font-size:16px">${titel}</b><span style="font-size:12px;color:#eef2ff">${L.length}er-Kombi${L.length<n?` (nur ${L.length})`:""}</span></div>
- <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}
- <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div>${it}</div>`}
+ <div class="ueg" style="color:#fff;margin-top:6px">TIPP</div>${zaehlK(L.map(x=>x.tip))}${nur?"":`<div class="ueg" style="color:#fff">ALTERNATIVE</div>${zaehlK(L.map(x=>x.alt))}`}
+ <div class="kgs">${fz(gt,ct,"QUOTE TIPP","t")}${nur?"":fz(ga,ca,"QUOTE ALTERNATIVE","a")}</div>${it}</div>`}
 function renderKons(){S.kmk=S.kmk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("kon","renderKons()"),n=S.kon;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([k,t])=>`<div class="${S.kmk==k?'on':''}" onclick="S.kmk='${k}';renderKons()">${t}</div>`).join("")}</div>`;
  $("konlist").innerHTML=`<h3>🗳 Konsens-Kombi · alle Modelle <span>${tag.length} Spiele</span></h3>${sw}${qfSwitch("renderKons()")}${chips}${abSwitch()}${(ab=>konsSchein(ab,konsAuswahl(tag,ab=="a"?false:ab=="b"?true:"c",n),n))(S.abw||"c")}
- <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 und 1. HZ die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
+ <p class="hint">Tipp = Ausgang mit der höchsten Durchschnitts-Wahrscheinlichkeit aller Modelle. Alternative = sichere Variante: bei 1X2 die Doppelte Chance (1X / X2 / 12), bei OVER/UNDER 2,5 die 2. Halbzeit OVER/UNDER 0,5. Bei der 1. HZ ist der Tipp direkt die Doppelte Chance 1X oder X2 (ohne Alternative). Halbzeit-Märkte nur bei Ligen mit Halbzeitstand. A: höchste Einigkeit zuerst · B: alle Modelle tippen gleich · C: mindestens drei Viertel der Modelle tippen gleich. Quoten = Modell-Quoten (100 ÷ Durchschnitts-%), keine Buchmacher-Quoten.</p>`}
 /* ---------- 🗳 KONSENS 2 · eigene fuenf Modelle, gleicher Aufbau wie der Konsens (eigenstaendig) ---------- */
 const K2IDS=["k2_korr","k2_rating","k2_hz","k2_reines","k2_xg"];
 function renderK2(){S.k2mk=S.k2mk||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),chips=chipsN("k2n","renderK2()"),n=S.k2n,ab=S.abw||"c";
@@ -2191,13 +2195,13 @@ function sgBuch(s,mid,mk){const p=s.prog[mid];if(!p)return null;
 function sgWin(mk,k,r){if(mk=="x")return sg(r.h,r.a)==k;if(mk=="ou25")return(r.h+r.a>2)==(k=="O");if(mk=="bts")return(r.h>0&&r.a>0)==(k=="J");
  if(r.hh==null)return null;if(mk=="h1")return(r.hh+r.ha>0)==(k=="O");if(mk=="h2")return((r.h-r.hh)+(r.a-r.ha)>0)==(k=="O");return mk=="ht"?sg(r.hh,r.ha)==k:sg(r.h-r.hh,r.a-r.ha)==k}
 function sgAuswahl(tag,modus,n,mid,mk){const l=[],NMk={O:"OVER",U:"UNDER",J:"JA",N:"NEIN"},pre=mk=="ht"||mk=="h1"?"1.HZ ":mk=="ht2"||mk=="h2"?"2.HZ ":"",suf=mk=="ou25"?" 2,5":mk=="h1"||mk=="h2"?" 0,5":mk=="bts"?" (Beide treffen)":"";
- for(const s of tag){const b=sgBuch(s,mid,mk);if(!b||!b.kat.length)continue;const r=res(s);if(["ht","ht2","h1","h2"].includes(mk)&&r&&r.hh==null)continue;
+ for(const s of tag){const b=sgBuch(s,mid,mk);if(b&&mk=="ht")b.kat=b.ps[0]+b.ps[1]>=b.ps[1]+b.ps[2]?["1","X"]:["X","2"];if(!b||!b.kat.length)continue;const r=res(s);if(["ht","ht2","h1","h2"].includes(mk)&&r&&r.hh==null)continue;
   const ks=b.kat.map(k=>b.L.indexOf(k)),kg=[],L3=b.L.length==3;
   if(L3&&ks.length==1&&b.L[ks[0]]!="X"&&b.ps[1]>=28)kg.push("Remis-Gefahr");
   if(modus===true&&kg.length)continue;if(modus=="c"&&!ks.includes(b.ti))continue;
   const NM=k=>k=="1"?s.heim:k=="2"?s.gast:k=="X"?"Remis":NMk[k]||k,prs=ks.reduce((t,j)=>t+b.ps[j],0),qq=ks.length==1?b.q[ks[0]]:Math.round(10000/prs)/100;
   const box=mxBox((D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz.toUpperCase()+"-QUOTEN · PAYOUT · ÜBEREINSTIMMUNG",b.L.map((k,j)=>({lab:NMk[k]||k,p:b.ps[j],q:b.q[j],pp:b.ps[j]*b.q[j],ue:b.u.ue[j],ok:b.kat.includes(k)})),b.u.pay,b.u.marge,b.kat.map(NM).join(" · "),"elo");
-  const lab=pre+(L3?(ks.length>1?b.kat.join("")+" · "+b.kat.map(NM).join("/"):b.kat[0]+(b.kat[0]=="X"?" · Remis":" · "+NM(b.kat[0]))):NMk[b.kat[0]]+suf);
+  const lab=mk=="ht"?pre+b.kat.join(""):pre+(L3?(ks.length>1?b.kat.join("")+" · "+b.kat.map(NM).join("/"):b.kat[0]+(b.kat[0]=="X"?" · Remis":" · "+NM(b.kat[0]))):NMk[b.kat[0]]+suf);
   const gp=mid=="modell_elo"&&(mk=="x"||mk=="ou25")?gepr("Elo",mk,prs):null;
   l.push({s,box,gp,pr:prs,mod:`${(D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz} · Übereinst. ✓${ks.length>1?" (2 Haken)":""}`,q:qq,src:"Modell",qm:"x",lab,win:r=>{const w=ks.map(j=>sgWin(mk,b.L[j],r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:mid=="modell_elo"?"Elo":"RF"})}
  return kWahl(l,n)}
