@@ -67,8 +67,8 @@ def _max_tipp(V, mk, px_avg):
     mx = [max(v[i] for v in V) for i in range(len(L))]
     s = sum(mx)
     norm = [x / s * 100 for x in mx]
-    if mk == "ht":   # 1. HZ: direkter Tipp Doppelte Chance 1X oder X2 (wie auf der Seite)
-        tk = [0, 1] if norm[0] + norm[1] >= norm[1] + norm[2] else [1, 2]
+    if mk == "ht":   # 1. HZ: direkter Tipp Doppelte Chance 1X, X2 oder 12 (wie auf der Seite)
+        tk = max([[0, 1], [1, 2], [0, 2]], key=lambda d: norm[d[0]] + norm[d[1]])   # 1X, X2 oder 12
         avg = [sum(v[i] for v in V) / len(V) for i in range(len(L))]
         dc = [v[tk[0]] + v[tk[1]] for v in V]
         return {"tk": [L[i] for i in tk], "pr": sum(norm[i] for i in tk),
