@@ -1,0 +1,37 @@
+name: Neue Modelle (SVR, TCN, Konsens 2)
+
+on:
+  workflow_run:
+    workflows: ["Taegliches Update"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  neue_modelle:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Pakete installieren
+        run: |
+          pip install requests pandas numpy scipy scikit-learn
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: SVR, TCN und Konsens 2 rechnen
+        run: python neue_modelle.py
+      - name: Speichern
+        run: |
+          git config user.name "score-code-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/daten.json
+          git commit -m "Neue Modelle $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git pull --rebase origin main
+          git push
