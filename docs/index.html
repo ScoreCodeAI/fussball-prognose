@@ -2354,7 +2354,7 @@ function konsKand(s,mk,ids){const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1
  const tip={s,pr:ov?o:100-o,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/(ov?o:100-o))/100,src:"Modell",qm:"ou",lab:pre+(ov?"OVER":"UNDER")+" "+kom(ln),win:r=>{const t=tor(r);return t==null?null:ov?t>ln:t<ln},ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  let alt=null;if(mk=="ou"){const l2=mods.map(h2o).filter(x=>x!=null);if(l2.length&&!(r0&&r0.hh==null)){const a2=l2.reduce((x,y)=>x+y,0)/l2.length,o2=a2>=50,pr=o2?a2:100-a2;
   alt={s,pr,mod:tip.mod,q:Math.round(10000/pr)/100,qm:"ou",lab:"2.HZ "+(o2?"OVER":"UNDER")+" 0,5",win:r=>r.hh==null?null:o2?(r.h-r.hh)+(r.a-r.ha)>0:(r.h-r.hh)+(r.a-r.ha)==0,ue:[],ueOk:true,kontra:[],von:"Konsens",ein,N}}}
- return{tip,alt:alt||tip,ein,N,mkok}}
+ return{tip,alt:alt||tip,ein,N,mkok,nurTipp:!alt}}
 function konsAuswahl(tag,modus,n,mk,ids){let l=tag.map(s=>konsKand(s,mk||S.kmk||"x",ids)).filter(x=>x);
  if(modus===true)l=l.filter(x=>x.ein==x.N);if(modus=="c")l=l.filter(x=>x.mkok);
  l.sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr));const out=[],lg=new Set();for(const x of l){if(out.length>=n)break;if(!lg.has(x.tip.s.liga)){out.push(x);lg.add(x.tip.s.liga)}}
