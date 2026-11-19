@@ -892,7 +892,7 @@ h3 span{font-family:Inter;letter-spacing:0;color:var(--mu);font-size:12px;text-t
 .opt.sv .tipk{color:#fff}
 @keyframes svp{50%{box-shadow:0 0 38px #ff4d7dcc,0 0 70px #ff2bd655}}
 .sve{font-family:Orbitron;font-size:12px;color:#fff;background:linear-gradient(90deg,#ff2b55,#ff2bd6);padding:4px 9px;border-radius:8px;font-weight:700;box-shadow:0 0 12px #ff4d7d77}
-</style>
+.ltg{display:inline-flex;align-items:center;gap:5px;font-size:10px;letter-spacing:.12em;color:#ffc94d;margin:0 8px 0 auto;cursor:pointer;vertical-align:middle;font-weight:700}.ltg .tgl{width:32px;height:18px;border-radius:10px;background:#2a3050;position:relative;display:inline-block;transition:.2s}.ltg .tgl b{position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:#fff;transition:.2s}body.liste .ltg .tgl{background:#ffc94d}body.liste .ltg .tgl b{left:17px}.klst{display:none}body.liste .klst{display:block}body.liste .card.gkc .gk{display:none!important}.klr{border:1px solid #2a2f4a;border-radius:9px;padding:6px 9px;margin:5px 0;background:#0d1020;font-size:11px;letter-spacing:.05em;line-height:1.5;color:#fff;text-align:left}.klr small{display:block;font-size:10px;color:#ffc94d;letter-spacing:.12em}.klr b{color:#ffd77a}.kla{color:#cfd6ff}</style>
 <style id="gk">#proj .rain{position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
 #proj .tx{z-index:2}#proj .fxb{z-index:3}
 #proj .tx .q{animation:skQGlow 5s ease-in-out infinite}
@@ -2216,6 +2216,7 @@ const MXM={
  dc15:{tab:"DC",L:()=>KART.dc15.L,get:p=>p.dc15,lab:(L,i)=>kLab("dc15",i),win:(L,i,r)=>kWin("dc15",i,r),a:(L,i)=>L[i][0]},
  ht:{tab:"HZ1",hz:1,L:()=>L3x,get:p=>p.ht,lab:(L,i,s)=>"1.HZ "+(i==1?"X":i==0?"1 · "+s.heim:"2 · "+s.gast),win:(L,i,r)=>r.hh==null?null:sg(r.hh,r.ha)==L[i]},
  ht2:{tab:"HZ2",hz:1,L:()=>L3x,get:p=>p.ht2,lab:(L,i,s)=>"2.HZ "+(i==1?"X":i==0?"1 · "+s.heim:"2 · "+s.gast),win:(L,i,r)=>r.hh==null?null:sg(r.h-r.hh,r.a-r.ha)==L[i]},
+ h2:{tab:"HZ2 O/U",hz:1,L:()=>["O","U"],get:p=>p.h2o05==null?null:[p.h2o05,c100(p.h2o05)],lab:(L,i)=>i?"2.HZ UNDER 0,5":"2.HZ OVER 0,5",win:(L,i,r)=>r.hh==null?null:((r.h-r.hh)+(r.a-r.ha)>0)==(i==0)},
  hf:{tab:"HZ/ES",hz:1,L:()=>HFL,get:p=>p.hf?HFL.map(k=>p.hf[k]):null,lab:(L,i)=>"HZ/ES "+L[i],win:(L,i,r)=>r.hh==null?null:sg(r.hh,r.ha)+"/"+sg(r.h,r.a)==L[i]},
 };
 ["csg","csh","cs2"].forEach(art=>MXM[art]={tab:"Ergebnis",hz:art!="csg",L:(s,ms)=>{const ls=ms.filter(x=>x.p[art]&&x.p[art].length).map(x=>x.p[art].map(e=>e[0]));return ls.length?ls[0].filter(sc=>ls.every(l=>l.includes(sc))):[]},
@@ -2228,7 +2229,7 @@ function mxKand(s,mk,modus){const D2=MXM[mk],ms=(mk=="ht2"?[{m:{id:"h2m",kurz:"2
  if(modus===true&&kg.length)return null;if(modus=="c"&&!T.includes(c.kons))return null;
  const pr=T.reduce((a,i)=>a+c.norm[i],0),q=T.length==1?c.q[T[0]]:Math.round(10000/pr)/100;
  const lab=T.length==1?D2.lab(L,T[0],s):(mk=="x"?T.map(i=>L[i]).join("")+" · "+T.map(i=>i==1?"Remis":i==0?s.heim:s.gast).join("/"):mk=="ht"||mk=="ht2"?(mk=="ht"?"1.HZ ":"2.HZ ")+T.map(i=>L[i]).join(""):T.map(i=>D2.lab(L,i,s)).join(" / "));
- const u=ueCalc(c.q),LB=i=>mk=="x"||mk=="ht"||mk=="ht2"?L[i]:Array.isArray(L[i])?(L[i][0]?L[i][0]+" & ":"")+L[i][1]:mk=="ou25"||mk=="ou15"?(i?"UNDER":"OVER"):mk=="bts"?(i?"NEIN":"JA"):L[i];
+ const u=ueCalc(c.q),LB=i=>mk=="x"||mk=="ht"||mk=="ht2"?L[i]:Array.isArray(L[i])?(L[i][0]?L[i][0]+" & ":"")+L[i][1]:mk=="ou25"||mk=="ou15"||mk=="h2"?(i?"UNDER":"OVER"):mk=="bts"?(i?"NEIN":"JA"):L[i];
  const box=mxBox("MAX-QUOTEN · HÖCHSTE % JE AUSGANG",L.map((_,i)=>({lab:LB(i),wer:c.wer[i],p:c.mx[i],q:c.q[i],pp:c.mx[i]*c.q[i],ue:c.ue[i],ok:T.includes(i)})),u.pay,u.marge,T.map(i=>mk=="x"?(i==1?"Remis":i==0?s.heim:s.gast):LB(i)).join(" · "));
  const gp=["x","ou25"].includes(mk)?gepr("MAX",mk,pr):null;
  return{s,box,gp,pr,mod:`Übereinst. ${T.map(i=>kom(c.ue[i].toFixed(2))).join(" · ")} ✓${T.length>1?" ("+T.length+" Haken)":""} · max ${T.map(i=>kom(c.mx[i].toFixed(1))+"% ("+c.wer[i]+")").join(" · ")}`,q,src:"MAX",qm:"x",lab,win:r=>{const w=T.map(i=>D2.win(L,i,r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:D2.tab,tk:T.map(i=>L[i])}}
@@ -2286,8 +2287,8 @@ function zaehlK(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;
  return `<div class="zbox zk"><div><b style="color:#2bf5a0">${w}</b><small>GEWONNEN</small></div><div><b style="color:#ffb3c6">${l}</b><small>VERLOREN</small></div><div><b>${o}</b><small>OFFEN</small></div><div><b>${f?Math.round(w/f*100)+" %":"–"}</b><small>TREFFER</small></div></div>`}
 function zaehl(L){let w=0,l=0,o=0;for(const x of L){const r=res(x.s);if(!r)o++;else if(x.win(r))w++;else l++}
  const f=w+l;return `<div class="zbox"><div><b style="color:#2bf5a0">${w}</b><small>GEWONNEN</small></div><div><b style="color:#ff8fab">${l}</b><small>VERLOREN</small></div><div><b>${o}</b><small>OFFEN</small></div><div><b>${f?Math.round(w/f*100)+" %":"–"}</b><small>TREFFER</small></div></div><p class="hint" style="margin:2px 0 8px">Alle Tipps des Tages (je Spiel der Tipp aus Variante A): <b>${w} von ${f} gewonnen</b>${l?` · ${l} verloren`:""}${o?` · ${o} offen`:""}</p>`}
-const KGR=[3,4,5,6,7,8,10,11,12,13,14,15,17,20];
-function chipsN(k,cb,gr){gr=gr||KGR;if(!gr.includes(S[k]))S[k]=gr[0];return `<div class="mchips kgr">${gr.map(n=>`<div class="chip${S[k]==n?' on':''}" onclick="S['${k}']=${n};${cb}">${n}er</div>`).join("")}</div>`}
+const KGR=[3,4,5,6,7,8,10,11,12,13,14,15,17,20,25,30,35,40,45,50,60];
+function chipsN(k,cb,gr){gr=k=="hzen"&&gr?gr:KGR;if(!gr.includes(S[k]))S[k]=gr[0];return `<div class="mchips kgr">${gr.map(n=>`<div class="chip${S[k]==n?' on':''}" onclick="S['${k}']=${n};${cb}">${n}er</div>`).join("")}</div>`}
 function renderTK(art,ziel){if($("tmode"))$("tmode").innerHTML="";if($("mchips"))$("mchips").innerHTML="";const k="n_"+art,cb=`renderTK('${art}','${ziel}')`;
  const K=KART[art],tag=D.spiele.filter(s=>s.datum==S.tag&&qfOk(s,"x"));
  if(!D.spiele.some(s=>Object.values(s.prog).some(p=>p&&kPr(p,art,0)!=null))){$(ziel).innerHTML=`<h3>${K.ico} ${K.tab} · ${K.n.replace("&","&amp;")}</h3><div class="card kB"><p class="msub" style="color:#fff">Für diesen Markt wurden noch keine Daten berechnet. Bitte auf GitHub unter <b>Actions</b> den Workflow mit <b>Run workflow</b> starten.</p></div>`;return}
@@ -2594,13 +2595,13 @@ function eloAuswahl(tag,modus,n,m){m=m||S.elm||"x";const l=[];for(const s of tag
   l.push({s,box,gp,pr:prs,mod:`Elo · Übereinst. ✓${ks.length>1?" (2 Haken = Doppelte Chance)":""} · Payout ${kom((b.ps[i]*b.q[i]).toFixed(2))}`,q:qq,src:"Elo",qm:m,
    lab:ks.length>1?tip+" · "+ks.map(j=>j==1?"Remis":j==0?s.heim:s.gast).join("/"):SVL[tip]+(m=="ou"?" 2,5":""),win:r=>ks.some(j=>svWin(b.L[j],r)),ue:["✓"],ueOk:true,kontra:kg,von:"Elo"})}
  return kWahl(l,n)}
-const MXN={x:"1X2",ou25:"O/U 2,5",ou15:"O/U 1,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2",kb:"1X2 & O/U 2,5",kb15:"1X2 & O/U 1,5",dc15:"DC & O/U 1,5",hf:"HZ/Endstand",csg:"Ergebnis",csh:"Ergebnis 1. HZ",cs2:"Ergebnis 2. HZ"};
+const MXN={x:"1X2",ou25:"O/U 2,5",ou15:"O/U 1,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2",h2:"2. HZ O/U 0,5",kb:"1X2 & O/U 2,5",kb15:"1X2 & O/U 1,5",dc15:"DC & O/U 1,5",hf:"HZ/Endstand",csg:"Ergebnis",csh:"Ergebnis 1. HZ",cs2:"Ergebnis 2. HZ"};
 function renderMXK(){S.mxkm=S.mxkm||"x";const tag=D.spiele.filter(s=>s.datum==S.tag),gr=[1,2,3,4,5,10,15,20,25,30],chips=chipsN("mxkn","renderMXK()",gr),n=S.mxkn,mk=S.mxkm;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(MXN).map(([k,t])=>`<div class="${mk==k?'on':''}" onclick="S.mxkm='${k}';renderMXK()">${t}</div>`).join("")}</div>`;
  S.qOben=1;$("mxklist").innerHTML=`<h3>👑 MAX-Kombi · ${MXN[mk]} <span>${tag.length} Spiele</span></h3>${sw}${chips}${["ga","gb","gc"].map((ab,j)=>kSchein(ab,mxAuswahl(tag,[false,true,"c"][j],n,mk),n,"GESAMTQUOTE")).join("")}${MXHINT}`;S.qOben=0}
 /* ---------- EIN-MODELL-KOMBI (z. B. Random Forest): nur dieses Modell, Übereinstimmungs-Regel ---------- */
 const SGN={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2",h1:"1. HZ O/U 0,5",h2:"2. HZ O/U 0,5"};
-const ELOM={x:"1X2",ou25:"O/U 2,5",ht:"1. HZ 1X2",h2:"2. HZ O/U 0,5",ht2:"2. HZ 1X2"},RFM={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2"};
+const ELOM={x:"1X2",ou25:"O/U 2,5",ht:"1. HZ 1X2",h2:"2. HZ O/U 0,5",ht2:"2. HZ 1X2"},RFM={x:"1X2",ou25:"O/U 2,5",bts:"Beide treffen",ht:"1. HZ 1X2",ht2:"2. HZ 1X2",h2:"2. HZ O/U 0,5"};
 function sgBuch(s,mid,mk){const p=s.prog[mid];if(!p)return null;
  const D3={x:[["1","X","2"],[p.p1,p.px,p.p2]],ou25:[["O","U"],p.ue25==null?null:[p.ue25,c100(p.ue25)]],bts:[["J","N"],p.bts==null?null:[p.bts,c100(p.bts)]],ht:[["1","X","2"],p.ht],ht2:[["1","X","2"],p.ht2],h1:[["O","U"],p.h1o05==null?null:[p.h1o05,c100(p.h1o05)]],h2:[["O","U"],p.h2o05==null?null:[p.h2o05,c100(p.h2o05)]]}[mk];
  const[L,ps]=D3;if(!ps||ps.some(x=>x==null||x<=0))return null;const q=ps.map(x=>Math.round(10000/x)/100),u=ueCalc(q),kat=L.filter((_,i)=>u.ue[i]==u.pay);
@@ -2923,7 +2924,7 @@ function render(){renderRfPlus();if(S.seite!="detail")theme(M());renderDays();re
  $("mswitch").style.display=S.seite=="detail"||S.seite=="values"||["top","kombi","top15","dc","o15","btts","hz2","kons","best","mega","karten","hz1","cs","hf","svk","qa","mx","elo","mxk","rft","bew","sharp","ev","bv","sb","svr","tcn","k2","rem","hzo","hzd","hze","values"].includes(S.seite)?"none":"";$("days").style.display=S.seite=="bilanz"||S.seite=="detail"?"none":"";
  document.querySelectorAll("#ptabs div").forEach(n=>n.classList.toggle("on",n.dataset.p==S.seite||(S.seite=="detail"&&n.dataset.p=="spiele")));
  if(S.seite=="spiele")renderSpiele();if(S.seite=="detail"){renderDetail();setTimeout(mxStart,30)}if(S.seite=="top")renderTop();if(S.seite=="values")renderValues();if(S.seite=="kombi")renderKombi();if(S.seite=="top15")renderTK("kb15","t15list");if(S.seite=="dc")renderTK("dc15","dclist");if(S.seite=="mega")renderMega();if(S.seite=="kons")renderKons();if(S.seite=="hz2")renderHZ2();if(S.seite=="karten")renderKarten();if(S.seite=="cs")renderCS();if(S.seite=="svk")renderSVK();if(S.seite=="qa")renderQA();if(S.seite=="mx")renderMAX();if(S.seite=="elo")renderELO();if(S.seite=="mxk")renderMXK();if(S.seite=="rft")renderRF();if(S.seite=="sharp")renderSharp();if(S.seite=="ev")renderEV();if(S.seite=="bv")renderBV();if(S.seite=="sb")renderSB();if(S.seite=="bew")renderBEW();if(S.seite=="hf")renderHF();if(S.seite=="hz1")renderHZ1();if(S.seite=="best")renderBest();if(S.seite=="o15")renderTK("ou15","o15list");if(S.seite=="btts")renderTK("bts","btlist");if(S.seite=="svr")renderSG2("svr");if(S.seite=="tcn")renderSG2("tcn");if(S.seite=="k2")renderK2();if(S.seite=="rem")renderRemis();if(["hzo","hzd","hze"].includes(S.seite))renderHZ(S.seite);if(S.seite=="bilanz")renderBilanz()}
-function start(j){D=j;D.laender.forEach(l=>l.ligen.forEach(g=>ligaInfo[g.code]=g.name));S.modell=D.modelle[0].id;
+function start(j){try{if(localStorage.getItem("liste")=="1")document.body.classList.add("liste")}catch(_){}D=j;D.laender.forEach(l=>l.ligen.forEach(g=>ligaInfo[g.code]=g.name));S.modell=D.modelle[0].id;
  const tage=[...new Set(D.spiele.map(s=>s.datum))].sort();S.tag=tage.includes(D.stand)?D.stand:(tage.find(d=>d>=D.stand)||tage[tage.length-1]);
  setTimeout(mxStart,50);$("stand").textContent="STAND "+dm(D.stand)+" · DATEN BIS "+dm(D.daten_bis);
  const oa=D.odds_api;if(oa&&oa.aktiv&&oa.rest!=null){const ges=(oa.rest||0)+(oa.verbraucht||0);$("credits").innerHTML=`ODDS API · <b>${oa.rest}</b>/${ges||500} Credits${oa.zeit?` · ${oa.zeit}`:""}`}
@@ -2986,6 +2987,11 @@ if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now())
     if(a.every(x=>x)){const aw=a.filter(x=>x=="w").length,al=a.filter(x=>x=="l").length,ao=a.length-aw-al,at=al?["VERLOREN ✕","#ff8fa6"]:ao?["LÄUFT · "+aw+" ✓ · "+ao+" offen","#ffc94d"]:["GEWONNEN ✓","#2bffa8"];
      const d2=document.createElement("div");d2.className="skdots skalt";d2.style.color=at[1];d2.innerHTML=a.map((x,k)=>`<i class="${x}" style="animation-delay:${k*.1}s"></i>`).join("")+`<b class="${al?"sl":ao?"so":"sw"}">ALTERNATIVE ${at[0]}</b>`;
      d.insertAdjacentElement("afterend",d2)}}});
+  document.querySelectorAll('[id$="list"]>h3>span:last-child:not([data-lt])').forEach(sp=>{sp.dataset.lt=1;const t=document.createElement("span");t.className="ltg";t.innerHTML='LISTE<i class="tgl"><b></b></i>';t.onclick=e=>{e.stopPropagation();const on=!B.classList.contains("liste");B.classList.toggle("liste",on);try{localStorage.setItem("liste",on?"1":"0")}catch(_){}};sp.parentNode.insertBefore(t,sp)});
+  document.querySelectorAll(".card.gkc:not([data-kl])").forEach(c=>{c.dataset.kl=1;const g=[...c.querySelectorAll(".kblk.gk,.ksb.gk")];if(!g.length)return;const cl=v=>(v||"").replace(/[✓✕]/g,"").split(" · ")[0].trim();
+   const L=document.createElement("div");L.className="klst";L.innerHTML=g.map(x=>{const m=x.querySelector(".gkmeta"),meta=m?[...m.childNodes].filter(n=>n.nodeType==3).map(n=>n.textContent).join("").replace(/\s*·\s*$/,"").trim():"",t=x.querySelector(".gkt"),tip=x.querySelector(".kbo.t b")||x.querySelector(".gktip span")||x.querySelector(".gktip"),al=x.querySelector(".kbo.a b");
+    return `<div class="klr"><small>${meta.toUpperCase()}</small>${t?t.textContent.replace(/\s+/g," ").trim():""}: <b>${tip?cl(tip.textContent):"–"}</b>${al?`<div class="kla">ALTERNATIVE ( <b>${cl(al.textContent)}</b> )</div>`:""}</div>`}).join("");
+   const z=g[0].parentNode;z.insertBefore(L,g[0])});
   if(!window._kr){window._kr=setInterval(()=>{if(B.classList.contains("nofx"))return;document.querySelectorAll(".skdots").forEach(d=>{if(d.offsetParent===null)return;const is=d.querySelectorAll("i"),n=is.length;if(n<2)return;let s=+(d.dataset.s||0),dir=+(d.dataset.r||1);is.forEach((x,k)=>x.classList.toggle("kr1",k==s)||x.classList.toggle("kr2",Math.abs(k-s)==1));is.forEach((x,k)=>{x.classList.toggle("kr1",k==s);x.classList.toggle("kr2",Math.abs(k-s)==1)});s+=dir;if(s>=n-1||s<=0)dir=-dir;d.dataset.s=s;d.dataset.r=dir})},110)}
   document.querySelectorAll(".card.gkc small").forEach(sm=>{if(sm.closest(".gk")||!/^(GESAMTQUOTE|QUOTE)/.test(sm.textContent.trim()))return;const el=sm.nextElementSibling;if(!el||el.dataset.kq||/–/.test(el.textContent))return;
    const z=parseFloat(el.textContent.replace(/\./g,"").replace(",","."));if(!isFinite(z))return;el.dataset.kq=1;el.dataset.v=el.dataset.v||z;
