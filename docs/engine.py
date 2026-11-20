@@ -1,0 +1,813 @@
+import re
+# ===== SCORE CODE AGENT - BACKTEST- UND PROGNOSE-MOTOR (v3) =====
+# Jedes Modell ist eine eigene Datei modell_*.py und wird automatisch erkannt.
+# Schnittstelle eines Modells:
+#   NAME, KURZ, ICON, FARBE1, FARBE2, BESCHREIBUNG   (Anzeige im Dashboard)
+#   BACKTEST_WOCHEN (optional)                        (kuerzerer Rueckwaerts-Test fuer langsame Modelle)
+#   trainiere(df, heute) -> modell                    (nur Spiele VOR "heute")
+#   vorhersage(modell, heim, gast) -> {"ft": Matrix, "ht": Matrix oder None, "xg": [h, a]}
+#   diagnose(modell) -> Text (optional)
+# Ablauf:
+#  1) Walk-forward-Backtest: jede Woche nur mit Daten VOR dieser Woche trainieren
+#  2) Qualitaetsmasse (RPS, Log-Loss, ...) und Trefferquoten je Markt
+#  3) Value-Auto-Kalibrierung (Quotenbereich 1,5-5,0)
+#  4) Prognosen fuer kommende Spiele -> docs/daten.json
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+    os.environ.setdefault(_v, "1")   # Prozesse laufen parallel - jeder nur mit einem Rechenkern
+
+import glob, importlib, json, multiprocessing, sys, time, warnings
+import numpy as np
+import pandas as pd
+
+warnings.filterwarnings("ignore")
+ORDNER = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, ORDNER)
+import daten
+import kern
+import markt
+import ecken_modell
+import kalibrierung
+import stacking
+import sportsapi
+import karten_modell
+import hz2_modell
+import datencheck
+import odds_api
+import quoten_modell
+import sv_modell
+import xgb_modell
+import rf_modell
+from ligen import LAENDER, SAISON_START, EXTRA_LIGEN
+
+# ---------- Grundeinstellungen ----------
+BACKTEST_START = "2025-07-01"
+SAISONS_QUOTEN = ["2122", "2223", "2324", "2425", "2526", "2627"]   # aeltere Saisons fuellen Luecken der Historie (z. B. Griechenland)
+NEU_TRAINIEREN_TAGE = 7
+QUOTE_GRENZEN = (1.5, 5.0)
+MAX_VALUE = 0.50
+MIN_WETTEN = 60
+GITTER_MISCHUNG = [0.2, 0.35, 0.5, 0.65, 0.8, 1.0]
+GITTER_MIN_VALUE = [0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20]
+GITTER_QUOTE_MIN = [1.5, 1.7, 1.9, 2.1, 2.5]
+GITTER_QUOTE_MAX = [2.5, 3.0, 3.5, 4.0, 5.0]
+
+FLAGGEN = {"Deutschland": "🇩🇪", "England": "🇬🇧", "Spanien": "🇪🇸", "Italien": "🇮🇹", "Frankreich": "🇫🇷",
+           "Niederlande": "🇳🇱", "Portugal": "🇵🇹", "Belgien": "🇧🇪", "Griechenland": "🇬🇷", "Schottland": "🇬🇧",
+           "Dänemark": "🇩🇰", "Norwegen": "🇳🇴", "Schweden": "🇸🇪", "Finnland": "🇫🇮", "Österreich": "🇦🇹",
+           "Schweiz": "🇨🇭", "Polen": "🇵🇱", "Rumänien": "🇷🇴", "Irland": "🇮🇪", "Russland": "🇷🇺", "USA": "🇺🇸",
+           "Mexiko": "🇲🇽", "Brasilien": "🇧🇷", "Argentinien": "🇦🇷", "Japan": "🇯🇵", "China": "🇨🇳"}
+MAERKTE = {"1": ["MaxH", "BbMxH", "PSH", "AvgH", "B365H"], "X": ["MaxD", "BbMxD", "PSD", "AvgD", "B365D"],   # Hoechstquote zuerst
+           "2": ["MaxA", "BbMxA", "PSA", "AvgA", "B365A"],
+           "Ü2.5": ["Max>2.5", "BbMx>2.5", "P>2.5", "Avg>2.5", "B365>2.5"], "U2.5": ["Max<2.5", "BbMx<2.5", "P<2.5", "Avg<2.5", "B365<2.5"]}
+GRUPPE = {"1": "1X2", "X": "1X2", "2": "1X2", "Ü2.5": "OU", "U2.5": "OU"}
+MARKT_NAME = {"1": "Heimsieg", "X": "Remis", "2": "Auswärtssieg", "Ü2.5": "OVER 2,5", "U2.5": "UNDER 2,5"}
+EXTRA_QUOTEN = [b + s for b in ("PS", "Max", "B365", "BW", "WH", "1XB", "BFE", "BF", "IW", "VC", "LB", "BV", "CL") for s in ("H", "D", "A")] + \
+               [b + s for b in ("P", "Max", "B365", "BFE", "BF", "1XB", "WH", "BW", "BV", "VC", "LB", "CL") for s in (">2.5", "<2.5")] + \
+               ["PSCH", "PSCD", "PSCA", "PC>2.5", "PC<2.5"]   # Pinnacle-Schlussquoten (Modell Linie)
+# nur fuer Markt-Vergleich, Modell SV und Quoten-Analyse (der Backtest nutzt weiter MAERKTE)
+K_SPALTEN = ["id", "Div", "Date", "mk", "grp", "pm", "pk", "q", "win"]
+heute = pd.Timestamp.today().normalize()
+
+
+def log(*a):
+    print(time.strftime("%H:%M:%S"), *a, flush=True)
+
+
+def r(x, n=1):
+    if x is None:
+        return None
+    x = float(x)
+    return None if np.isnan(x) or np.isinf(x) else round(x, n)
+
+
+def modelle_laden():
+    m = {}
+    for pfad in sorted(glob.glob(os.path.join(ORDNER, "modell_*.py"))):
+        key = os.path.basename(pfad)[:-3]
+        m[key] = importlib.import_module(key)
+    return m
+
+
+# ---------- Daten ----------
+def quoten_spiele():
+    teile = []
+    spalten = sorted({c for v in MAERKTE.values() for c in v} | set(EXTRA_QUOTEN))
+    quellen = [(s, liga) for s in SAISONS_QUOTEN for liga in daten.ALLE_LIGEN if liga not in EXTRA_LIGEN]
+    quellen += [("neu", liga) for liga in EXTRA_LIGEN if liga in daten.ALLE_LIGEN]
+    for s, liga in quellen:
+        try:
+            d = daten.extra_liga(liga) if s == "neu" else daten._csv(daten.FD_SAISON.format(saison=s, liga=liga))
+        except Exception:
+            continue
+        d = d.dropna(subset=["HomeTeam", "AwayTeam", "FTHG", "FTAG"]).copy()
+        out = pd.DataFrame({"Div": liga, "Home": d["HomeTeam"], "Away": d["AwayTeam"],
+                            "HG": pd.to_numeric(d["FTHG"], errors="coerce"),
+                            "AG": pd.to_numeric(d["FTAG"], errors="coerce"),
+                            "Date": pd.to_datetime(d["Date"], dayfirst=True, errors="coerce"),
+                            "Time": d["Time"].fillna("").astype(str).str[:5] if "Time" in d else ""})
+        for c in spalten:
+            out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
+        for c in daten.STAT_SPALTEN:
+            out[c] = pd.to_numeric(d[c], errors="coerce") if c in d else np.nan
+        teile.append(out)
+    q = pd.concat(teile).dropna(subset=["Date", "HG", "AG"])
+    q = q[q["Date"] >= pd.Timestamp(BACKTEST_START) - pd.DateOffset(years=4)]
+    return q.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
+
+
+def quote(row, namen):
+    for n in namen:
+        v = row.get(n)
+        try:
+            v = float(v)
+        except (TypeError, ValueError):
+            continue
+        if not np.isnan(v) and v > 1:
+            return v
+    return None
+
+
+def qmax(row):
+    """Hoechstquote je Ausgang (Spalten Max* von football-data) - Grundlage fuer den Markt-Baustein."""
+    q = {mk: quote(row, ["Max" + s]) for mk, s in (("1", "H"), ("X", "D"), ("2", "A"), ("Ü2.5", ">2.5"), ("U2.5", "<2.5"))}
+    return q if all(q.values()) else {}
+
+
+def markt_wkeiten(row):
+    """Faire Markt-Wahrscheinlichkeiten aus den Quoten (Buchmacher-Marge herausgerechnet)."""
+    q = {mk: quote(row, sp) for mk, sp in MAERKTE.items()}
+    out = {}
+    for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
+        if all(q[m] for m in grp):
+            inv = {m: 1 / q[m] for m in grp}
+            s = sum(inv.values())
+            out.update({m: inv[m] / s for m in grp})
+    return q, out
+
+
+def gewonnen(mk, hg, ag):
+    return {"1": hg > ag, "X": hg == ag, "2": hg < ag, "Ü2.5": hg + ag > 2, "U2.5": hg + ag <= 2}[mk]
+
+
+def _int(v):
+    try:
+        return None if pd.isna(v) else int(v)
+    except (TypeError, ValueError):
+        return None
+
+
+# ---------- Modell aufrufen ----------
+_MARKT = [None]     # optionale Markt-Wahrscheinlichkeiten eines Modells (z. B. Ensemble: eigene Gewichte je Markt)
+
+
+def maerkte_von(ft, ht, mod):
+    p = kern.maerkte(ft, ht)
+    if _MARKT[0]:
+        p.update(_MARKT[0])
+    if getattr(mod, "EXTRA", False):
+        p.update(kern.extra(ft, ht))
+    return p
+def berechne(mod, modell, heim, gast):
+    if hasattr(mod, "vorhersage"):
+        o = mod.vorhersage(modell, heim, gast)
+        ft, ht = o["ft"], o.get("ht")
+        xg = o.get("xg") or kern.erwartete_tore(ft)
+        _MARKT[0] = o.get("markt")
+    else:   # alte Schnittstelle: nur erwartete Tore, keine eigene Halbzeit
+        _MARKT[0] = None
+        lh, la = mod.tore_erwartet(modell, heim, gast)
+        ft, ht, xg = kern.matrix_unabhaengig(lh, la), None, [lh, la]
+    return ft, ht, [r(xg[0]), r(xg[1])]
+
+
+# ---------- Backtest ----------
+def backtest(mod, spiele_land, quoten_land, start):
+    spiele_out, kandidaten = [], []
+    for w in pd.date_range(start, heute, freq=f"{NEU_TRAINIEREN_TAGE}D"):
+        woche = quoten_land[(quoten_land["Date"] >= w) & (quoten_land["Date"] < w + pd.Timedelta(days=NEU_TRAINIEREN_TAGE))]
+        if woche.empty:
+            continue
+        try:
+            modell = mod.trainiere(spiele_land[spiele_land["Date"] < w], w)
+        except Exception as e:
+            log("   Training übersprungen", w.date(), str(e)[:60])
+            continue
+        for _, s in woche.iterrows():
+            try:
+                ft, ht, xg = berechne(mod, modell, s["Home"], s["Away"])
+            except Exception:
+                continue
+            p = maerkte_von(ft, ht, mod)
+            q, pk = markt_wkeiten(s)
+            hg, ag, hth, hta = int(s["HG"]), int(s["AG"]), _int(s.get("HTHG")), _int(s.get("HTAG"))
+            sid = len(spiele_out)
+            spiele_out.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "Home": s["Home"], "Away": s["Away"],
+                               "HG": hg, "AG": ag, "p": p, "q": q, "qmax": qmax(s), "Time": str(s.get("Time", "") or "")[:5], "xg": xg,
+                               "HT": f"{hth}:{hta}" if hth is not None and hta is not None else None,
+                               "qual": kern.qualitaet(p, ft, ht, hg, ag, hth, hta)})
+            for mk in MAERKTE:
+                if q[mk] and mk in pk:
+                    kandidaten.append({"id": sid, "Div": s["Div"], "Date": s["Date"], "mk": mk, "grp": GRUPPE[mk],
+                                       "pm": p[mk], "pk": pk[mk], "q": q[mk], "win": gewonnen(mk, hg, ag)})
+    return spiele_out, kandidaten
+
+
+# ---------- Parallele Berechnung je Land ----------
+_G = {}
+
+
+def _land_arbeit(job):
+    key, land = job
+    t0 = time.time()
+    try:
+        mod = sys.modules.get(key) or importlib.import_module(key)
+        codes = list(LAENDER[land])
+        sp_land = _G["spiele"][_G["spiele"]["Div"].isin(codes)]
+        start = _G["start"][key]
+        q_land = _G["q"][(_G["q"]["Div"].isin(codes)) & (_G["q"]["Date"] >= start)]
+        s_out, k_out = backtest(mod, sp_land, q_land, start)
+        live, diag = [], ""
+        try:
+            lm = mod.trainiere(sp_land, heute)
+            diag = mod.diagnose(lm) if hasattr(mod, "diagnose") else ""
+            for _, f in _G["fx"][_G["fx"]["Div"].isin(codes)].iterrows():
+                if pd.isna(f["Date"]):
+                    continue
+                try:
+                    ft, ht, xg = berechne(mod, lm, f["HomeTeam"], f["AwayTeam"])
+                except Exception:
+                    continue
+                qq, _ = markt_wkeiten(f)
+                live.append({"Div": f["Div"], "Date": f["Date"], "Time": str(f.get("Time", "") or "")[:5],
+                             "Home": f["HomeTeam"], "Away": f["AwayTeam"], "p": maerkte_von(ft, ht, mod), "xg": xg, "q": qq, "qmax": qmax(f)})
+        except Exception as e:
+            diag = f"Live-Training fehlgeschlagen: {str(e)[:80]}"
+        return land, s_out, k_out, live, diag, time.time() - t0
+    except Exception as e:
+        return land, [], [], [], f"FEHLER: {str(e)[:120]}", time.time() - t0
+
+
+def _parallel(jobs):
+    n = min(len(jobs), os.cpu_count() or 1)
+    if n > 1:
+        try:
+            with multiprocessing.get_context("fork").Pool(n) as pool:
+                return list(pool.imap_unordered(_land_arbeit, jobs))
+        except Exception as e:
+            log("Parallel nicht möglich, rechne nacheinander:", str(e)[:80])
+    return [_land_arbeit(j) for j in jobs]
+
+
+# ---------- Value-Kalibrierung ----------
+def wetten_waehlen(K, par):
+    if K.empty:
+        return K.assign(edge=[], profit=[])
+    pf = par["mischung"] * K["pm"] + (1 - par["mischung"]) * K["pk"]
+    edge = pf * K["q"] - 1
+    m = (edge > par["min_value"]) & (edge < MAX_VALUE) & (K["q"] >= par["quote_min"]) & (K["q"] <= par["quote_max"])
+    W = K[m].assign(edge=edge[m])
+    W = W.sort_values("edge", ascending=False).drop_duplicates(["id", "grp"])
+    return W.assign(profit=np.where(W["win"], W["q"] - 1, -1.0))
+
+
+def kalibrieren(K):
+    best, best_score = None, -1e9
+    for mi in GITTER_MISCHUNG:
+        for mv in GITTER_MIN_VALUE:
+            for qmin in GITTER_QUOTE_MIN:
+                for qmax in GITTER_QUOTE_MAX:
+                    if qmax <= qmin or qmin < QUOTE_GRENZEN[0] or qmax > QUOTE_GRENZEN[1]:
+                        continue
+                    par = {"mischung": mi, "min_value": mv, "quote_min": qmin, "quote_max": qmax}
+                    W = wetten_waehlen(K, par)
+                    n = len(W)
+                    if n < MIN_WETTEN:
+                        continue
+                    score = W["profit"].mean() - W["profit"].std() / np.sqrt(n)
+                    if score > best_score:
+                        best, best_score = par, score
+    return best or {"mischung": 0.5, "min_value": 0.10, "quote_min": 1.5, "quote_max": 5.0}
+
+
+def kennzahlen(W):
+    n = len(W)
+    if n == 0:
+        return {"wetten": 0, "roi": None, "treffer": None, "gewinn": 0.0}
+    g = W["profit"].sum()
+    return {"wetten": int(n), "roi": r(g / n * 100), "treffer": r((W["profit"] > 0).mean() * 100, 0), "gewinn": r(g, 2)}
+
+
+def value_liste(p, q, par):
+    pk = {}
+    for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
+        if all(q.get(m) for m in grp):
+            inv = {m: 1 / q[m] for m in grp}
+            t = sum(inv.values())
+            pk.update({m: inv[m] / t for m in grp})
+    out = []
+    for grp in [["1", "X", "2"], ["Ü2.5", "U2.5"]]:
+        best = None
+        for mk in grp:
+            if not (q.get(mk) and mk in pk) or not (par["quote_min"] <= q[mk] <= par["quote_max"]):
+                continue
+            e = (par["mischung"] * p[mk] + (1 - par["mischung"]) * pk[mk]) * q[mk] - 1
+            if par["min_value"] < e < MAX_VALUE and (best is None or e > best[2]):
+                best = (mk, q[mk], e)
+        if best:
+            out.append({"markt": MARKT_NAME[best[0]], "quote": r(best[1], 2), "edge": r(best[2] * 100, 0)})
+    return out
+
+
+def prog_eintrag(p, xg, q, par):
+    return {"p1": r(p["1"] * 100, 2), "px": r(p["X"] * 100, 2), "p2": r(p["2"] * 100, 2),
+            "ue25": r(p["Ü2.5"] * 100, 2), "bts": r(p["BTS"] * 100, 2), "tipp": p["tipp"], "xg": xg,
+            "ht": None if p["HT"] is None else [r(x * 100, 2) for x in p["HT"]],
+            "ht2": None if p.get("HT2") is None else [r(x * 100, 2) for x in p["HT2"]],
+            "value": value_liste(p, q, par), **_extra_eintrag(p), **_tt_kb(p)}
+
+
+def _tt_kb(p):
+    out = {}
+    if p.get("TT"):
+        out["tt"] = {k: [r(x * 100, 2) for x in v] for k, v in p["TT"].items()}
+    for a, b in (("KB", "kb"), ("KB15", "kb15"), ("DC15", "dc15")):
+        if p.get(a):
+            out[b] = [r(x * 100, 2) for x in p[a]]
+    for a, b in (("CSG", "csg"), ("CSH", "csh"), ("CS2", "cs2")):
+        if p.get(a):
+            top = sorted(p[a].items(), key=lambda kv: -kv[1])[:6]
+            out[b] = [[s, r(v * 100, 2)] for s, v in top]
+    if p.get("HF"):
+        out["hf"] = {k: r(v * 100, 2) for k, v in p["HF"].items()}
+    # Halbzeit OVER 0,5: mindestens 1 Tor in der 1. bzw. 2. Halbzeit (1 - P(0:0) der Halbzeit-Matrix)
+    if p.get("CSH") and "0:0" in p["CSH"]:
+        out["h1o05"] = r((1 - p["CSH"]["0:0"]) * 100, 2)
+    if p.get("CS2") and "0:0" in p["CS2"]:
+        out["h2o05"] = r((1 - p["CS2"]["0:0"]) * 100, 2)
+    return out
+
+
+_NUR_EIGEN = ("CS", "OU15", "OU35", "HTFT", "HTOU05", "HTOU15")
+
+
+def _qual_p(p, hg, ag, ht):
+    eps = 1e-12
+    o = 0 if hg > ag else 1 if hg == ag else 2
+    P = np.array([p["1"], p["X"], p["2"]]); O = np.eye(3)[o]
+    q = {"logloss_1x2": -np.log(max(P[o], eps)), "rps": float(((P[0] - O[0]) ** 2 + (P[0] + P[1] - O[0] - O[1]) ** 2) / 2),
+         "brier": float(np.sum((P - O) ** 2)), "logloss_ou": -np.log(max(p["Ü2.5"] if hg + ag > 2 else p["U2.5"], eps)),
+         "logloss_bts": -np.log(max(p["BTS"] if (hg > 0 and ag > 0) else 1 - p["BTS"], eps))}
+    if ht and p.get("HT"):
+        h1, a1 = map(int, ht.split(":"))
+        q["logloss_ht"] = -np.log(max(p["HT"][0 if h1 > a1 else 1 if h1 == a1 else 2], eps))
+    return {k: float(v) for k, v in q.items()}
+
+
+def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_start, woche_ende):
+    tm = time.time()
+    log("===== Stacking · Meta-Modell =====")
+    st_bt, st_live, gew = stacking.berechne(bt, live_p, list(modelle), log)
+    try:
+        import bewertung
+        ergebnis["bewertung"] = bewertung.berechne(bt, log)
+    except Exception as ex:
+        log("Bewertung fehlgeschlagen:", ex)
+    if not st_bt:
+        return
+    for sp in st_bt:
+        sp["p"] = {k: v for k, v in sp["p"].items() if k not in _NUR_EIGEN}
+    par_kal, kal_info = kalibrierung.walk_forward(st_bt)
+    log("   Kalibrierung Rückblick: " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
+    kand = []
+    for i, sp in enumerate(st_bt):
+        q = sp.get("q") or {}
+        for grp in (["1", "X", "2"], ["Ü2.5", "U2.5"]):
+            if not all(q.get(m) for m in grp):
+                continue
+            t = sum(1 / q[m] for m in grp)
+            for mk in grp:
+                kand.append({"id": i, "Div": sp["Div"], "Date": sp["Date"], "mk": mk, "grp": GRUPPE[mk],
+                             "pm": sp.get("p_roh", sp["p"])[mk], "pk": 1 / q[mk] / t, "q": q[mk], "win": gewonnen(mk, sp["HG"], sp["AG"])})
+    K = pd.DataFrame(kand, columns=K_SPALTEN)
+    par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
+    W_test = wetten_waehlen(K, par_test)
+    par_live = kalibrieren(K)
+    tt_n = tt_w = 0
+    for sp in st_bt:
+        tt = sp["p"].get("TT")
+        if tt:
+            for k, tore in (("h", sp["HG"]), ("a", sp["AG"])):
+                tt_n += 1
+                tt_w += tt_treffer(tt_tipp(tt[k]), int(tore))
+    n_alt = 0
+    for sp in st_bt:
+        if woche_start <= sp["Date"] <= woche_ende:
+            e = eintrag(sp["Div"], sp["Date"], sp.get("Time"), sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"] or {}, sp.get("HT"))
+            e["prog"]["st"] = prog_eintrag(sp["p"], [r(x) for x in sp["xg"]], sp["q"] or {}, par_live)
+            n_alt += 1
+    n_live = 0
+    for key, (p, xg) in st_live.items():
+        p = kalibrierung.anwenden({k: v for k, v in p.items() if k not in _NUR_EIGEN}, par_kal)
+        lv = next(iter(live_p.values()))[key][2]
+        e = eintrag(lv["Div"], lv["Date"], lv["Time"], lv["Home"], lv["Away"], None, lv["q"])
+        e["prog"]["st"] = prog_eintrag(p, [r(x) for x in xg], lv["q"], par_live)
+        n_live += 1
+    qual_roh["st"] = [(sp["Date"], _qual_p(sp["p"], sp["HG"], sp["AG"], sp.get("HT"))) for sp in st_bt]
+    _G["start"]["st"] = max(_G["start"].values())
+    info = dict(stacking.INFO)
+    saison_w = W_test[W_test["Date"] >= pd.Timestamp(SAISON_START)]
+    info.update(eigen=False, gewichte=gew, tt_quote={"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None,
+                backtest_ab=pd.Timestamp(st_bt[0]["Date"]).strftime("%Y-%m-%d"), saison=kennzahlen(saison_w),
+                vorsaison=kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
+                einstellung_test=par_test, einstellung_live=par_live,
+                beschreibung=stacking.INFO["beschreibung"] + " · aktuell: " + ", ".join(f"{modelle[m].NAME.split(' ')[0] if m in modelle else 'Markt'} {round(w * 100)} %" for m, w in gew.items()))
+    ergebnis["modelle"].append(info)
+    log(f"   Prognosen: {n_alt} letzte Spielwoche, {n_live} kommend | {time.time() - tm:.0f} s")
+
+
+def tt_tipp(v):
+    """Tipp-Regel Tore je Team: hoechste Stufe 'mind. X' mit >= 50 %, sonst 'kein Tor' (Index 0)"""
+    for i in (3, 2, 1):
+        if v[i] >= 0.5:
+            return i
+    return 0
+
+
+def tt_treffer(tipp, tore):
+    return tore == 0 if tipp == 0 else tore >= tipp
+
+
+def uhrzeit_deutsch(liste):
+    """football-data gibt Anstosszeiten in englischer Zeit (UK) an -> deutsche Zeit (Sommer/Winter automatisch)."""
+    from zoneinfo import ZoneInfo
+    from datetime import datetime
+    uk, de = ZoneInfo("Europe/London"), ZoneInfo("Europe/Berlin")
+    for e in liste:
+        z = e.get("zeit") or ""
+        if not re.match(r"^\d{1,2}:\d{2}$", z):
+            continue
+        t = datetime.strptime(f'{e["datum"]} {z}', "%Y-%m-%d %H:%M").replace(tzinfo=uk).astimezone(de)
+        e["datum"], e["zeit"] = t.strftime("%Y-%m-%d"), t.strftime("%H:%M")
+    liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
+
+
+def _extra_eintrag(p):
+    if "CS" not in p:
+        return {}
+    out = {"cs": [[s, r(v * 100, 2)] for s, v in p["CS"]], "ou15": r(p["OU15"] * 100, 2), "ou35": r(p["OU35"] * 100, 2)}
+    if "HTFT" in p:
+        out.update(htft={k: r(v * 100, 2) for k, v in p["HTFT"].items()}, htou05=r(p["HTOU05"] * 100, 2), htou15=r(p["HTOU15"] * 100, 2))
+    return out
+
+
+# ---------- Hauptprogramm ----------
+def main():
+    t0 = time.time()
+    modelle = modelle_laden()
+    if not modelle:
+        raise SystemExit("Keine Modell-Dateien (modell_*.py) gefunden.")
+    log("Modelle:", ", ".join(m.NAME for m in modelle.values()), f"| Rechenkerne: {os.cpu_count()}")
+    log("Lade Historie, Quoten und kommende Spiele ...")
+    hist = daten.historie()
+    q = quoten_spiele()
+    spiele = pd.concat([hist, q.reindex(columns=daten.SPALTEN)]).dropna(subset=["Date", "HG", "AG"])
+    spiele = spiele.drop_duplicates(subset=["Div", "Date", "Home", "Away"], keep="last").sort_values("Date")
+    # ClubElo steht nur in der Historie: bei doppelten Spielen (football-data hat Vorrang) Elo-Werte zurueckholen
+    _k = ["Div", "Date", "Home", "Away"]
+    _elo = hist.dropna(subset=["HE"])[_k + ["HE", "AE"]].drop_duplicates(_k)
+    spiele = spiele.drop(columns=["HE", "AE"]).merge(_elo, on=_k, how="left")
+    log(f"ClubElo: {spiele['HE'].notna().sum():,} Spiele mit Elo-Wert")
+    try:                                       # SportsAPI Pro: aktuelle Ergebnisse, Halbzeit, xG + alle Statistiken
+        sapi_archiv, sapi_status = sportsapi.holen(log)
+        spiele = sportsapi.ergaenze_df(spiele, sapi_archiv, log)
+    except Exception as ex:
+        import traceback
+        sapi_archiv, sapi_status = {"spiele": {}}, {"aktiv": False, "fehler": str(ex)}
+        log("SportsAPI fehlgeschlagen:", ex, traceback.format_exc()[-500:])
+    fx = daten.kommende_spiele()
+    try:                                       # Absicherung: fehlende Ansetzungen aus der Odds-API-Spielliste (kostenlos)
+        fx = odds_api.spielplan_ergaenzen(fx, spiele, daten.ALLE_LIGEN, log)
+    except Exception as ex:
+        log("Spielplan-Absicherung fehlgeschlagen (football-data-Spielplan bleibt):", ex)
+    # QUOTEN-REGEL: kommende Spiele nur mit Odds-API-Quoten (frisch, ohne Wettboersen).
+    # football-data-Quoten dienen nur noch zum Lernen aus alten Spielen (Backtest, XGBoost, Markt-Baustein).
+    try:
+        kommend = [{"liga": f["Div"], "datum": f["Date"].strftime("%Y-%m-%d"), "heim": f["HomeTeam"], "gast": f["AwayTeam"]}
+                   for _, f in fx.iterrows() if not pd.isna(f["Date"])]
+        oa_archiv, oa_status = odds_api.holen(kommend, os.path.join(ORDNER, "docs", "odds_archiv.json"), log)
+    except Exception as ex:
+        oa_archiv, oa_status = {}, {"aktiv": False, "fehler": str(ex)}
+        log("Odds API fehlgeschlagen:", ex)
+    fx_roh = fx.copy()           # nur fuer Sharp-Signal: fruehe Pinnacle-Quote als Vergleichswert (keine Anzeige-Quote)
+    fx, n_oa = odds_api.fx_ersetzen(fx, oa_archiv)
+    log(f"Kommende Spiele: {len(fx)} | davon mit Odds-API-Quoten: {n_oa} (football-data-Quoten entfernt)")
+    log(f"Spiele: {len(spiele):,} | mit Halbzeit: {spiele['HTHG'].notna().sum():,} | mit Quoten: {len(q):,} | kommend: {len(fx)}")
+
+    ergebnis = {"stand": heute.strftime("%Y-%m-%d"), "daten_bis": spiele["Date"].max().strftime("%Y-%m-%d"),
+                "anzahl_spiele": int(len(spiele)), "laender": [], "modelle": [], "spiele": []}
+    woche_ende = q["Date"].max()
+    woche_start = woche_ende - pd.Timedelta(days=6)
+    log(f"Letzte Spielwoche: {woche_start.date()} bis {woche_ende.date()}")
+    for land, ligen in LAENDER.items():
+        ergebnis["laender"].append({"name": land, "flagge": FLAGGEN.get(land, "🏳"),
+                                    "ligen": [{"code": c, "name": n} for c, n in ligen.items()]})
+    spiel_map = {}
+
+    def eintrag(liga, datum, zeit, heim, gast, ergebnis_txt, quoten, ht=None):
+        key = (liga, datum.strftime("%Y-%m-%d"), heim, gast)
+        if key not in spiel_map:
+            spiel_map[key] = {"liga": liga, "datum": key[1], "zeit": zeit or "", "heim": heim, "gast": gast,
+                              "ergebnis": ergebnis_txt, "ergebnis_ht": ht,
+                              "quoten": {k: r(v, 2) for k, v in quoten.items()}, "prog": {}}
+        return spiel_map[key]
+
+    _G.update(spiele=spiele, q=q, fx=fx, start={})
+    groesse = {l: int(spiele["Div"].isin(list(c)).sum()) for l, c in LAENDER.items()}
+    reihenfolge = sorted(LAENDER, key=lambda l: -groesse[l])     # grosse Laender zuerst
+    qual_roh = {}
+    live_p = {}  # kommende Prognosen je Modell (fuer Stacking)
+    bt = {}     # Backtest-Prognosen je Modell (fuer den Rueckblick des Modells Linie)
+
+    for key, mod in modelle.items():
+        tm = time.time()
+        wochen = getattr(mod, "BACKTEST_WOCHEN", None)
+        start = pd.Timestamp(BACKTEST_START)
+        if wochen:
+            start = max(start, heute - pd.Timedelta(weeks=wochen))
+        _G["start"][key] = start
+        log(f"===== {mod.NAME} ===== (Backtest ab {start.date()})")
+        res = {x[0]: x for x in _parallel([(key, land) for land in reihenfolge])}
+        alle_spiele, alle_kand, live = [], [], []
+        for land in LAENDER:
+            _, s_out, k_out, lv, diag, dauer = res[land]
+            off = len(alle_spiele)
+            for s in s_out:
+                s["id"] += off
+            for k in k_out:
+                k["id"] += off
+            alle_spiele += s_out
+            alle_kand += k_out
+            live += lv
+            log(f"   {land:<13} {len(s_out):>4} Backtest-Spiele, {len(lv):>3} kommend, {dauer:5.0f} s  {diag}")
+        K = pd.DataFrame(alle_kand, columns=K_SPALTEN)
+        eigen = bool(getattr(mod, "EXTRA", False))     # eigenstaendiges Modell: keine Kalibrierung, keine Quoten
+        if eigen:
+            par_kal, kal_info = None, {}
+            datencheck.berechne(alle_spiele, live)
+            log("   Daten-Check: Rückblick auf eigene Tipps berechnet")
+        else:
+            par_kal, kal_info = kalibrierung.walk_forward(alle_spiele)      # Platt-Kalibrierung (ehrlich, Woche fuer Woche)
+        for lv in live:
+            lv["p"] = kalibrierung.anwenden(lv["p"], par_kal)
+        if not eigen:
+            log("   Kalibrierung Rückblick (LogLoss roh -> kalibriert, Spiele): " + (", ".join(f"{k} {a} -> {b} ({n})" for k, (a, b, n) in kal_info.items()) or "zu wenig Spiele"))
+        if not eigen:
+            log(f"   Kalibrierung live: {', '.join(par_kal) if par_kal else 'aus (Rohwerte)'}")
+        tt_n = tt_w = 0
+        for sp in alle_spiele:
+            tt = sp["p"].get("TT")
+            if not tt:
+                continue
+            for k, tore in (("h", sp["HG"]), ("a", sp["AG"])):
+                tt_n += 1
+                tt_w += tt_treffer(tt_tipp(tt[k]), int(tore))
+        tt_quote = {"n": tt_n, "treffer": r(tt_w / tt_n * 100, 1)} if tt_n else None
+        if tt_quote:
+            log(f"   Tore je Team Backtest: {tt_quote['treffer']} % Treffer ({tt_n} Tipps)")
+        bt[key] = [{k: sp.get(k) for k in ("Div", "Date", "Home", "Away", "HG", "AG", "p", "HT", "Time", "xg", "q", "qmax")} for sp in alle_spiele]
+        live_p[key] = {(lv["Div"], pd.Timestamp(lv["Date"]).strftime("%Y-%m-%d"), lv["Home"], lv["Away"]): (lv["p"], lv["xg"], lv)
+                       for lv in live}
+
+        par_test = kalibrieren(K[K["Date"] < pd.Timestamp(SAISON_START)])
+        W_test = wetten_waehlen(K, par_test)
+        par_live = kalibrieren(K)
+
+        n_alt = 0
+        for sp in alle_spiele:
+            if woche_start <= sp["Date"] <= woche_ende:
+                e = eintrag(sp["Div"], sp["Date"], sp["Time"], sp["Home"], sp["Away"], f'{sp["HG"]}:{sp["AG"]}', sp["q"], sp["HT"])
+                e["prog"][key] = prog_eintrag(sp["p"], sp["xg"], sp["q"], par_live)
+                if eigen:
+                    e["prog"][key].update(value=[], dc=sp.get("dc"))
+                n_alt += 1
+        for lv in live:
+            e = eintrag(lv["Div"], lv["Date"], lv["Time"], lv["Home"], lv["Away"], None, lv["q"])
+            e["prog"][key] = prog_eintrag(lv["p"], lv["xg"], lv["q"], par_live)
+            if eigen:
+                e["prog"][key].update(value=[], dc=lv.get("dc"))
+        qual_roh[key] = [(s["Date"], s["qual"]) for s in alle_spiele]
+        log(f"   Prognosen: {n_alt} letzte Spielwoche, {len(live)} kommend | {time.time() - tm:.0f} s")
+
+        saison_w = W_test[W_test["Date"] >= pd.Timestamp(SAISON_START)]
+        ergebnis["modelle"].append({
+            "id": key, "name": mod.NAME, "kurz": getattr(mod, "KURZ", mod.NAME.split(" ")[0]),
+            "icon": getattr(mod, "ICON", "•"), "farbe1": getattr(mod, "FARBE1", "#2bf5a0"),
+            "farbe2": getattr(mod, "FARBE2", "#22e4ff"), "beschreibung": getattr(mod, "BESCHREIBUNG", ""),
+            "eigen": eigen, "tt_quote": tt_quote, "backtest_ab": start.strftime("%Y-%m-%d"), "saison": kennzahlen(saison_w),
+            "vorsaison": kennzahlen(W_test[W_test["Date"] < pd.Timestamp(SAISON_START)]),
+            "einstellung_test": par_test, "einstellung_live": par_live})
+
+    # Modell ST · Stacking: lernt Woche fuer Woche, wie stark es jedem Tor-Modell traut
+    try:
+        stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_start, woche_ende)
+    except Exception as ex:
+        import traceback
+        log("Stacking fehlgeschlagen:", ex, traceback.format_exc()[-600:])
+
+    # Qualitaet: alle Modelle auf demselben Zeitraum vergleichen
+    vergleich_ab = max(_G["start"].values())
+    for m in ergebnis["modelle"]:
+        rows = [qq for d, qq in qual_roh[m["id"]] if d >= vergleich_ab]
+        ks = sorted({k for qq in rows for k in qq})
+        m["qualitaet"] = {"ab": vergleich_ab.strftime("%Y-%m-%d"), "spiele": len(rows),
+                          **{k: r(np.mean([qq[k] for qq in rows if k in qq]), 4) for k in ks}}
+
+    ids = [m["id"] for m in ergebnis["modelle"]]
+    for i in ids:
+        fehlt = sum(1 for e in spiel_map.values() if i not in e["prog"])
+        if fehlt:
+            log(f"ACHTUNG: {fehlt} Spiele ohne Prognose von {i} - diese Spiele werden nicht angezeigt")
+    liste = [e for e in spiel_map.values() if all(i in e["prog"] for i in ids)]
+    liste.sort(key=lambda e: (e["datum"], e["zeit"], e["liga"]))
+    for i, e in enumerate(liste):
+        e["id"] = i
+    ergebnis["spiele"] = liste
+
+    # Markt-Vergleich: was erwarten die Buchmacher? -> Vorteile je Modell und Markt
+    zeilen = {}
+    for _, z in q.iterrows():
+        zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["Home"], z["Away"])] = z
+    for _, z in fx.iterrows():
+        if not pd.isna(z["Date"]):
+            zeilen[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+    # Sharp-Signal (eigenstaendig): frueh = football-data-Pinnacle, jetzt = Odds API (bzw. Pinnacle-Schluss)
+    try:
+        import sharp
+        frueh = {}
+        for _, z in q.iterrows():
+            frueh[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["Home"], z["Away"])] = z
+        for _, z in fx_roh.iterrows():
+            if not pd.isna(z["Date"]):
+                frueh[(z["Div"], z["Date"].strftime("%Y-%m-%d"), z["HomeTeam"], z["AwayTeam"])] = z
+        n_sh = 0
+        for e in liste:
+            k = (e["liga"], e["datum"], e["heim"], e["gast"])
+            jetzt = odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
+            if jetzt is None and k in frueh:         # ohne Odds API: Pinnacle-Schluss + Schluss-Durchschnitt als "jetzt"
+                z = frueh[k]
+                jetzt = {n: z.get(a) for n, a in (("PSH", "PSCH"), ("PSD", "PSCD"), ("PSA", "PSCA"), ("P>2.5", "PC>2.5"), ("P<2.5", "PC<2.5"),
+                                                   ("AvgH", "AvgCH"), ("AvgD", "AvgCD"), ("AvgA", "AvgCA"), ("Avg>2.5", "AvgC>2.5"), ("Avg<2.5", "AvgC<2.5"),
+                                                   ("MaxH", "MaxCH"), ("MaxD", "MaxCD"), ("MaxA", "MaxCA"), ("Max>2.5", "MaxC>2.5"), ("Max<2.5", "MaxC<2.5"))}
+            sh = sharp.spiel(frueh.get(k), jetzt)
+            if sh:
+                e["sharp"] = sh
+                n_sh += 1
+        log(f"Sharp-Signal: {n_sh} Spiele")
+        ergebnis["sharp_test"] = sharp.test(q, log)
+    except Exception as ex:
+        log("Sharp-Signal fehlgeschlagen:", ex)
+    # Angezeigte Spiele (letzte Woche + kommend): nur Odds-API-Quoten, sonst keine
+    for e in liste:
+        k = (e["liga"], e["datum"], e["heim"], e["gast"])
+        alt, neu = zeilen.get(k), odds_api.zeile(oa_archiv.get(odds_api._key(*k)))
+        if neu is not None and alt is not None:          # Pinnacle-Schlussquote (nach dem Spiel) nur fuer CLV
+            for c in ("PSCH", "PSCD", "PSCA", "PC>2.5", "PC<2.5"):
+                v = alt.get(c) if hasattr(alt, "get") else None
+                if v is not None and not pd.isna(v):
+                    neu[c] = v
+        zeilen[k] = neu
+    # Modell X · XGBoost (Markt + Schuesse), wird wie ein normales Prognose-Modell behandelt
+    try:
+        xp = xgb_modell.berechne(spiele, q, liste, zeilen, log)
+    except Exception as ex:
+        xp = {}
+        log("XGBoost fehlgeschlagen:", ex)
+    if xp:
+        ergebnis["modelle"].append(dict(xgb_modell.INFO))
+        for i, e in enumerate(liste):
+            if i in xp:
+                e["prog"]["xgb"] = xp[i]
+    # Modell RF · Random Forest (reine Statistik, ohne Quoten)
+    try:
+        import rf_modell
+        rf_modell.PFAD = os.path.join(ORDNER, "docs", "rf_plus.json")
+        rp = rf_modell.berechne(spiele, liste, log)
+        ergebnis["rf_plus"] = rf_modell.vergleich_speichern(log)
+    except Exception as ex:
+        rp = {}
+        log("RandomForest fehlgeschlagen:", ex)
+    if rp:
+        ergebnis["modelle"].append(dict(rf_modell.INFO))
+        for i, e in enumerate(liste):
+            if i in rp:
+                e["prog"]["rf"] = rp[i]
+    n_mk = 0
+    for e in liste:
+        try:
+            mk = markt.block(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            mk = None
+        if mk:
+            n_mk += 1
+            e["markt"] = mk
+        for pr in e["prog"].values():
+            pr["vt"] = {} if pr.get("dc") is not None or "cs" in pr else markt.vorteile(pr, mk)
+    log(f"Markt-Vergleich: {n_mk} von {len(liste)} Spielen mit Quoten")
+    # Hoechste Quote je Ausgang ueber alle Buchmacher (fuer die PAYOUT-Zeilen)
+    for e in liste:
+        z = zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"]))
+        if z is None:
+            continue
+        hq = {}
+        for m, sufs in (("x", ["H", "D", "A"]), ("ou", [">2.5", "<2.5"])):
+            werte = []
+            for suf in sufs:
+                qs = [quote(z, [sp]) for sp in sorted({c for c in EXTRA_QUOTEN + sum(MAERKTE.values(), []) if c.endswith(suf) and not c.startswith(("PSC", "PC", "AvgC", "MaxC"))})]
+                qs = [x for x in qs if x]
+                werte.append(round(max(qs), 2) if qs else None)
+            if all(werte):
+                hq[m] = werte
+        if hq:
+            e["hq"] = hq
+    echte = list(ergebnis["modelle"])
+
+    # The Odds API: frischere Hoechstquoten fuer die Spiele der naechsten Stunden (+ Archiv fuer vergangene)
+    ergebnis["odds_api"] = oa_status
+    log(f"Odds API: {odds_api.anwenden(liste, oa_archiv)} Spiele mit Odds-API-Quoten | Credits uebrig {oa_status.get('rest')}")
+
+    # Modell SV · Spalten-Value (jeder Ausgang einzeln gegen den Konsens aller Buchmacher)
+    ergebnis["modelle"].append(dict(sv_modell.MODELL_INFO))
+    n_sv = 0
+    for e in liste:
+        try:
+            se = sv_modell.eintrag(zeilen.get((e["liga"], e["datum"], e["heim"], e["gast"])))
+        except Exception:
+            se = None
+        e["prog"]["sv"] = se
+        n_sv += se is not None
+    log(f"Spalten-Value: {n_sv} von {len(liste)} Spielen")
+
+    # Modell HZ2 · Tore 2. Halbzeit (eigener Prozess nur aus Daten der 2. Halbzeit)
+    try:
+        hz2_modell.berechne(spiele, liste, log)
+    except Exception as ex:
+        log("HZ2-Prognose fehlgeschlagen:", ex)
+
+    # Modell K · Karten
+    try:
+        karten_modell.berechne(spiele, liste, log)
+        ergebnis["modelle"].append(dict(karten_modell.INFO))
+    except Exception as ex:
+        log("Karten-Prognose fehlgeschlagen:", ex)
+
+    # Modell E · Ecken
+    try:
+        ecken_modell.berechne(spiele, liste, log)
+        ergebnis["modelle"].append(dict(ecken_modell.INFO))
+    except Exception as ex:
+        log("Ecken-Prognose fehlgeschlagen:", ex)
+
+    # OVER/UNDER · groesster Vorteil aus ALLEN Modellen (je Spiel der hoechste O/U-Vorteil)
+    ergebnis["modelle"].insert(len(echte), {"id": "ou_best", "typ": "oubest", "name": "OVER/UNDER · Bester Vorteil",
+                                            "kurz": "O/U Best", "icon": "🎯", "farbe1": "#2bf5a0", "farbe2": "#ffd84d",
+                                            "beschreibung": "Je Spiel der höchste OVER/UNDER-Vorteil aus allen Modellen"})
+    n_ou = 0
+    for e in liste:
+        alle = [(m["kurz"], (e["prog"].get(m["id"]) or {}).get("vt", {}).get("ou")) for m in echte if not m.get("eigen")]
+        alle = sorted([(k, v) for k, v in alle if v], key=lambda x: -x[1][3])
+        e["prog"]["ou_best"] = {"liste": [{"modell": k, "tipp": v[0], "pm": v[1], "pk": v[2], "v": v[3]} for k, v in alle]} if alle else None
+        n_ou += bool(alle)
+    log(f"OVER/UNDER Bester Vorteil: {n_ou} von {len(liste)} Spielen")
+    try:
+        import modell_elo
+        modell_elo.anzeige(spiele, liste, log)        # Elo beider Teams, Rang, Trend (Anzeige)
+    except Exception as ex:
+        log("Elo-Anzeige fehlgeschlagen:", ex)
+    try:
+        sportsapi.xg_form(spiele, liste, log)          # Ueber-/Unterperformance: Tore gegen xG der letzten Spiele
+    except Exception as ex:
+        log("xG-Form fehlgeschlagen:", ex)
+    try:
+        sportsapi.anwenden(liste, sapi_archiv, log)   # Ergebnisse, Halbzeit, Ecken, Karten, Statistik, SportsAPI-Quoten
+    except Exception as ex:
+        log("SportsAPI-Anzeige fehlgeschlagen:", ex)
+    ergebnis["sportsapi"] = sapi_status
+    uhrzeit_deutsch(liste)
+    os.makedirs(os.path.join(ORDNER, "docs"), exist_ok=True)
+    pfad = os.path.join(ORDNER, "docs", "daten.json")
+    with open(pfad, "w", encoding="utf-8") as f:
+        json.dump(ergebnis, f, ensure_ascii=False, separators=(",", ":"))
+    log(f"Fertig in {time.time() - t0:.0f} s -> {pfad} ({os.path.getsize(pfad) / 1024:.0f} KB, {len(liste)} Spiele)")
+
+    print(f"\n===== MODELL-RANKING (Qualität ab {vergleich_ab.date()}, kleiner = besser) =====")
+    for m in sorted([m for m in ergebnis["modelle"] if "qualitaet" in m], key=lambda m: m["qualitaet"].get("rps") or 9):
+        qq, s = m["qualitaet"], m["saison"]
+        print(f"{m['name']}")
+        print(f"   RPS {qq.get('rps')} | LogLoss 1X2 {qq.get('logloss_1x2')} | Ü/U {qq.get('logloss_ou')} | "
+              f"BTS {qq.get('logloss_bts')} | HZ {qq.get('logloss_ht')} | Correct Score {qq.get('nll_cs')} ({qq['spiele']} Spiele)")
+        print(f"   Value-Wetten Saison: {s['wetten']} | ROI {s['roi']} % | Treffer {s['treffer']} %\n")
+
+
+if __name__ == "__main__":
+    main()
