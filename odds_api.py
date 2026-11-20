@@ -259,3 +259,55 @@ def anwenden(liste, archiv):
         e["qinfo"] = {"buchmacher": a["n"], "abruf": a.get("abruf")}
         n += 1
     return n
+
+
+def spielplan_ergaenzen(fx, spiele, ligen_erlaubt, log=print):
+    """Absicherung: fehlen im football-data-Spielplan kommende Spiele, holt die Odds API (Event-Liste,
+    kostet KEINE Credits) die Ansetzungen. Teamnamen werden auf die football-data-Namen aus der Historie
+    umgestellt - nur sicher zugeordnete Spiele kommen dazu, damit die Modelle die Teams kennen.
+    Spiele, die schon im football-data-Spielplan stehen, bleiben unveraendert (football-data hat Vorrang)."""
+    import pandas as pd
+    key = os.environ.get("ODDS_API_KEY", "")
+    if not key:
+        return fx
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo("Europe/Berlin")
+    except Exception:
+        tz = timezone.utc
+    jetzt = JETZT or datetime.now(timezone.utc)
+    bis = jetzt + timedelta(hours=STUNDEN)
+    neu, n_weg = [], 0
+    for liga in sorted(set(ligen_erlaubt) & set(LIGEN)):
+        teams = set(spiele.loc[spiele["Div"] == liga, "Home"].dropna()) | set(spiele.loc[spiele["Div"] == liga, "Away"].dropna())
+        if not teams:
+            continue
+        try:
+            r = requests.get(B + f"sports/{LIGEN[liga]}/events", params={"apiKey": key,
+                             "commenceTimeFrom": jetzt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                             "commenceTimeTo": bis.strftime("%Y-%m-%dT%H:%M:%SZ")}, timeout=30)
+            evs = r.json() if r.status_code == 200 else []
+        except Exception:
+            evs = []
+        vorhanden = fx[fx["Div"] == liga]
+        for ev in evs if isinstance(evs, list) else []:
+            def finde(n):
+                best, w = None, 0.0
+                for t in teams:
+                    a = _aehnlich(t, n)
+                    if a > w:
+                        best, w = t, a
+                return best if w >= 0.8 else None
+            h, a = finde(ev.get("home_team", "")), finde(ev.get("away_team", ""))
+            if not h or not a or h == a:
+                n_weg += 1
+                continue
+            zeit = datetime.fromisoformat(ev["commence_time"].replace("Z", "+00:00")).astimezone(tz)
+            datum = pd.Timestamp(zeit.strftime("%Y-%m-%d"))
+            if ((vorhanden["HomeTeam"] == h) & (vorhanden["AwayTeam"] == a)).any():
+                continue
+            neu.append({"Div": liga, "Date": datum, "Time": zeit.strftime("%H:%M"), "HomeTeam": h, "AwayTeam": a})
+    if neu:
+        fx = pd.concat([fx, pd.DataFrame(neu)], ignore_index=True).sort_values(["Date", "Div"]).reset_index(drop=True)
+    log(f"Spielplan-Absicherung (Odds API, ohne Credits): {len(neu)} Spiele ergaenzt, {n_weg} ohne sichere Team-Zuordnung uebersprungen")
+    return fx

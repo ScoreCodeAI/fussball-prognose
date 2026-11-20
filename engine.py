@@ -486,6 +486,10 @@ def main():
         sapi_archiv, sapi_status = {"spiele": {}}, {"aktiv": False, "fehler": str(ex)}
         log("SportsAPI fehlgeschlagen:", ex, traceback.format_exc()[-500:])
     fx = daten.kommende_spiele()
+    try:                                       # Absicherung: fehlende Ansetzungen aus der Odds-API-Spielliste (kostenlos)
+        fx = odds_api.spielplan_ergaenzen(fx, spiele, daten.ALLE_LIGEN, log)
+    except Exception as ex:
+        log("Spielplan-Absicherung fehlgeschlagen (football-data-Spielplan bleibt):", ex)
     # QUOTEN-REGEL: kommende Spiele nur mit Odds-API-Quoten (frisch, ohne Wettboersen).
     # football-data-Quoten dienen nur noch zum Lernen aus alten Spielen (Backtest, XGBoost, Markt-Baustein).
     try:
