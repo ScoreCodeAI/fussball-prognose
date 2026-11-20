@@ -272,7 +272,7 @@ def spielplan_ergaenzen(fx, spiele, ligen_erlaubt, log=print):
         return fx
     try:
         from zoneinfo import ZoneInfo
-        tz = ZoneInfo("Europe/Berlin")
+        tz = ZoneInfo("Europe/London")   # wie football-data: UK-Zeit, engine.uhrzeit_deutsch rechnet danach auf deutsche Zeit um
     except Exception:
         tz = timezone.utc
     jetzt = JETZT or datetime.now(timezone.utc)
