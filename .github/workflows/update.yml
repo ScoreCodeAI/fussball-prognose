@@ -19,6 +19,9 @@ jobs:
           python-version: "3.12"
       - name: Pakete installieren
         run: pip install pandas numpy scipy statsmodels requests scikit-learn pillow
+      - name: Archiv fuer Auto-Wahl sichern
+        continue-on-error: true
+        run: python archiv.py
       - name: Motor starten
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
@@ -33,6 +36,7 @@ jobs:
           git config user.name "score-code-bot"
           git config user.email "actions@users.noreply.github.com"
           git add docs/daten.json
+          git add docs/archiv_spiele.json || true
           git add docs/odds_archiv.json || true
           git add docs/rf_plus.json || true
           git add archiv/sportsapi.json.gz || true
