@@ -1,0 +1,35 @@
+name: Profi-Modelle (Residual, LightGBM)
+
+on:
+  workflow_run:
+    workflows: ["Neue Modelle (SVR, TCN, Konsens 2)"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  profi_modelle:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Pakete installieren
+        run: pip install requests pandas numpy scipy scikit-learn lightgbm
+      - name: Residual und LightGBM rechnen
+        run: python profi_modelle.py
+      - name: Speichern
+        run: |
+          git config user.name "score-code-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/daten.json
+          git commit -m "Profi-Modelle $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git pull --rebase origin main
+          git push
