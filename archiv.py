@@ -6,7 +6,7 @@ Neu: Schluessel = Datum + Teams (die IDs in daten.json wechseln taeglich),
 import json, os
 from datetime import date, timedelta
 SRC, DST, TAGE = "docs/daten.json", "docs/archiv_spiele.json", 120
-FELDER = ("p1", "px", "p2", "ue25", "bts")
+FELDER = ("p1", "px", "p2", "ue25", "bts", "ht", "ht2", "h2o05", "xg")   # ht/ht2/h2o05/xg fuer die Halbzeit-Maerkte des MASTER
 
 def key(s):
     return f'{s.get("datum")}|{s.get("heim")}|{s.get("gast")}'

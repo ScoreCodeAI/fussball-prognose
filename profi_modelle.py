@@ -198,7 +198,7 @@ def durchlauf(H, ziele, ligen):
             f = V.merkmale(row.Div, row.Home, row.Away, d)
             if f:
                 X.append(f + [ligen.get(row.Div, -1)]); Y.append((row.HG, row.AG)); D.append(ds)
-                M.append((row.OD1, row.ODX, row.OD2, row.OO, row.OU, row.MX1, row.MX2))
+                M.append((row.OD1, row.ODX, row.OD2, row.OO, row.OU, row.MX1, row.MX2, row.HTHG, row.HTAG))
         V.eintragen(row.Div, row.Home, row.Away, d, float(row.HG), float(row.AG), row.HST, row.AST)
     while zi < len(ziele):
         ziel(ziele[zi]); zi += 1
@@ -219,7 +219,7 @@ def historie():
         H = H.merge(q.drop_duplicates(subset=["Div", "Date", "Home", "Away"]), on=["Div", "Date", "Home", "Away"], how="left")
     except Exception as ex:
         log("Quoten der Historie nicht geladen:", ex)
-    for c in ("OD1", "ODX", "OD2", "OO", "OU", "MX1", "MX2", "HST", "AST"):
+    for c in ("OD1", "ODX", "OD2", "OO", "OU", "MX1", "MX2", "HST", "AST", "HTHG", "HTAG"):
         H[c] = pd.to_numeric(H[c], errors="coerce") if c in H else np.nan
     return H.sort_values("Date").reset_index(drop=True)
 
@@ -305,7 +305,7 @@ def _urteil(llm, llk):
             "urteil": "besser" if lo > 0 else "schlechter" if hi < 0 else "gleich"}
 
 
-def pruefen(X, Y, D, MK):
+def pruefen(X, Y, D, MK, M=None, share=None, ligen=None):
     bis = D < TEST_AB
     test = (D >= TEST_AB) & ~np.isnan(MK[0]).any(1) & ~np.isnan(MK[2]).any(1)
     if bis.sum() < 5000 or test.sum() < 500:
@@ -319,6 +319,23 @@ def pruefen(X, Y, D, MK):
     pok = MK[1][test]
     out = {"test_von": str(min(D[test])), "test_bis": str(max(D[test])), "n": int(test.sum()),
            "training_bis": TEST_AB, "wichtig": importance(m)}
+    # MASTER: Rueckblick-Bilanz je Markt (gleiche Regeln wie auf der Seite)
+    if M is not None and share is not None:
+        try:
+            import master_gewichte as MG
+            import neue_modelle as nm
+            inv = {v: k for k, v in (ligen or {}).items()}
+            Mt = M[test]
+            mg = {}
+            for nmid, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt, MK[2][test], MK[3][test]))):
+                for i in range(len(Xt)):
+                    sh = share.get(inv.get(int(Xt[i, -1])), 0.44)
+                    hh, ha = Mt[i, 7], Mt[i, 8]
+                    r = (int(Yt[i, 0]), int(Yt[i, 1]), None if hh != hh else int(hh), None if ha != ha else int(ha))
+                    MG.zaehlen(mg, nmid, nm.maerkte(float(lh[i]), float(la[i]), sh), r)
+            out["master_gew"] = mg
+        except Exception as ex:
+            log("Master-Bilanz nicht moeglich:", ex)
     for nm, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt, MK[2][test], MK[3][test]))):
         p, po = wk(lh, la)
         e = {"x": _urteil(_ll(p, y1), _ll(pk, y1))}
@@ -383,6 +400,29 @@ def remis_live(L, liga, p):
     return {"x": bool(r["x"]), "dr": round(float(r["dr"]) * 100, 1), "fav": round(float(r["fv"]) * 100, 1), "n": int(r["n"])}
 
 
+# ---------------- HZ/ES: Endstand je (Pause 1/X/2, 2. Halbzeit 1/X/2), aus echten Spielen gezaehlt ----------------
+# P(Endstand | Pausenstand, Ausgang 2. HZ) – z. B. Pause 1 und 2. HZ fuer den Gast: wie oft endete es 1, X oder 2?
+def hzes_tabelle(H):
+    ok = H["HTHG"].notna() & H["HTAG"].notna()
+    Hm = H[ok]
+    sg = lambda h, a: np.where(h > a, 0, np.where(h == a, 1, 2))
+    ht = sg(Hm["HTHG"].values, Hm["HTAG"].values)
+    h2 = sg((Hm["HG"] - Hm["HTHG"]).values, (Hm["AG"] - Hm["HTAG"]).values)
+    ft = sg(Hm["HG"].values, Hm["AG"].values)
+    t = {}
+    for a in range(3):
+        for b in range(3):
+            m = (ht == a) & (h2 == b)
+            c = np.array([(ft[m] == k).sum() for k in range(3)], dtype=float)
+            t[f"{a}{b}"] = [round(float(v), 4) for v in (c + 0.5) / (c.sum() + 1.5)] + [int(m.sum())]
+    basis = {}
+    for a in range(3):
+        for e in range(3):
+            basis["1X2"[a] + "/" + "1X2"[e]] = round(float(((ht == a) & (ft == e)).mean()), 4)
+    log(f"HZ/ES-Tabelle aus {len(Hm)} Spielen mit Halbzeitstand")
+    return {"t": t, "basis": basis, "n": int(len(Hm))}
+
+
 # ---------------- Markt der kommenden Spiele ----------------
 def live_markt(s):
     sv = (s.get("prog") or {}).get("sv") or {}
@@ -425,8 +465,16 @@ def main():
     log(f"{len(X)} Trainingszeilen, Merkmale fuer {len(zf)} von {len(spiele)} Spielen")
 
     info = {"stand": pd.Timestamp.today().strftime("%Y-%m-%d")}
+    share0 = {}
+    for div, g in H.dropna(subset=["HTHG", "HTAG"]).groupby("Div"):
+        tot = (g["HG"] + g["AG"]).sum()
+        share0[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
     try:
-        info["pruefung"] = pruefen(X, Y, D, MK)
+        info["pruefung"] = pruefen(X, Y, D, MK, M, share0, ligen)
+        mg = (info["pruefung"] or {}).pop("master_gew", None)
+        if mg:
+            import master_gewichte
+            master_gewichte.eintragen(d, mg)
     except Exception as ex:
         log("Pruefung nicht moeglich:", ex)
 
@@ -436,6 +484,11 @@ def main():
     except Exception as ex:
         RL = None
         log("Remis-Ampel nicht moeglich:", ex)
+
+    try:
+        d["hzes"] = hzes_tabelle(H)
+    except Exception as ex:
+        log("HZ/ES-Tabelle nicht moeglich:", ex)
 
     share = {}
     for div, g in H.dropna(subset=["HTHG", "HTAG"]).groupby("Div"):

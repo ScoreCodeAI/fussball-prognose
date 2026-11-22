@@ -543,6 +543,72 @@ def konsens2(s, saison_liga, xg_liga):
     return out
 
 
+# ---------------- MASTER: Rueckblick-Test (nur Bilanz, aendert keine Prognose) ----------------
+RUECKBLICK_TAGE = 200
+
+
+def rueckblick(H, share, xg, log_=None):
+    """Modelle so trainieren, als waere heute vor RUECKBLICK_TAGE Tagen, und die Spiele danach tippen lassen.
+    Gezaehlt wird je Quelle und Markt (gleiche Regeln wie der MASTER auf der Seite)."""
+    import master_gewichte as MG
+    ende = H["Date"].max()
+    start = ende - pd.Timedelta(days=RUECKBLICK_TAGE)
+    T = H[(H["Date"] >= start)].copy()
+    ziele = []
+    for i, r in enumerate(T.itertuples(index=False)):
+        ziele.append({"key": i, "liga": r.Div, "datum": r.Date.strftime("%Y-%m-%d"), "heim": r.Home, "gast": r.Away,
+                      "quoten": {"1": r.OD1, "X": r.ODX, "2": r.OD2, "Ü2.5": r.OO, "U2.5": r.OU},
+                      "erg": (int(r.HG), int(r.AG), None if r.HTHG != r.HTHG else int(r.HTHG), None if r.HTAG != r.HTAG else int(r.HTAG))})
+    g2 = start.strftime("%Y-%m-%d")
+    X, S1, S2, Y, D, zf, _r, (HX, HY, HD, zh), (H1X, H1Y, zh1), (TX, T1, T2, zt) = durchlauf(H, ziele)
+    svr = tcn = h1m = h2m = None
+    try:
+        svr = svr_modell(X, Y, D, g2)
+    except Exception as ex:
+        log("Rueckblick SVR:", ex)
+    try:
+        tcn = tcn_modell(X, S1, S2, Y, D, g2)
+    except Exception as ex:
+        log("Rueckblick TCN:", ex)
+    try:
+        h1m = h2_modell(H1X, H1Y, HD, g2, "ht", "1.-HZ-Modell")
+    except Exception as ex:
+        log("Rueckblick 1.-HZ:", ex)
+    try:
+        h2m = h2_modell(HX, HY, HD, g2)
+    except Exception as ex:
+        log("Rueckblick 2.-HZ:", ex)
+    # Konsens 2: je Spiel nur Spiele derselben Saison vor dem Datum (wie live)
+    sai = defaultdict(list)
+    for r in H.itertuples(index=False):
+        ht = [int(r.HTHG), int(r.HTAG)] if not (pd.isna(r.HTHG) or pd.isna(r.HTAG)) else None
+        sai[r.Div].append({"datum": r.Date.strftime("%Y-%m-%d"), "heim": r.Home, "gast": r.Away, "ft": [int(r.HG), int(r.AG)], "ht": ht})
+    stats = {}
+    for z in ziele:
+        k, sh = z["key"], share.get(z["liga"], 0.44)
+        try:
+            if k in zf:
+                f, q1, q2 = zf[k]
+                if svr:
+                    MG.zaehlen(stats, "svr", maerkte(*svr(f), sh), z["erg"])
+                if tcn:
+                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh), z["erg"])
+            if h1m and k in zh1:
+                MG.zaehlen(stats, "h1m", {"ht": h1m(zh1[k])["ht"]}, z["erg"])
+            if h2m and k in zh:
+                MG.zaehlen(stats, "h2m", {"ht2": h2m(zh[k])["ht2"]}, z["erg"])
+            y = int(z["datum"][:4]) if int(z["datum"][5:7]) >= 7 else int(z["datum"][:4]) - 1
+            sstart = f"{y}-07-01"
+            hist = [e for e in sai.get(z["liga"], []) if sstart <= e["datum"] < z["datum"]]
+            k2 = konsens2(z, hist, xg.get(z["liga"], []))
+            for q, pp in (k2 or {}).items():
+                MG.zaehlen(stats, q, pp, z["erg"])
+        except Exception:
+            continue
+    log("Rueckblick fuer MASTER:", ", ".join(f"{q} {s.get('x1', s.get('h1x', s.get('h2x', [0])))[0]}" for q, s in stats.items()))
+    return stats
+
+
 # ---------------- Ablauf ----------------
 def main():
     d = json.load(open(PFAD, encoding="utf-8"))
@@ -651,6 +717,12 @@ def main():
                 n_k2 += 1
         except Exception:
             pass
+
+    try:
+        import master_gewichte
+        master_gewichte.eintragen(d, rueckblick(H, share, xg))
+    except Exception as ex:
+        log("Rueckblick fuer MASTER nicht moeglich:", ex)
 
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))

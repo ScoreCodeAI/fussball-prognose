@@ -373,6 +373,11 @@ def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_star
         ergebnis["bewertung"] = bewertung.berechne(bt, log)
     except Exception as ex:
         log("Bewertung fehlgeschlagen:", ex)
+    try:                     # MASTER: Rueckblick-Bilanz je Modell und Markt (nur Anzeige auf der Seite)
+        import master_gewichte
+        ergebnis["master_gew"] = master_gewichte.aus_bt(dict(bt, st=st_bt or []), log)
+    except Exception as ex:
+        log("Master-Gewichte fehlgeschlagen:", ex)
     if not st_bt:
         return
     for sp in st_bt:
