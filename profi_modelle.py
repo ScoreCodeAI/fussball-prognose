@@ -335,6 +335,54 @@ def pruefen(X, Y, D, MK):
     return out
 
 
+# ---------------- gelernte Remis-Ampel (fuer den Master-Bot) ----------------
+# Keine feste Grenze: Aus der Historie wird gelernt, in welchen Spiel-Typen ein Remis WIRKLICH oefter kam als der
+# Favoriten-Sieg. Spiel-Typ = Remis-% des Marktes (angepasst an die Remis-Neigung der Liga) und Abstand 1 zu 2.
+# Ein Typ wird nur "Remis" wenn: mind. 150 Spiele und Remis-Quote signifikant ueber der Favoriten-Quote.
+def _remis_zellen(Hm, lf):
+    pdx = Hm["pD"] * Hm["Div"].map(lf).fillna(1.0)
+    return np.floor(pdx * 50) * 2, np.minimum(np.floor((Hm["pH"] - Hm["pA"]).abs() * 20) * 5, 40)
+
+
+def remis_lernen(H, bis):
+    ok = (H["OD1"] > 1) & (H["ODX"] > 1) & (H["OD2"] > 1)
+    Hm = H[ok].copy()
+    p = fair(Hm[["OD1", "ODX", "OD2"]].values)
+    Hm["pH"], Hm["pD"], Hm["pA"] = p[:, 0], p[:, 1], p[:, 2]
+    Hm["y"] = np.where(Hm["HG"] > Hm["AG"], 0, np.where(Hm["HG"] == Hm["AG"], 1, 2))
+    Hm["fav"] = np.where(Hm["pH"] >= Hm["pA"], Hm["y"] == 0, Hm["y"] == 2)
+    tr = Hm[Hm["Date"] < pd.Timestamp(bis)]
+    lf = (tr.groupby("Div")["y"].apply(lambda v: (v == 1).mean()) / max((tr["y"] == 1).mean(), 1e-6)).to_dict()
+    a, b = _remis_zellen(tr, lf)
+    g = tr.assign(cd=a, cg=b).groupby(["cd", "cg"]).agg(n=("y", "size"), dr=("y", lambda v: (v == 1).mean()), fv=("fav", "mean"))
+    g["se"] = np.sqrt(g["dr"] * (1 - g["dr"]) / g["n"] + g["fv"] * (1 - g["fv"]) / g["n"])
+    g["x"] = (g["n"] >= 150) & (g["dr"] - g["fv"] > g["se"])
+    return {"lf": lf, "g": g, "Hm": Hm}
+
+
+def remis_pruefen(H):
+    L = remis_lernen(H, TEST_AB)
+    te = L["Hm"][L["Hm"]["Date"] >= pd.Timestamp(TEST_AB)]
+    a, b = _remis_zellen(te, L["lf"])
+    t = te.assign(cd=a, cg=b).join(L["g"][["x"]], on=["cd", "cg"])
+    t = t[t["x"] == True]
+    out = {"zellen": int(L["g"]["x"].sum()), "tipps": int(len(t))}
+    if len(t):
+        out.update(remis=round(float((t["y"] == 1).mean() * 100), 1), fav=round(float(t["fav"].mean() * 100), 1),
+                   markt=round(float(t["pD"].mean() * 100), 1))
+    log("Remis-Ampel Pruefung:", out)
+    return out
+
+
+def remis_live(L, liga, p):
+    pdx = p[1] * L["lf"].get(liga, 1.0)
+    k = (math.floor(pdx * 50) * 2, min(math.floor(abs(p[0] - p[2]) * 20) * 5, 40))
+    if k not in L["g"].index:
+        return None
+    r = L["g"].loc[k]
+    return {"x": bool(r["x"]), "dr": round(float(r["dr"]) * 100, 1), "fav": round(float(r["fv"]) * 100, 1), "n": int(r["n"])}
+
+
 # ---------------- Markt der kommenden Spiele ----------------
 def live_markt(s):
     sv = (s.get("prog") or {}).get("sv") or {}
@@ -382,6 +430,13 @@ def main():
     except Exception as ex:
         log("Pruefung nicht moeglich:", ex)
 
+    try:
+        info["remis"] = remis_pruefen(H)
+        RL = remis_lernen(H, grenze)
+    except Exception as ex:
+        RL = None
+        log("Remis-Ampel nicht moeglich:", ex)
+
     share = {}
     for div, g in H.dropna(subset=["HTHG", "HTAG"]).groupby("Div"):
         tot = (g["HG"] + g["AG"]).sum()
@@ -406,6 +461,14 @@ def main():
                 n_g += 1
         LM = [(k, live_markt(spiele[k])) for k in keys]
         LM = [(k, v) for k, v in LM if v]
+        if RL:
+            for k, v in LM:
+                try:
+                    rm = remis_live(RL, spiele[k]["liga"], v[0])
+                    if rm:
+                        spiele[k]["remis"] = rm
+                except Exception:
+                    pass
         if LM:
             P = np.array([v[0] for _, v in LM]); PO = np.array([v[1] for _, v in LM], dtype=float)
             SP = np.array([v[2] for _, v in LM], dtype=float)
