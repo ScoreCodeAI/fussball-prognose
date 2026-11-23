@@ -133,12 +133,7 @@ def zaehlen(stats, quelle, p, r):
         v = vec(mk, p)
         if not v:
             continue
-        if mk in ("bts", "bts2"):          # Beide treffen: nur JA-Tipps zaehlen (wie auf der Seite)
-            if v[0] < 50:
-                continue
-            k = 0
-        else:
-            k = v.index(max(v))
+        k = v.index(max(v))                # auch Beide treffen: JA oder NEIN (wie auf der Seite)
         w = win(mk, k, r)
         if w is None:
             continue
