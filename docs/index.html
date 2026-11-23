@@ -2435,7 +2435,7 @@ const SCH={ga:["A · MAX-Übereinstimmung ✓","kGa","#ffd77a"],gb:["B · ✓ + 
 const ABV={ma:"a",ga:"a",mb:"b",gb:"b",mc:"c",gc:"c"};
 function abSwitch(){S.abw=S.abw||"c";return `<div class="abw">${[["c","C · Konsens / höchste %"],["a","A · Übereinst. ✓"],["b","B · ✓ + Kontra 0"]].map(([k,t])=>`<div class="${S.abw==k?'on':''}" onclick="S.abw='${k}';render()">${t}</div>`).join("")}</div>`}
 function kSchein(ab,L,n,qname,mega){if(ABV[ab]){S.abw=S.abw||"c";if(ABV[ab]!=S.abw)return "";return abSwitch()+kSchein0(ab,L,n,qname,mega)+(L.length?p4Sum([[L]]):"")}return kSchein0(ab,L,n,qname,mega)+(L.length?p4Sum([[L]]):"")}
-function sgRange(L){const[lo,hi]=P4B[S.konqb||0],W=[];let g=1;for(const x of L.slice().sort((a,b)=>b.pr-a.pr)){if(g>=lo)break;if(g*x.q<=hi){W.push(x);g*=x.q}}return g<lo?[]:W}
+function sgRange(L){const[lo,hi]=P4B[S.konqb||0],W=[];let g=1;for(const x of (L.some(x=>x._vt)?L.slice().sort((a,b)=>(b._vt||0)-(a._vt||0)):L.slice().sort((a,b)=>b.pr-a.pr))){if(g>=lo)break;if(g*x.q<=hi){W.push(x);g*=x.q}}return g<lo?[]:W}
 /* ===== NEUE SPIELKARTE (Gold-Design) · nur Darstellung, gleiche Daten ===== */
 let ARCH=[];fetch("archiv_spiele.json?v="+Date.now()).then(r=>r.ok?r.json():[]).then(j=>{ARCH=Array.isArray(j)?j:[];window._p4best=null}).catch(()=>{});
 function P4POOL(){const ky=s=>s.datum+"|"+s.heim+"|"+s.gast,ks=new Set(D.spiele.map(ky));return D.spiele.concat(ARCH.filter(s=>!ks.has(ky(s))).map((s,i)=>s._aid?s:Object.assign(s,{id:900000+i,_aid:1})))}
@@ -2533,7 +2533,7 @@ function kand2(s,mk,ids){const N0=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog
   if(mk=="bts2")return(h2>0&&a2>0)==(k==0);if(mk=="w1")return sg(r.hh,r.ha)==(k?"2":"1");return sg(h2,a2)==(k?"2":"1")};
  const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
-function konsKand(s,mk,ids){const k=konsKand0(s,mk,ids);if(k&&k.tip&&(mk=="ht"||mk=="ht2a"||mk=="ht2")){k.alt=k.tip;k.nurTipp=true}return k}
+function konsKand(s,mk,ids){const k=konsKand0(s,mk,ids);if(k&&k.tip&&VM[mk])vtTip(k.tip,mk);if(k&&k.tip&&(mk=="ht"||mk=="ht2a"||mk=="ht2")){k.alt=k.tip;k.nurTipp=true}return k}
 function konsKand0(s,mk,ids){if(mk=="fg"||mk=="ng2")return torKand(s,mk,ids);if(["x1","bts","bts2","w1","w2"].includes(mk))return kand2(s,mk,ids);const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
  if((mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e"||mk=="h1"||mk=="h2")&&r0&&r0.hh==null)return null;
  const mk3=mk=="x"||mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e",get=mk=="x"?p=>[p.p1,p.px,p.p2]:mk=="ht"?p=>p.ht:mk=="ht2"||mk=="ht2a"||mk=="ht2e"?p=>p.ht2:mk=="ou"?p=>p.ue25:mk=="h1"?h1o:h2o;
@@ -2569,7 +2569,7 @@ function konsKand0(s,mk,ids){if(mk=="fg"||mk=="ng2")return torKand(s,mk,ids);if(
  return{tip,alt:alt||tip,ein,N,mkok,nurTipp:!alt}}
 function konsAuswahl(tag,modus,n,mk,ids){let l=tag.map(s=>konsKand(s,mk||S.kmk||"x",ids)).filter(x=>x);
  if(modus===true)l=l.filter(x=>x.ein==x.N);if(modus=="c")l=l.filter(x=>x.mkok);
- l.sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr));const out=[],lg=new Set();for(const x of l){if(out.length>=n)break;if(!lg.has(x.tip.s.liga)){out.push(x);lg.add(x.tip.s.liga)}}
+ l=VM[mk||S.kmk||"x"]?vtList(l,mk||S.kmk||"x"):l.sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr));const out=[],lg=new Set();for(const x of l){if(out.length>=n)break;if(!lg.has(x.tip.s.liga)){out.push(x);lg.add(x.tip.s.liga)}}
  for(const x of l){if(out.length>=n)break;if(!out.includes(x))out.push(x)}return out.sort((a,b)=>(a.tip.s.datum+a.tip.s.zeit).localeCompare(b.tip.s.datum+b.tip.s.zeit))}
 const KSCH={a:["A · Höchste Einigkeit","kA","#c9f8ff"],b:["B · Alle Modelle einig","kB","#ffe2a8"],c:["C · Mindestens ¾ der Modelle einig","kC","#d8ffee"]};
 function konsSchein(ab,L,n){const[titel,cls,col]=KSCH[ab];if(!L.length)return `<div class="card ${cls}"><p class="msub" style="color:#fff">${titel}: an diesem Tag keine passenden Tipps.</p></div>`;
@@ -2633,10 +2633,7 @@ function p4Kand(s,mk,ids){if(mk!="bts")return konsKand(s,mk,ids);const ps=(ids?i
  return{tip:{s,lab:ja?"BEIDE TREFFEN JA":"BEIDE TREFFEN NEIN",pr,q:Math.round(10000/pr)/100,win:r=>(r.h>0&&r.a>0)==ja},ein,N:ps.length,mkok:ein>=Math.ceil(ps.length*.75)}}
 function p4Scheine(tag,mk,ids,ab,lo,hi,cnt){let l=tag.map(s=>p4Kand(s,mk,ids)).filter(x=>x&&x.tip&&x.tip.q>1);
  if(ab=="b")l=l.filter(x=>x.ein==x.N);if(ab=="c")l=l.filter(x=>x.mkok);
- l.sort((a,b)=>b.tip.pr-a.tip.pr);const used=new Set(),SC=[];
- if(cnt){for(let k=0;k<30;k++){const W=l.filter(x=>!used.has(x.tip.s.id)).slice(0,cnt);if(W.length<cnt)break;W.forEach(x=>used.add(x.tip.s.id));SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}return{l,used,SC}}
- for(let k=0;k<12;k++){const W=[];let g=1;for(const x of l){if(g>=lo)break;if(used.has(x.tip.s.id))continue;if(g*x.tip.q<=hi){W.push(x);g*=x.tip.q}}if(g<lo||!W.length)break;W.forEach(x=>used.add(x.tip.s.id));SC.push([W,g])}
- return{l,used,SC}}
+ l=vtList(l,mk);const SC=bauSC(l,cnt,lo,hi),used=new Set(SC.flatMap(([W])=>W.map(x=>x.tip.s.id)));return{l,used,SC}}
 function p4Mode(Q){if(S.p4n==null)S.p4n=5;if(!S.p4qm){return{lo:null,hi:null,bl:S.p4n+" Spiele",cnt:S.p4n,rng:false}}const bi=S[Q+"b"]==null?0:S[Q+"b"],b=P4B[bi];return{lo:b[0],hi:b[1],bl:b[2],cnt:null,rng:true,bi}}
 function p4Ctl(Q,rr){const m=p4Mode(Q);const nums=[];for(let n=3;n<=20;n++)nums.push(n);
  return `<div class="p4ctl"><span class="p4lb">Spiele je Schein</span><div class="p4nn">${nums.map(n=>`<div class="chip${!m.rng&&S.p4n==n?' on':''}" onclick="S.p4n=${n};S.p4qm=false;${rr}">${n}</div>`).join("")}</div>
@@ -2703,8 +2700,8 @@ function statMeinung(s){const x=s.xgform,e=s.elo;if(!x||!x.h||!x.a||!x.h.n||!x.a
  for(let i=0;i<=10;i++)for(let j=0;j<=10;j++){const v=P(lh,i)*P(la,j);if(i>j)p1+=v;else if(i==j)px+=v;else p2+=v;if(i+j>2)o25+=v}
  const bts=(1-Math.exp(-lh))*(1-Math.exp(-la));return{p1:p1*100,px:px*100,p2:p2*100,o25:o25*100,bts:bts*100,lh,la}}
 function dcPaar(s,ab){const st=statMeinung(s);if(!st)return[];const out=[],r=res(s);
- const kx=konsKand(s,"x");if(kx&&kx.tip&&(ab=="a"||(ab=="c"?kx.mkok:kx.ein==kx.N))){const j=["1","X","2"].indexOf(kx.tip.lab[0]),sv=[st.p1,st.px,st.p2],sj=sv.indexOf(Math.max(...sv));out.push({s,m:"1X2",k:kx,tip:kx.tip,stat:["1","X","2"][sj]+" ("+kom(Math.round(sv[sj]))+" %)",ok:j==sj,r})}
- const ko=konsKand(s,"ou");if(ko&&ko.tip&&ko.tip.lab.indexOf("OVER")>=0&&(ab=="a"||(ab=="c"?ko.mkok:ko.ein==ko.N)))out.push({s,m:"OVER 2,5",k:ko,tip:ko.tip,stat:(st.o25>=50?"OVER":"UNDER")+" ("+kom(Math.round(Math.max(st.o25,100-st.o25)))+" %)",ok:st.o25>=50,r});
+ const kx=konsKand(s,"x");if(kx&&kx.tip&&(ab=="a"||(ab=="c"?kx.mkok:kx.ein==kx.N))){const j=["1","X","2"].indexOf(kx.tip.lab[0]),sv=[st.p1,st.px,st.p2],sj=sv.indexOf(Math.max(...sv));out.push({s,mkx:"x",m:"1X2",k:kx,tip:kx.tip,stat:["1","X","2"][sj]+" ("+kom(Math.round(sv[sj]))+" %)",ok:j==sj,r})}
+ const ko=konsKand(s,"ou");if(ko&&ko.tip&&ko.tip.lab.indexOf("OVER")>=0&&(ab=="a"||(ab=="c"?ko.mkok:ko.ein==ko.N)))out.push({s,mkx:"ou",m:"OVER 2,5",k:ko,tip:ko.tip,stat:(st.o25>=50?"OVER":"UNDER")+" ("+kom(Math.round(Math.max(st.o25,100-st.o25)))+" %)",ok:st.o25>=50,r});
  const kb=p4Kand(s,"bts",null);if(kb&&kb.tip&&(ab=="a"||(ab=="c"?kb.mkok:kb.ein==kb.N))){const ja=kb.tip.lab.indexOf("JA")>=0;out.push({s,m:"Beide treffen",k:kb,tip:kb.tip,stat:(st.bts>=50?"JA":"NEIN")+" ("+kom(Math.round(Math.max(st.bts,100-st.bts)))+" %)",ok:(st.bts>=50)==ja,r})}
  return out}
 function renderDC(){const ab=S.abw||"c",tag=D.spiele.filter(s=>s.datum==S.tag),M=p4Mode("p4dc"),fl=S.dcf||"ok";
@@ -2715,15 +2712,35 @@ function renderDC(){const ab=S.abw||"c",tag=D.spiele.filter(s=>s.datum==S.tag),M
  const pc=(a,b)=>b?Math.round(a/b*100)+" %":"–";
  const L=(fl=="ok"?Ok:fl=="no"?No:A).slice().sort((a,b)=>b.tip.pr-a.tip.pr);
  // Scheine nur aus Doppel-Treffern
- const C=Ok.slice().sort((a,b)=>b.tip.pr-a.tip.pr),used=new Set(),SC=[];
- if(M.cnt){for(let k=0;k<30;k++){const W=[];for(const x of C){if(W.length>=M.cnt)break;if(used.has(x.s.id)||W.some(y=>y.s.id==x.s.id))continue;W.push(x)}if(W.length<M.cnt)break;W.forEach(x=>used.add(x.s.id));SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}}
- else{for(let k=0;k<12;k++){const W=[];let g=1;for(const x of C){if(g>=M.lo)break;if(used.has(x.s.id)||W.some(y=>y.s.id==x.s.id))continue;if(g*x.tip.q<=M.hi){W.push(x);g*=x.tip.q}}if(g<M.lo||!W.length)break;W.forEach(x=>used.add(x.s.id));SC.push([W,g])}}
+ const C=VM[typeof mk!="undefined"?mk:"x"]?vtList(Ok,x=>x.mkx):Ok.slice().sort((a,b)=>b.tip.pr-a.tip.pr),SC=bauSC(C,M.cnt,M.lo,M.hi);
  const row=x=>{const w=x.r?x.tip.win(x.r):null;return `<div class="klr"><div class="kltx"><small>${(["SO","MO","DI","MI","DO","FR","SA"][new Date(x.s.datum+"T12:00").getDay()]+" "+dm(x.s.datum)+" · "+x.s.zeit+" · "+(ligaInfo[x.s.liga]||x.s.liga||"")).toUpperCase()}</small>${x.s.heim} vs ${x.s.gast}<div class="kla">${x.m}: Modelle <b>${x.tip.lab.split(" · ")[0]}</b> (${kom(Math.round(x.tip.pr))} %) · Statistik <b>${x.stat}</b></div></div><div class="klm"><span class="dcb ${x.ok?'y':'n'}">${x.ok?'✅':'⚠'}</span><span class="kmk ${w==null?'of':w?'ok':'no'}">${w==null?'…':w?'✓':'✕'}</span></div></div>`};
  $("p4alist").innerHTML=`<h3>🔬 Doppel-Check · Modelle + Statistik <span>${tag.length} Spiele</span></h3>
  <div class="bx-sync">Modelle = Konsens-Tipp · Statistik = eigene Rechnung nur aus xG-Form der letzten Spiele und Elo. ✅ = beide einig · ⚠ = Widerspruch. Märkte: 1X2 · OVER 2,5 · Beide treffen.</div>${abSwitch()}
  <div class="bx"><div class="bx-p"><div class="bx-ph"><b>Messung bisher (${past.length} Tage)</b><span>Trefferquote</span></div><div class="bx-stats"><div><small>✅ Doppel-Treffer</small><b class="up">${pc(a2,a1)}</b><small>${a2}/${a1}</small></div><div><small>⚠ Widerspruch</small><b class="dn">${pc(b2,b1)}</b><small>${b2}/${b1}</small></div><div><small>heute ✅</small><b>${Ok.length}</b></div><div><small>heute ⚠</small><b>${No.length}</b></div></div></div></div>
  <h3>🎯 Scheine nur aus ✅ Doppel-Treffern <span>${M.bl}</span></h3>${p4Ctl("p4dc","renderDC()")}${p4Bar(new Set(Ok.map(x=>x.s.id)).size,SC)}${SC.length?SC.map(([W,g],i)=>p4ScheinHTML(W.map(x=>({tip:x.tip,ein:x.k.ein,N:x.k.N})),g,i+1,M.bl)).join(""):`<div class="card p4c"><p class="msub">Heute nicht genug ✅ Doppel-Treffer dafür.</p></div>`}
  <details class="mbdet" ${S.dcauf?"open":""} ontoggle="S.dcauf=this.open"><summary><b>📋 Alle Tipps im Vergleich</b><span>${L.length} · antippen zum Aufklappen</span></summary><div class="bx-ctl"><div class="bx-seg">${[["ok","✅ Einig"],["no","⚠ Widerspruch"],["all","Alle"]].map(([k,t])=>`<button class="${fl==k?'on':''}" onclick="S.dcf='${k}';renderDC()">${t}</button>`).join("")}</div></div><div class="klst" style="display:block">${L.map(row).join("")||'<p class="bx-mu">keine</p>'}</div></details>`}
+/* ===== VORTEIL-AUSWAHL (1X2 · Doppelte Chance · O/U 2,5): historische Trefferquote × echte Buchmacher-Quote ===== */
+const VM={x1:1,x:1,ou:1,ou25:1};
+function bookQ(s,lab){const Q=s&&s.quoten;if(!Q||!lab)return null;const t=String(lab).trim().split(/[ ·]/)[0].toUpperCase();
+ if(t=="OVER")return Q["Ü2.5"]||null;if(t=="UNDER")return Q["U2.5"]||null;
+ if(["1","X","2"].includes(t))return Q[t]||null;
+ if(["1X","X2","12"].includes(t)){const a=Q[t[0]],b=Q[t[1]];return a&&b?Math.round(100/(1/a+1/b))/100:null}return null}
+function histP(mk,pr){mk=mk=="ou25"?"ou":mk;const K=(D.master_gew||{})._kal||{},e=K[mk+"|"+Math.floor(pr/5)*5];if(e&&e[0]>=20)return(e[1]+pr/100*20)/(e[0]+20);return pr/100}
+function vtTip(t,mk){if(!t||!VM[mk])return null;if(t._vt!==undefined)return t._vt;const bq=bookQ(t.s,t.lab);if(!bq){t._vt=null;return null}
+ t.qf=t.qf||t.q;t.q=bq;t.hp=histP(mk,t.pr);t._vt=t.hp*bq;return t._vt}
+/* Liste nach Vorteil: nur Tipps, die historisch mehr einbringen als sie kosten (Wert > 1) */
+function vtList(l,mk,get){get=get||(x=>x.tip||x);const mkf=typeof mk=="function"?mk:()=>mk;
+ if(!l.some(x=>VM[mkf(x)]))return l.slice().sort((a,b)=>get(b).pr-get(a).pr);
+ return l.filter(x=>{const m=mkf(x);if(!VM[m])return true;const v=vtTip(get(x),m);return v!=null&&v>1}).sort((a,b)=>{const va=VM[mkf(a)]?get(a)._vt:0,vb=VM[mkf(b)]?get(b)._vt:0;return(vb-va)||(get(b).pr-get(a).pr)})}
+/* Scheine gleichmäßig verteilen: die guten Tipps reihum auf alle Scheine */
+function bauSC(l,cnt,lo,hi,get){get=get||(x=>x.tip||x);const gid=x=>get(x).s.id;
+ const gier=()=>{const used=new Set(),SC=[];if(cnt){for(let k=0;k<30;k++){const W=[];for(const x of l){if(W.length>=cnt)break;if(used.has(gid(x))||W.some(y=>gid(y)==gid(x)))continue;W.push(x)}if(W.length<cnt)break;W.forEach(x=>used.add(gid(x)));SC.push(W)}}
+  else{for(let k=0;k<12;k++){const W=[];let g=1;for(const x of l){if(g>=lo)break;if(used.has(gid(x))||W.some(y=>gid(y)==gid(x)))continue;if(g*get(x).q<=hi){W.push(x);g*=get(x).q}}if(g<lo||!W.length)break;W.forEach(x=>used.add(gid(x)));SC.push(W)}}return SC};
+ const G=gier(),K=G.length;if(K<2)return G.map(W=>[W,W.reduce((a,x)=>a*get(x).q,1)]);
+ const used=new Set(),B=Array.from({length:K},()=>({W:[],g:1}));let lauf=0,weiter=true;
+ while(weiter){weiter=false;const ord=lauf%2?B.slice().reverse():B;lauf++;
+  for(const b of ord){if(cnt?b.W.length>=cnt:b.g>=lo)continue;const x=l.find(x=>!used.has(gid(x))&&(cnt||b.g*get(x).q<=hi));if(!x)continue;b.W.push(x);b.g*=get(x).q;used.add(gid(x));weiter=true}}
+ const R=B.filter(b=>cnt?b.W.length==cnt:b.g>=lo);const out=(R.length>=K?R.map(b=>b.W):G);return out.map(W=>[W,W.reduce((a,x)=>a*get(x).q,1)])}
 /* ---------- 🔬 DOPPEL-CHECK+ · gleicher Prozess, alle 12 Wettmärkte ---------- */
 const DCC={};
 function dcStatP(s,mk,tip){const k=s.id+"|"+mk+"|"+tip.lab;if(k in DCC)return DCC[k];const st=statMeinung(s);if(!st)return DCC[k]=null;
@@ -2736,16 +2753,14 @@ function dcStatP(s,mk,tip){const k=s.id+"|"+mk+"|"+tip.lab;if(k in DCC)return DC
  return DCC[k]=pt?{p:pw/pt*100,px:px/pt*100}:null}
 function dcPaar2(s,ab,mk){const k=p4Kand(s,mk,null);if(!k||!k.tip||!(ab=="a"||(ab=="c"?k.mkok:k.ein==k.N)))return[];const sp=dcStatP(s,mk,k.tip);if(!sp)return[];
  const drei=["x1","w1","w2"].includes(mk),ok=drei&&sp.px!=null&&!/^X|SIEG X| X$/.test(k.tip.lab)?sp.p>=sp.px&&sp.p>=100-sp.p-sp.px:sp.p>=50;
- return[{s,m:KMK[mk],k,tip:k.tip,stat:kom(Math.round(sp.p))+" %",ok,r:res(s)}]}
+ return[{s,mkx:mk,m:KMK[mk],k,tip:k.tip,stat:kom(Math.round(sp.p))+" %",ok,r:res(s)}]}
 function renderDC2(){const ab=S.abw||"c",mk=KMK[S.dcmk]?S.dcmk:(S.dcmk="x"),tag=D.spiele.filter(s=>s.datum==S.tag),M=p4Mode("p4dm");
  const A=tag.flatMap(s=>dcPaar2(s,ab,mk)),Ok=A.filter(x=>x.ok),No=A.filter(x=>!x.ok);
  const POOL=P4POOL(),gr=new Date(new Date(S.tag+"T12:00")-60*864e5).toISOString().slice(0,10),past=[...new Set(POOL.filter(s=>s.datum<S.tag&&s.datum>=gr&&res(s)).map(s=>s.datum))];let a1=0,a2=0,b1=0,b2=0;
  for(const s of POOL.filter(s=>s.datum<S.tag&&s.datum>=gr&&res(s)))for(const x of dcPaar2(s,ab,mk)){const w=x.tip.win(x.r);if(w==null)continue;if(x.ok){a1++;a2+=w}else{b1++;b2+=w}}
  const pc=(a,b)=>b?Math.round(a/b*100)+" %":"–";
  const L=A.slice().sort((a,b)=>b.tip.pr-a.tip.pr);
- const C=Ok.slice().sort((a,b)=>b.tip.pr-a.tip.pr),used=new Set(),SC=[];
- if(M.cnt){for(let k=0;k<30;k++){const W=[];for(const x of C){if(W.length>=M.cnt)break;if(used.has(x.s.id))continue;W.push(x)}if(W.length<M.cnt)break;W.forEach(x=>used.add(x.s.id));SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}}
- else{for(let k=0;k<12;k++){const W=[];let g=1;for(const x of C){if(g>=M.lo)break;if(used.has(x.s.id))continue;if(g*x.tip.q<=M.hi){W.push(x);g*=x.tip.q}}if(g<M.lo||!W.length)break;W.forEach(x=>used.add(x.s.id));SC.push([W,g])}}
+ const C=VM[typeof mk!="undefined"?mk:"x"]?vtList(Ok,x=>x.mkx):Ok.slice().sort((a,b)=>b.tip.pr-a.tip.pr),SC=bauSC(C,M.cnt,M.lo,M.hi);
  const row=x=>{const w=x.r?x.tip.win(x.r):null;return `<div class="klr"><div class="kltx"><small>${(["SO","MO","DI","MI","DO","FR","SA"][new Date(x.s.datum+"T12:00").getDay()]+" "+dm(x.s.datum)+" · "+x.s.zeit+" · "+(ligaInfo[x.s.liga]||x.s.liga||"")).toUpperCase()}</small>${x.s.heim} vs ${x.s.gast}<div class="kla">Modelle <b>${x.tip.lab}</b> (${kom(Math.round(x.tip.pr))} %) · Statistik <b>${x.stat}</b></div></div><div class="klm"><span class="dcb ${x.ok?'y':'n'}">${x.ok?'✅':'⚠'}</span><span class="kmk ${w==null?'of':w?'ok':'no'}">${w==null?'…':w?'✓':'✕'}</span></div></div>`};
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(KMK).map(([q,t])=>`<div class="${mk==q?'on':''}" onclick="S.dcmk='${q}';renderDC2()">${t}</div>`).join("")}</div>`;
  $("p4mlist").innerHTML=`<h3>🔬 Doppel-Check+ · ${KMK[mk]} <span>${tag.length} Spiele</span></h3>${sw}
@@ -2793,9 +2808,7 @@ function mbAlle(s,plus,R){const out=[];for(const x of mbTipps(s,plus,R))if(MBU[x
 const mbMM=Q=>KMK[S[Q+"m"]]?S[Q+"m"]:"x1";
 function mbScheine(tag,plus,M,mm0){const R=mbLern(tag),T=P4POOL().filter(s=>s.datum==tag),best=[],mm=KMK[mm0]?mm0:mbMM(plus?"mbp":"mb");
  for(const s of T){const L=mbAlle(s,plus,R).filter(x=>x.ok&&x.mk==mm);const c=L.sort((a,b)=>b.kal-a.kal)[0];if(c)best.push(c)}
- best.sort((a,b)=>b.kal-a.kal);const used=new Set(),SC=[];
- if(M.cnt){for(let i=0;i+M.cnt<=best.length&&SC.length<30;i+=M.cnt){const W=best.slice(i,i+M.cnt);SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}}
- else{for(let k=0;k<12;k++){const W=[];let g=1;for(const x of best){if(g>=M.lo)break;if(used.has(x.s.id))continue;if(g*x.tip.q<=M.hi){W.push(x);g*=x.tip.q}}if(g<M.lo||!W.length)break;W.forEach(x=>used.add(x.s.id));SC.push([W,g])}}
+ const B2=VM[mm]?vtList(best,mm):best.sort((a,b)=>b.kal-a.kal);best.length=0;best.push(...B2);const SC=bauSC(best,M.cnt,M.lo,M.hi);
  return{best,SC}}
 function mbMC(SC,E){const L=SC.map(([W,g])=>({c:W.reduce((a,x)=>a*x.kal/100,1),g})).filter(x=>x.c>0);if(!L.length)return null;const N=10000,H=[];let voll=0;
  for(let n=0;n<N;n++){let bank=0,st=E,lvl=0;for(const x of L){if(lvl==0)bank-=E;if(Math.random()<x.c){st*=x.g;lvl++;if(lvl==3){bank+=st;voll++;st=E;lvl=0}}else{st=E;lvl=0}}if(lvl>0)bank+=st;H.push(bank)}
@@ -2824,7 +2837,7 @@ function p4Sum(SC){if(!SC||!SC.length)return"";let g=0,v=0,o=0,sg2=0,sv=0,so=0;c
  <div class="p4bar"><div class="p4bh">${(/^p4|^m[sb]|^resid|^lgbm/.test(S.seite)?S.p4qm:S.konqm)?`🎯 Ergebnis Quoten-Bereich ${(P4B[(/^p4|^m[sb]|^resid|^lgbm/.test(S.seite)?S[S.seite+"b"]:S.konqb)||0]||[])[2]||""}`:"🎯 Ergebnis aller Scheine"}</div><div class="p4bz"><span>Scheine:</span><b class="y">${sg2} gewonnen</b><b class="n">${sv} verloren</b><b class="o">${so} offen</b></div></div></div>`}
 /* Konsens: Quoten-Bereiche wie bei Paroli (Kombi wird so gebaut, dass die Gesamtquote im Bereich liegt) */
 function konQB(rr){rr=rr||"renderKons()";const bi=S.konqb||0;return `<div class="p4ctl"><button class="p4qb${S.konqm?' on':''}" onclick="S.konqm=!S.konqm;${rr}">${S.konqm?'▾':'▸'} Quoten-Bereiche</button>${S.konqm?`<div class="mchips kgr" style="grid-template-columns:repeat(4,minmax(0,1fr))">${P4B.map((b,i)=>`<div class="chip${i==bi?' on':''}" onclick="S.konqb=${i};${rr}">${b[2]}</div>`).join("")}</div>`:""}</div>`}
-function konsRange(L){const[lo,hi]=P4B[S.konqb||0];const l=L.slice().sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr)),W=[];let g=1;
+function konsRange(L){const[lo,hi]=P4B[S.konqb||0];const l=L.some(x=>x.tip._vt)?L.slice():L.slice().sort((a,b)=>(b.ein/b.N-a.ein/a.N)||(b.tip.pr-a.tip.pr)),W=[];let g=1;
  for(const x of l){if(g>=lo)break;if(g*x.tip.q<=hi){W.push(x);g*=x.tip.q}}if(g<lo)return[];return W.sort((a,b)=>(a.tip.s.datum+a.tip.s.zeit).localeCompare(b.tip.s.datum+b.tip.s.zeit))}
 /* Navigation: je Bereich ein eigener Balken mit seinen Tabs; nur der aktuelle Bereich und Tab leuchten */
 const NAVN={"1":"ANALYSE 1 · Hauptanalyse","4":"ANALYSE 2 · Paroli-System-Kombi","5":"🎁 MYSTERY BOX","6":"🧠 PROFI-MODELLE","7":"🤖 MASTER"};
@@ -2837,8 +2850,7 @@ function p4Bar(n,SC){const g=SC.reduce((a,x)=>a+x[0].length,0),r=Math.max(0,n-g)
  return `<div class="p4bar"><div class="p4tl"><div><b>${n}</b><small>Spiele verfügbar</small></div><div><b>${SC.length}</b><small>Schein${SC.length==1?"":"e"}${gl}</small></div><div><b>${r}</b><small>übrig</small></div></div><div class="p4bb"><i style="width:${pz}%"></i></div></div>`+p4Sum(SC)}
 /* ---------- 🤖 AUTO-WAHL für Analyse 2, Mystery Box und Profi-Modelle (misst alle Varianten an vergangenen Tagen, nur Anzeige) ---------- */
 const AWM=[{cnt:3},{cnt:4},{cnt:5}].concat(P4B.map((b,bi)=>({bi}))),awML=m=>m.cnt?m.cnt+" Spiele je Schein":"Quoten "+P4B[m.bi][2];
-function awSC(l,m){const used=new Set(),SC=[];if(m.cnt){for(let k=0;k<30;k++){const W=l.filter(x=>!used.has(x.tip.s.id)).slice(0,m.cnt);if(W.length<m.cnt)break;W.forEach(x=>used.add(x.tip.s.id));SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}return SC}
- const lo=P4B[m.bi][0],hi=P4B[m.bi][1];for(let k=0;k<12;k++){const W=[];let g=1;for(const x of l){if(g>=lo)break;if(used.has(x.tip.s.id))continue;if(g*x.tip.q<=hi){W.push(x);g*=x.tip.q}}if(g<lo||!W.length)break;W.forEach(x=>used.add(x.tip.s.id));SC.push([W,g])}return SC}
+function awSC(l,m){return m.cnt?bauSC(l,m.cnt):bauSC(l,0,P4B[m.bi][0],P4B[m.bi][1])}
 function awP4L(t,mk,ids,ab){return p4Scheine(P4POOL().filter(s=>s.datum==t&&(!ids||ids.every(i=>s.prog[i]))),mk,ids,ab,99,1,null).l}
 function awBest(key,F,E){const k=key+"|"+S.tag+"|"+E+"|"+ARCH.length;window._aw=window._aw||{};if(_aw[k])return _aw[k];
  const tage=[...new Set(P4POOL().filter(s=>s.datum<S.tag&&res(s)).map(s=>s.datum))].sort(),V=[];
@@ -2888,7 +2900,7 @@ function msTipp(key,s,mk,R,roh){const Q=msQuellen(key,s).filter(q=>mk=="x"?q.v.x
 function renderMaster(key){const el=$(key+"list"),R=msLern(key),mk=S[key+"mk"]||"x",M=p4Mode(key),tag=D.spiele.filter(s=>s.datum==S.tag);
  const T=[];for(const s of tag){let c=null;for(const m of(mk=="b"?["x","o"]:[mk])){const t=msTipp(key,s,m,R);if(t&&t.ok&&(!c||t.tip.pr>c.tip.pr))c=t}
   if(c&&key=="awm"){const G=mbGlueck(s);if(G&&mbRisk(s,c.mk=="x"?"x":"ou",c.mk=="x"?["1","X","2"].indexOf(c.lab):c.lab.startsWith("OVER")?0:1,G))c=null}if(c)T.push(c)}
- T.sort((a,b)=>b.tip.pr-a.tip.pr);const SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
+ T=vtList(T,x=>x.mk);const SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
  const kz=m=>{const L=Object.entries(R.st).map(([nm,e])=>({nm,n:e[m][0],h:e[m][2]})).filter(x=>x.n>=20).sort((a,b)=>b.h/b.n-a.h/a.n);const ms=R.C[m],mh=ms.filter(x=>x[1]).length;
   if(ms.length<20)return `<p class="bx-mu" style="padding:6px 2px">${m=="x"?"1X2":"O/U 2,5"}: noch zu wenig Ergebnisse (${ms.length})</p>`;const mp=mh/ms.length,best=L[0]?L[0].h/L[0].n:0,vorn=mp>=best;
   return `<div class="msk"><div class="msk1"><b>${m=="x"?"1X2":"O/U 2,5"}</b><span class="mcu ${vorn?'y':'n'}">${vorn?"✅ Master liegt vorn":"⚠ Master nicht besser als "+L[0].nm}</span></div><div class="mskr"><span class="ms0">🤖 Master <b>${Math.round(mp*100)} %</b></span>${L.map(x=>`<span>${x.nm} ${Math.round(x.h/x.n*100)} %</span>`).join("")}</div><small>richtig getippt bei ${ms.length} vergangenen Spielen</small></div>`};
@@ -2930,7 +2942,7 @@ function msMaster(s,mk){ const Q=MSQ(s).map(([nm,p,id])=>[nm,msVec(mk,p),id]).fi
  let lab=(mk=='fg'||mk=='ng2')?(mk=='fg'?'1. TOR: ':'2.HZ NÄCHSTES TOR: ')+(k?s.gast:s.heim):ML[mk][k],pr=a[k],rm=null;if((mk=="x1")&&s.remis&&s.remis.x){k=1;lab="X";pr=s.remis.dr;rm=s.remis}
  const ein=Q.filter(([,v])=>(mk=='bts'||mk=='bts2')?v[0]>=50:msPick(mk,v)==k).length,N=Q.length,ok=rm||ein/N>=.6,kk=k;
  return{s,mk,lab,ein,N,ok,rm,Q:Q.map(([nm,v])=>[nm,(mk=='bts'||mk=='bts2')?ML[mk][v[0]>=50?0:1]:(mk=='fg'||mk=='ng2')?((mk=='fg'?'1. TOR: ':'2.HZ NÄCHSTES TOR: ')+(msPick(mk,v)?s.gast:s.heim)):ML[mk][msPick(mk,v)]]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>msWin(mk,kk,r)}}}
-function renderMS(){const mk=KMK[S.msm]?S.msm:"x1",M=p4Mode("ms"),tag=D.spiele.filter(s=>s.datum==S.tag),T=tag.map(s=>msMaster(s,mk)).filter(x=>x&&x.ok).sort((a,b)=>b.tip.pr-a.tip.pr),SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
+function renderMS(){const mk=KMK[S.msm]?S.msm:"x1",M=p4Mode("ms"),tag=D.spiele.filter(s=>s.datum==S.tag),T=vtList(tag.map(s=>msMaster(s,mk)).filter(x=>x&&x.ok),mk),SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
  const g=msGew(mk),past=P4POOL().filter(s=>s.datum<S.tag&&res(s));let mn=0,mh=0;for(const s of past){const x=msMaster(s,mk);if(!x)continue;const w=x.tip.win(res(s));if(w==null)continue;mn++;if(w)mh++}
  const L=Object.entries(g.st).filter(([,e])=>(e.an||0)>=15).map(([id,e])=>[g.nmOf[id]||id,e.ah/e.an,e.an]).sort((a,b)=>b[1]-a[1]),mp=mn?mh/mn:0,vorn=!L.length||mp>=L[0][1];
  const row=x=>{const r=res(x.s),w=r?x.tip.win(r):null;return `<div class="mbk in ${w==null?'':w?'win':'los'}"><div class="mbk1"><span>${x.s.zeit} · ${(ligaInfo[x.s.liga]||x.s.liga||"")}</span><b class="mbg">${x.rm?"🧠 Remis-Ampel":x.ein+"/"+x.N+" einig"}</b></div><div class="mbk2">${x.s.heim} – ${x.s.gast}</div><div class="mbk3"><div><small>${KMK[mk]}</small><b>${x.lab}</b></div><div class="mbp"><b>${kom(Math.round(x.tip.pr))} %</b><small>@ ${kom(x.tip.q.toFixed(2))}</small></div><span class="kmk ${w==null?'of':w?'ok':'no'}">${w==null?'…':w?'✓':'✕'}</span></div><div class="mbck">${x.Q.map(([nm,t])=>`<span class="mbi ${t==x.lab?'y':'n'}">● ${nm}: ${t}</span>`).join("")}</div></div>`};
@@ -3259,7 +3271,7 @@ function sgAuswahl(tag,modus,n,mid,mk){const l=[],NMk={O:"OVER",U:"UNDER",J:"JA"
   const lab=mk=="ht"||mk=="ht2"?pre+b.kat.join(""):pre+(L3?(ks.length>1?b.kat.join("")+" · "+b.kat.map(NM).join("/"):b.kat[0]+(b.kat[0]=="X"?" · Remis":" · "+NM(b.kat[0]))):NMk[b.kat[0]]+suf);
   const gp=mid=="modell_elo"&&(mk=="x"||mk=="ou25")?gepr("Elo",mk,prs):null;
   l.push({s,box,gp,pr:prs,mod:`${(midB=="h2m"?"2.-HZ-Modell":midB=="h1m"?"1.-HZ-Modell":(D.modelle.find(m=>m.id==mid)||{kurz:mid}).kurz)} · Übereinst. ✓${ks.length>1?" (2 Haken)":""}`,q:qq,src:"Modell",qm:"x",lab,win:r=>{const w=ks.map(j=>sgWin(mk,b.L[j],r));return w.includes(null)?null:w.includes(true)},ue:["✓"],ueOk:true,kontra:kg,von:mid=="modell_elo"?"Elo":"RF"})}
- return kWahl(l,n)}
+ if(VM[mk]){bestMark(l);const V=vtList(l,mk,x=>x);return V.slice(0,n).sort((a,b)=>(a.s.datum+a.s.zeit).localeCompare(b.s.datum+b.s.zeit))}return kWahl(l,n)}
 function renderRF(){S.rfm=S.rfm||"x";const tag=D.spiele.filter(s=>s.datum==S.tag&&s.prog.rf),chips=chipsN("rfn","renderRF()",[1,2,3,4,5,10,15,20,25,30]),n=S.rfn,mk=S.rfm;
  const sw=`<div class="bsw" style="flex-wrap:wrap">${Object.entries(RFM).map(([k,t])=>`<div class="${mk==k?'on':''}" onclick="S.rfm='${k}';renderRF()">${t}</div>`).join("")}</div>`;
  $("rflist").innerHTML=`<h3>🌲 Random Forest · ${SGN[mk]} <span>${tag.length} Spiele</span></h3>${sw}${chips}${konQB("renderRF()")}${["ma","mb","mc"].map((ab,j)=>{const L=S.konqm?sgRange(sgAuswahl(tag,[false,true,"c"][j],999,"rf",mk)):sgAuswahl(tag,[false,true,"c"][j],n,"rf",mk);return kSchein(ab,L,S.konqm?L.length:n,"GESAMTQUOTE")}).join("").replace("C · ✓ + Konsens gleich","C · ✓ = höchste RF-%").replace("A · MAX-Übereinstimmung ✓","A · RF-Übereinstimmung ✓")}
