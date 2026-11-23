@@ -8,6 +8,7 @@ Aendert keine Modelle und keine Prognosen.
 """
 import math
 
+KAL_MAERKTE = ("x1", "x", "ou")   # Maerkte mit echten Buchmacher-Quoten
 MAERKTE = ["x1", "x", "ou", "h2", "bts", "bts2", "w1", "w2", "ht", "ht2a", "h1x", "h2x", "fg", "ng2"]
 
 
@@ -140,6 +141,10 @@ def zaehlen(stats, quelle, p, r):
         e = stats.setdefault(quelle, {}).setdefault(mk, [0, 0])
         e[0] += 1
         e[1] += int(bool(w))
+        if mk in KAL_MAERKTE:              # Kalibrierung: "Modell sagt ~X %" -> wie oft traf es wirklich
+            kb = stats.setdefault("_kal", {}).setdefault(f"{mk}|{int(v[k] // 5) * 5}", [0, 0])
+            kb[0] += 1
+            kb[1] += int(bool(w))
 
 
 def _bt_zu_seite(sp):
@@ -187,4 +192,11 @@ def aus_bt(bt, log=print, ab="2025-07-01"):
 def eintragen(d, stats):
     g = d.setdefault("master_gew", {})
     for q, s in stats.items():
+        if q == "_kal":                    # Kalibrierung aufsummieren statt ueberschreiben
+            k = g.setdefault("_kal", {})
+            for b, (n, h) in s.items():
+                e = k.setdefault(b, [0, 0])
+                e[0] += n
+                e[1] += h
+            continue
         g[q] = s
