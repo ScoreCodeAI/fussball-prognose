@@ -8,8 +8,7 @@ Aendert keine Modelle und keine Prognosen.
 """
 import math
 
-MAERKTE = ["x1", "x", "ou", "h2", "bts", "bts2", "w1", "w2", "ht", "ht2a", "h1x", "h2x", "cs"]
-CSL = [f"{i}:{j}" for i in range(6) for j in range(6)]
+MAERKTE = ["x1", "x", "ou", "h2", "bts", "bts2", "w1", "w2", "ht", "ht2a", "h1x", "h2x", "fg", "ng2"]
 
 
 def _sg(h, a):
@@ -43,12 +42,22 @@ def vec(mk, p):
         sh = (xg[0] + xg[1]) or 1
         v = (1 - math.exp(-t * xg[0] / sh)) * (1 - math.exp(-t * xg[1] / sh)) * 100
         return [v, 100 - v]
-    if mk == "cs":
+    if mk in ("fg", "ng2"):              # wer trifft zuerst (Vollzeit / 2. HZ), ohne Option "kein Tor"
         xg = g("xg")
         if not xg or xg[0] is None:
             return None
-        P = lambda l, k: math.exp(-l) * l ** k / math.factorial(k)
-        return [P(xg[0], int(c[0])) * P(xg[1], int(c[2])) * 100 for c in CSL]
+        h, a = float(xg[0]), float(xg[1])
+        if mk == "ng2":
+            if g("h2o05") is None:
+                return None
+            t = -math.log(max(1e-6, 1 - g("h2o05") / 100))
+            sh = (h + a) or 1
+            h, a = t * h / sh, t * a / sh
+        lam = h + a
+        if lam <= 0:
+            return None
+        gg = 1 - math.exp(-lam)
+        return [h / lam * gg * 100, a / lam * gg * 100]
     ht, ht2 = g("ht"), g("ht2")
     if mk == "w1":
         return [ht[0], ht[2]] if _ok3(ht) else None
@@ -69,8 +78,20 @@ def win(mk, k, r):
     """Treffer ja/nein (None = nicht entscheidbar), wie msWin auf der Seite. r = (h, a, hh, ha)."""
     h, a, hh, ha = r
     e = _sg(h, a)
-    if mk == "cs":
-        return CSL[k] == f"{h}:{a}"
+    if mk == "fg":
+        want = 2 if k else 0
+        if h + a == 0:
+            return False
+        if a == 0:
+            return want == 0
+        if h == 0:
+            return want == 2
+        if hh is None or ha is None:
+            return None
+        if hh + ha > 0:
+            return (want == 0) if ha == 0 else (want == 2) if hh == 0 else None
+        h2, a2 = h - hh, a - ha
+        return (want == 0) if a2 == 0 else (want == 2) if h2 == 0 else None
     if mk == "x1":
         return e == k
     if mk == "x":
@@ -95,6 +116,11 @@ def win(mk, k, r):
         return h1 != (2 if k == 0 else 0 if k == 1 else 1)
     if mk == "ht2a":
         return e2 != (2 if k == 0 else 0 if k == 1 else 1)
+    if mk == "ng2":
+        want = 2 if k else 0
+        if h2 + a2 == 0:
+            return False
+        return (want == 0) if a2 == 0 else (want == 2) if h2 == 0 else None
     if mk == "h1x":
         return h1 == k
     if mk == "h2x":
