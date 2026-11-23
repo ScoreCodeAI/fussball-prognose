@@ -485,10 +485,7 @@ def main():
         RL = None
         log("Remis-Ampel nicht moeglich:", ex)
 
-    try:
-        d["hzes"] = hzes_tabelle(H)
-    except Exception as ex:
-        log("HZ/ES-Tabelle nicht moeglich:", ex)
+    d.pop("hzes", None)          # HZ/ES-Markt entfernt
 
     share = {}
     for div, g in H.dropna(subset=["HTHG", "HTAG"]).groupby("Div"):

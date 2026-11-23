@@ -8,7 +8,8 @@ Aendert keine Modelle und keine Prognosen.
 """
 import math
 
-MAERKTE = ["x1", "x", "ou", "h2", "bts", "bts2", "w1", "w2", "ht", "ht2a", "h1x", "h2x"]
+MAERKTE = ["x1", "x", "ou", "h2", "bts", "bts2", "w1", "w2", "ht", "ht2a", "h1x", "h2x", "cs"]
+CSL = [f"{i}:{j}" for i in range(6) for j in range(6)]
 
 
 def _sg(h, a):
@@ -42,6 +43,12 @@ def vec(mk, p):
         sh = (xg[0] + xg[1]) or 1
         v = (1 - math.exp(-t * xg[0] / sh)) * (1 - math.exp(-t * xg[1] / sh)) * 100
         return [v, 100 - v]
+    if mk == "cs":
+        xg = g("xg")
+        if not xg or xg[0] is None:
+            return None
+        P = lambda l, k: math.exp(-l) * l ** k / math.factorial(k)
+        return [P(xg[0], int(c[0])) * P(xg[1], int(c[2])) * 100 for c in CSL]
     ht, ht2 = g("ht"), g("ht2")
     if mk == "w1":
         return [ht[0], ht[2]] if _ok3(ht) else None
@@ -62,6 +69,8 @@ def win(mk, k, r):
     """Treffer ja/nein (None = nicht entscheidbar), wie msWin auf der Seite. r = (h, a, hh, ha)."""
     h, a, hh, ha = r
     e = _sg(h, a)
+    if mk == "cs":
+        return CSL[k] == f"{h}:{a}"
     if mk == "x1":
         return e == k
     if mk == "x":
@@ -98,7 +107,12 @@ def zaehlen(stats, quelle, p, r):
         v = vec(mk, p)
         if not v:
             continue
-        k = v.index(max(v))
+        if mk in ("bts", "bts2"):          # Beide treffen: nur JA-Tipps zaehlen (wie auf der Seite)
+            if v[0] < 50:
+                continue
+            k = 0
+        else:
+            k = v.index(max(v))
         w = win(mk, k, r)
         if w is None:
             continue
