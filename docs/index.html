@@ -1925,7 +1925,12 @@ body .days.unten{position:static;margin:2px 0 10px;padding:4px 2px 8px;backgroun
 :is(#zz#zz,body) .bsw>div.on{opacity:1;background:linear-gradient(135deg,#ffd77a,#fff1c2 50%,#ffd77a)!important;animation:kgold 2.4s ease-in-out infinite!important;font-weight:800}
 :is(#zz#zz,body) .mchips .chip,:is(#zz#zz,body) .p4nn>div{position:relative;overflow:hidden;background:linear-gradient(135deg,#1f8f63,#5cf0b4)!important;color:#03281a!important;border:0!important;font-weight:700;opacity:.75;box-shadow:none!important;text-shadow:none!important}
 :is(#zz#zz,body) .mchips .chip.on,:is(#zz#zz,body) .p4nn>div.on{opacity:1;background:linear-gradient(135deg,#7dffcf,#d6fff0 50%,#2bf5a0)!important;box-shadow:0 0 0 2px #fff,0 0 16px #2bf5a0cc!important}
-.msdash{border-color:#f2c45a!important;box-shadow:0 0 16px #f2c45a44}</style>
+.msdash{border-color:#f2c45a!important;box-shadow:0 0 16px #f2c45a44}/* AKTUELLER BEREICH: nur der gewählte Bereich und der gewählte Tab leuchten Gold – alle anderen gleich und ruhig */
+:is(#zz#zz,body) #dash>div{border:1px solid #ffffff22!important;box-shadow:none!important;background:#ffffff08!important;opacity:.72;transform:none!important}
+:is(#zz#zz,body) #dash>div.on{opacity:1;border:2px solid #f2c45a!important;background:linear-gradient(160deg,#f2c45a26,#ffffff08)!important;box-shadow:0 0 0 1px #f2c45a66,0 0 22px #f2c45a88!important;animation:kgold 2.4s ease-in-out infinite!important}
+:is(#zz#zz,body) #ptabs>div{opacity:.75}
+:is(#zz#zz,body) #ptabs>div.on{opacity:1;border:2px solid #f2c45a!important;box-shadow:0 0 0 1px #f2c45a66,0 0 18px #f2c45a77!important}
+</style>
 </head><body class="skin">
 <div class="phone"><div class="wrap">
 <div class="top"><span id="stand">LADE …</span><span class="live"><i></i>AUTO-UPDATE</span></div><div id="credits" class="credits"></div>
