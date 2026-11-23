@@ -1930,7 +1930,7 @@ body .days.unten{position:static;margin:2px 0 10px;padding:4px 2px 8px;backgroun
 :is(#zz#zz,body) #dash>div.on{opacity:1;border:2px solid #f2c45a!important;background:linear-gradient(160deg,#f2c45a26,#ffffff08)!important;box-shadow:0 0 0 1px #f2c45a66,0 0 22px #f2c45a88!important;animation:kgold 2.4s ease-in-out infinite!important}
 :is(#zz#zz,body) #ptabs>div{opacity:.75}
 :is(#zz#zz,body) #ptabs>div.on{opacity:1;border:2px solid #f2c45a!important;box-shadow:0 0 0 1px #f2c45a66,0 0 18px #f2c45a77!important}
-</style>
+.p4sum{border:1px solid #f2c45a55;border-radius:18px;padding:12px;margin:10px 0;background:linear-gradient(160deg,#2a2412,#15130c)}.p4sh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}.p4sh b{font-family:Orbitron,Inter,sans-serif;font-size:12px;letter-spacing:.12em;color:#f2c45a}.p4sh span{font-size:11px;color:#b9a880}.p4dots{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 10px}.p4dots i{width:14px;height:14px;border-radius:50%;display:block}.p4dots i.y{background:#2bf5a0;box-shadow:0 0 8px #2bf5a0aa}.p4dots i.n{background:#ff4d6d;box-shadow:0 0 8px #ff4d6daa}.p4dots i.o{border:2px solid #f2c45a;box-sizing:border-box}.p4st{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.p4st div{border:1px solid #f2c45a44;border-radius:14px;padding:8px 4px;text-align:center}.p4st b{display:block;font-size:24px;font-weight:500;color:#eee}.p4st small{font-size:10px;letter-spacing:.12em;color:#b9a880}.p4sum .y{color:#2bf5a0}.p4sum .n{color:#ff6b8f}.p4sum .o{color:#f2c45a}.p4sl{margin-top:8px;font-size:12px;color:#cfc3a0;text-align:center}</style>
 </head><body class="skin">
 <div class="phone"><div class="wrap">
 <div class="top"><span id="stand">LADE …</span><span class="live"><i></i>AUTO-UPDATE</span></div><div id="credits" class="credits"></div>
@@ -2473,14 +2473,21 @@ function alleBlock(s){const mods=TKM().filter(m=>s.prog[m.id]&&s.prog[m.id].p1!=
    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px"><small style="color:#dff4ff">MESSUNG · Einigkeit ${ein} % · Streuung ±${kom(sd.toFixed(1))}${ein<70?" · uneinig":""}</small><b class="amg">${labs[ti]}</b></div></div>`};
  return `<div class="qban amb"><small style="font-size:12px">PROGNOSEN ALLER MODELLE</small>`+teil("1X2",[s.heim,"X",s.gast],p=>[p.p1,p.px,p.p2])+teil("OVER / UNDER 2,5",["OVER","UNDER"],p=>[p.ue25,c100(p.ue25)])+`</div>`}
 /* ---------- Konsens-Kombi ---------- */
-const KMK={x1:"1X2 Vollzeit",x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",h2:"2. HZ OVER/UNDER 0,5",bts:"Beide treffen",bts2:"Beide treffen 2. HZ",w1:"1. HZ Sieger 1 / 2",w2:"2. HZ Sieger 1 / 2",ht:"1. HZ Doppelte Chance",ht2a:"2. HZ Doppelte Chance",cs:"Correct Score"};
+const KMK={x1:"1X2 Vollzeit",x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",h2:"2. HZ OVER/UNDER 0,5",bts:"Beide treffen",bts2:"Beide treffen 2. HZ",w1:"1. HZ Sieger 1 / 2",w2:"2. HZ Sieger 1 / 2",ht:"1. HZ Doppelte Chance",ht2a:"2. HZ Doppelte Chance",fg:"Erstes Tor (Vollzeit)",ng2:"Nächstes Tor 2. HZ"};
 const h1o=p=>p.h1o05!=null?p.h1o05:null,h2o=p=>p.h2o05!=null?p.h2o05:null;
-/* Correct Score: jedes Modell rechnet aus seinen erwarteten Toren (xG) die Wahrscheinlichkeit jedes Endstands (0:0 … 5:5), Durchschnitt aller Modelle, höchster = Tipp */
-const CSL=[];for(let i=0;i<6;i++)for(let j=0;j<6;j++)CSL.push(i+":"+j);
-function csVec(p){if(!p||!p.xg||p.xg[0]==null)return null;const f=[1,1,2,6,24,120],P=(l,k)=>Math.exp(-l)*Math.pow(l,k)/f[k];return CSL.map(k=>{const[i,j]=k.split(":").map(Number);return P(p.xg[0],i)*P(p.xg[1],j)*100})}
-function csKand(s,ids){const V=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog[m.id])).map(csVec).filter(Boolean);if(!V.length)return null;const N=V.length,avg=CSL.map((_,i)=>V.reduce((a,v)=>a+v[i],0)/N),k=avg.indexOf(Math.max(...avg)),lab="CS "+CSL[k],pr=avg[k];
- const ein=V.filter(v=>v.indexOf(Math.max(...v))==k).length,mkok=ein>=Math.ceil(N*.75),[h0,a0]=CSL[k].split(":").map(Number);
- const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win:r=>r.h==h0&&r.a==a0,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
+/* Erstes Tor (Vollzeit) und nächstes Tor in der 2. HZ: Wer trifft zuerst – Heim oder Gast. Die Option „kein Tor“ gibt es nicht (ist dann verloren).
+   P(Heim zuerst) = λH/(λH+λA) · (1 − e^−(λH+λA)) aus den erwarteten Toren (2. HZ: Tore der 2. Halbzeit). Ausgewertet aus Endstand und Halbzeitstand;
+   wenn die Reihenfolge daraus nicht eindeutig ist (beide trafen im selben Abschnitt), bleibt der Tipp offen (?). */
+function torVec(mk,p){if(!p||!p.xg||p.xg[0]==null)return null;let h=p.xg[0],a=p.xg[1];if(mk=="ng2"){if(p.h2o05==null)return null;const t=-Math.log(Math.max(1e-6,1-p.h2o05/100)),sh=(h+a)||1;h=t*h/sh;a=t*a/sh}
+ const l=h+a;if(l<=0)return null;const g=1-Math.exp(-l);return[h/l*g*100,a/l*g*100]}
+function torWin(mk,k,r){if(!r)return null;const want=k?"a":"h";
+ if(mk=="fg"){if(r.h+r.a==0)return false;if(r.a==0)return want=="h";if(r.h==0)return want=="a";if(r.hh==null)return null;
+  if(r.hh+r.ha>0){if(r.ha==0)return want=="h";if(r.hh==0)return want=="a";return null}const h2=r.h-r.hh,a2=r.a-r.ha;if(a2==0)return want=="h";if(h2==0)return want=="a";return null}
+ if(r.hh==null)return null;const h2=r.h-r.hh,a2=r.a-r.ha;if(h2+a2==0)return false;if(a2==0)return want=="h";if(h2==0)return want=="a";return null}
+function torKand(s,mk,ids){const r0=res(s);if(mk=="ng2"&&r0&&r0.hh==null)return null;const V=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog[m.id])).map(p=>torVec(mk,p)).filter(Boolean);if(!V.length)return null;
+ const N=V.length,avg=[0,1].map(i=>V.reduce((a,v)=>a+v[i],0)/N),k=avg[0]>=avg[1]?0:1,pr=avg[k],ein=V.filter(v=>(v[0]>=v[1]?0:1)==k).length,mkok=ein>=Math.ceil(N*.75);
+ const lab=(mk=="fg"?"1. TOR: ":"2.HZ NÄCHSTES TOR: ")+(k?s.gast:s.heim);
+ const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win:r=>torWin(mk,k,r),ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
 /* neue Märkte: 1X2 Vollzeit, Beide treffen (Vollzeit / 2. HZ), Sieger 1. bzw. 2. HZ ohne X – alle Modelle stimmen ab */
 function kand2(s,mk,ids){const N0=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
@@ -2495,7 +2502,7 @@ function kand2(s,mk,ids){const N0=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog
  const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
 function konsKand(s,mk,ids){const k=konsKand0(s,mk,ids);if(k&&k.tip&&(mk=="ht"||mk=="ht2a"||mk=="ht2")){k.alt=k.tip;k.nurTipp=true}return k}
-function konsKand0(s,mk,ids){if(mk=="cs")return csKand(s,ids);if(["x1","bts","bts2","w1","w2"].includes(mk))return kand2(s,mk,ids);const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
+function konsKand0(s,mk,ids){if(mk=="fg"||mk=="ng2")return torKand(s,mk,ids);if(["x1","bts","bts2","w1","w2"].includes(mk))return kand2(s,mk,ids);const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
  if((mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e"||mk=="h1"||mk=="h2")&&r0&&r0.hh==null)return null;
  const mk3=mk=="x"||mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e",get=mk=="x"?p=>[p.p1,p.px,p.p2]:mk=="ht"?p=>p.ht:mk=="ht2"||mk=="ht2a"||mk=="ht2e"?p=>p.ht2:mk=="ou"?p=>p.ue25:mk=="h1"?h1o:h2o;
  const mods=N0.filter(p=>{const v=get(p);return v!=null&&(!mk3||v.every(y=>y!=null))});const N=mods.length;if(!N)return null;
@@ -2746,9 +2753,17 @@ function renderMB(plus){const Q=plus?"mbp":"mb",el=$(Q+"list"),M=p4Mode(Q),R=mbL
  <h3>🎯 Box-Scheine <span>${M.bl}</span></h3><div class="bsw">${Object.entries(KMK).map(([k,t])=>`<div class="${mm==k?"on":""}" onclick="S['${Q}m']='${k}';renderMB(${plus})">${t}</div>`).join("")}</div>${p4Ctl(Q,`renderMB(${plus})`)}${p4Bar(best.length,SC)}${SC.length?SC.map(([W,g],i)=>p4ScheinHTML(W.map(x=>({tip:x.tip})),g,i+1,M.bl)).join(""):`<div class="card p4c"><p class="msub">Heute bestehen ${best.length} Spiele alle Prüfungen${M.cnt?" – für "+M.cnt+" Spiele je Schein reicht das nicht. Weniger Spiele je Schein wählen.":"."} Es wird nicht künstlich aufgefüllt.</p></div>`}
  <details class="mbdet" ${S[Q+"auf"]?"open":""} ontoggle="S['${Q}auf']=this.open"><summary><b>🔍 Spiele</b><span>${L.filter(x=>x.ok).length} 🎁 / ${T.length} · antippen zum Aufklappen</span></summary><div class="bx-ctl"><div class="bx-seg">${[["ok","🎁 In der Box"],["all","Alle Spiele"]].map(([k,t])=>`<button class="${fl==k?'on':''}" onclick="S['${Q}f']='${k}';renderMB(${plus})">${t}</button>`).join("")}</div></div>${L.map(x=>mbKarte(x,plus)).join("")||'<p class="bx-mu">keine</p>'}</details>`}
 function renderMBB(){renderMBX()}
+/* Übersicht aller Tipps der heutigen Scheine (wie Analyse 1): Punktezeile + Gewonnen/Verloren/Offen/Treffer + Scheine-Bilanz */
+function p4Sum(SC){if(!SC||!SC.length)return"";let g=0,v=0,o=0,sg2=0,sv=0,so=0;const dots=[];
+ for(const[W]of SC){let st="g";for(const x of W){const t=x.tip||x,r=res(t.s),h=r?t.win(r):null;if(h===true){g++;dots.push("y")}else if(h===false){v++;dots.push("n");st="v"}else{o++;dots.push("o");if(st=="g")st="o"}}
+  if(st=="g")sg2++;else if(st=="v")sv++;else so++}
+ const tr=g+v?Math.round(g/(g+v)*100)+" %":"–";
+ return `<div class="p4sum"><div class="p4sh"><b>ALLE TIPPS DIESER SCHEINE</b><span>${dots.length} Tipps · ${SC.length} Scheine</span></div><div class="p4dots">${dots.map(c=>`<i class="${c}"></i>`).join("")}</div>
+ <div class="p4st"><div><b class="y">${g}</b><small>GEWONNEN</small></div><div><b class="n">${v}</b><small>VERLOREN</small></div><div><b class="o">${o}</b><small>OFFEN</small></div><div><b>${tr}</b><small>TREFFER</small></div></div>
+ <div class="p4sl">Scheine: <b class="y">${sg2} gewonnen</b> · <b class="n">${sv} verloren</b> · <b class="o">${so} offen</b></div></div>`}
 /* flacher Balken: verfügbare Spiele und ihre Aufteilung auf Scheine (nicht in Analyse 1) */
 function p4Bar(n,SC){const g=SC.reduce((a,x)=>a+x[0].length,0),r=Math.max(0,n-g),gl=SC.length&&SC.every(x=>x[0].length==SC[0][0].length)?" à "+SC[0][0].length:"",pz=n?Math.round(g/n*100):0;
- return `<div class="p4bar"><div class="p4tl"><div><b>${n}</b><small>Spiele verfügbar</small></div><div><b>${SC.length}</b><small>Schein${SC.length==1?"":"e"}${gl}</small></div><div><b>${r}</b><small>übrig</small></div></div><div class="p4bb"><i style="width:${pz}%"></i></div></div>`}
+ return `<div class="p4bar"><div class="p4tl"><div><b>${n}</b><small>Spiele verfügbar</small></div><div><b>${SC.length}</b><small>Schein${SC.length==1?"":"e"}${gl}</small></div><div><b>${r}</b><small>übrig</small></div></div><div class="p4bb"><i style="width:${pz}%"></i></div></div>`+p4Sum(SC)}
 /* ---------- 🤖 AUTO-WAHL für Analyse 2, Mystery Box und Profi-Modelle (misst alle Varianten an vergangenen Tagen, nur Anzeige) ---------- */
 const AWM=[{cnt:3},{cnt:4},{cnt:5}].concat(P4B.map((b,bi)=>({bi}))),awML=m=>m.cnt?m.cnt+" Spiele je Schein":"Quoten "+P4B[m.bi][2];
 function awSC(l,m){const used=new Set(),SC=[];if(m.cnt){for(let k=0;k<30;k++){const W=l.filter(x=>!used.has(x.tip.s.id)).slice(0,m.cnt);if(W.length<m.cnt)break;W.forEach(x=>used.add(x.tip.s.id));SC.push([W,W.reduce((a,x)=>a*x.tip.q,1)])}return SC}
@@ -2820,15 +2835,15 @@ const MSQ=s=>{const Q=[];for(const m of TKM())if(s.prog[m.id])Q.push([m.kurz||m.
  for(const[id,nm]of[["svr","SVR"],["tcn","TCN"],["lgbm","LightGBM"],["resid","Residual"]])if(s.prog[id])Q.push([nm,s.prog[id],id]);
  if(s.prog.h1m&&s.prog.h1m.ht)Q.push(["1.-HZ-Modell",{ht:s.prog.h1m.ht},"h1m"]);if(s.prog.h2m&&s.prog.h2m.ht2)Q.push(["2.-HZ-Modell",{ht2:s.prog.h2m.ht2},"h2m"]);
  for(const id of K2IDS)if(s.prog[id])Q.push([K2N[id],s.prog[id],id]);const st=statMeinung(s);if(st)Q.push(["Statistik",{p1:st.p1,px:st.px,p2:st.p2,ue25:st.o25,bts:st.bts},"stat"]);return Q};
-const ML={h1x:["1","X","2"],h2x:["1","X","2"],x1:["1","X","2"],x:["1X","X2","12"],ou:["OVER 2,5","UNDER 2,5"],h2:["2.HZ OVER 0,5","2.HZ UNDER 0,5"],bts:["BEIDE TREFFEN JA","BEIDE TREFFEN NEIN"],bts2:["2.HZ BEIDE TREFFEN JA","2.HZ BEIDE TREFFEN NEIN"],w1:["1.HZ SIEG 1","1.HZ SIEG 2"],w2:["2.HZ SIEG 1","2.HZ SIEG 2"],ht:["1.HZ 1X","1.HZ X2","1.HZ 12"],ht2a:["2.HZ 1X","2.HZ X2","2.HZ 12"],cs:CSL.map(k=>"CS "+k)};
+const ML={h1x:["1","X","2"],h2x:["1","X","2"],x1:["1","X","2"],x:["1X","X2","12"],ou:["OVER 2,5","UNDER 2,5"],h2:["2.HZ OVER 0,5","2.HZ UNDER 0,5"],bts:["BEIDE TREFFEN JA","BEIDE TREFFEN NEIN"],bts2:["2.HZ BEIDE TREFFEN JA","2.HZ BEIDE TREFFEN NEIN"],w1:["1.HZ SIEG 1","1.HZ SIEG 2"],w2:["2.HZ SIEG 1","2.HZ SIEG 2"],ht:["1.HZ 1X","1.HZ X2","1.HZ 12"],ht2a:["2.HZ 1X","2.HZ X2","2.HZ 12"],fg:["1. TOR HEIM","1. TOR GAST"],ng2:["2.HZ NÄCHSTES TOR HEIM","2.HZ NÄCHSTES TOR GAST"]};
 function msVec(mk,p){const n3=v=>v&&v.every(y=>y!=null)?v:null,dc=v=>v?[v[0]+v[1],v[1]+v[2],v[0]+v[2]]:null;
  if(mk=="x1")return n3([p.p1,p.px,p.p2]);if(mk=="x")return dc(n3([p.p1,p.px,p.p2]));if(mk=="ou")return p.ue25==null?null:[p.ue25,100-p.ue25];
  if(mk=="h2")return p.h2o05==null?null:[p.h2o05,100-p.h2o05];if(mk=="bts")return p.bts==null?null:[p.bts,100-p.bts];
  if(mk=="bts2"){if(p.h2o05==null||!p.xg)return null;const t=-Math.log(Math.max(1e-6,1-p.h2o05/100)),sh=(p.xg[0]+p.xg[1])||1,v=(1-Math.exp(-t*p.xg[0]/sh))*(1-Math.exp(-t*p.xg[1]/sh))*100;return[v,100-v]}
  if(mk=="w1")return p.ht?[p.ht[0],p.ht[2]]:null;if(mk=="w2")return p.ht2?[p.ht2[0],p.ht2[2]]:null;if(mk=="ht")return dc(n3(p.ht||[null]));if(mk=="ht2a")return dc(n3(p.ht2||[null]));
  if(mk=="h1x")return n3(p.ht||[null]);if(mk=="h2x")return n3(p.ht2||[null]);
- if(mk=="cs")return csVec(p);return null}
-function msWin(mk,k,r){const e=sg(r.h,r.a);if(mk=="cs")return CSL[k]==r.h+":"+r.a;if(mk=="x1")return e==ML.x1[k];if(mk=="x")return k==0?e!="2":k==1?e!="1":e!="X";if(mk=="ou")return(r.h+r.a>2)==(k==0);if(mk=="bts")return(r.h>0&&r.a>0)==(k==0);
+ if(mk=="fg"||mk=="ng2")return torVec(mk,p);return null}
+function msWin(mk,k,r){const e=sg(r.h,r.a);if(mk=="fg"||mk=="ng2")return torWin(mk,k,r);if(mk=="x1")return e==ML.x1[k];if(mk=="x")return k==0?e!="2":k==1?e!="1":e!="X";if(mk=="ou")return(r.h+r.a>2)==(k==0);if(mk=="bts")return(r.h>0&&r.a>0)==(k==0);
  if(r.hh==null)return null;const h1=sg(r.hh,r.ha),h2=r.h-r.hh,a2=r.a-r.ha,e2=sg(h2,a2);if(mk=="h1x")return h1==ML.x1[k];if(mk=="h2x")return e2==ML.x1[k];
  if(mk=="h2")return(h2+a2>0)==(k==0);if(mk=="bts2")return(h2>0&&a2>0)==(k==0);if(mk=="w1")return h1==(k?"2":"1");if(mk=="w2")return e2==(k?"2":"1");
  if(mk=="ht")return k==0?h1!="2":k==1?h1!="1":h1!="X";if(mk=="ht2a")return k==0?e2!="2":k==1?e2!="1":e2!="X";return null}
@@ -2841,9 +2856,9 @@ function msGew(mk){const k="mg|"+mk+"|"+S.tag+"|"+ARCH.length;window._mg=window.
  for(const id in st){const{n,h}=st[id],sh=n/(n+30);W[id]=Math.max(.3,Math.min(2,1+sh*((base?h/n/base:1)-1)*2))}return _mg[k]={W,st,nmOf}}
 function msMaster(s,mk){ const Q=MSQ(s).map(([nm,p,id])=>[nm,msVec(mk,p),id]).filter(x=>x[1]);if(Q.length<2)return null;const r0=res(s);if(!["x1","x","ou","bts"].includes(mk)&&r0&&r0.hh==null)return null;
  const G=msGew(mk).W;let sw=0,a=null;for(const[nm,v,id]of Q){const w=G[id]||1;sw+=w;a=a?a.map((y,i)=>y+v[i]*w):v.map(y=>y*w)}a=a.map(y=>y/sw);let k=msPick(mk,a);
- let lab=ML[mk][k],pr=a[k],rm=null;if((mk=="x1")&&s.remis&&s.remis.x){k=1;lab="X";pr=s.remis.dr;rm=s.remis}
+ let lab=(mk=='fg'||mk=='ng2')?(mk=='fg'?'1. TOR: ':'2.HZ NÄCHSTES TOR: ')+(k?s.gast:s.heim):ML[mk][k],pr=a[k],rm=null;if((mk=="x1")&&s.remis&&s.remis.x){k=1;lab="X";pr=s.remis.dr;rm=s.remis}
  const ein=Q.filter(([,v])=>(mk=='bts'||mk=='bts2')?v[0]>=50:msPick(mk,v)==k).length,N=Q.length,ok=rm||ein/N>=.6,kk=k;
- return{s,mk,lab,ein,N,ok,rm,Q:Q.map(([nm,v])=>[nm,(mk=='bts'||mk=='bts2')?ML[mk][v[0]>=50?0:1]:ML[mk][msPick(mk,v)]]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>msWin(mk,kk,r)}}}
+ return{s,mk,lab,ein,N,ok,rm,Q:Q.map(([nm,v])=>[nm,(mk=='bts'||mk=='bts2')?ML[mk][v[0]>=50?0:1]:(mk=='fg'||mk=='ng2')?((mk=='fg'?'1. TOR: ':'2.HZ NÄCHSTES TOR: ')+(msPick(mk,v)?s.gast:s.heim)):ML[mk][msPick(mk,v)]]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>msWin(mk,kk,r)}}}
 function renderMS(){const mk=KMK[S.msm]?S.msm:"x1",M=p4Mode("ms"),tag=D.spiele.filter(s=>s.datum==S.tag),T=tag.map(s=>msMaster(s,mk)).filter(x=>x&&x.ok).sort((a,b)=>b.tip.pr-a.tip.pr),SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
  const g=msGew(mk),past=P4POOL().filter(s=>s.datum<S.tag&&res(s));let mn=0,mh=0;for(const s of past){const x=msMaster(s,mk);if(!x)continue;const w=x.tip.win(res(s));if(w==null)continue;mn++;if(w)mh++}
  const L=Object.entries(g.st).filter(([,e])=>(e.an||0)>=15).map(([id,e])=>[g.nmOf[id]||id,e.ah/e.an,e.an]).sort((a,b)=>b[1]-a[1]),mp=mn?mh/mn:0,vorn=!L.length||mp>=L[0][1];
