@@ -2473,17 +2473,14 @@ function alleBlock(s){const mods=TKM().filter(m=>s.prog[m.id]&&s.prog[m.id].p1!=
    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px;gap:8px"><small style="color:#dff4ff">MESSUNG · Einigkeit ${ein} % · Streuung ±${kom(sd.toFixed(1))}${ein<70?" · uneinig":""}</small><b class="amg">${labs[ti]}</b></div></div>`};
  return `<div class="qban amb"><small style="font-size:12px">PROGNOSEN ALLER MODELLE</small>`+teil("1X2",[s.heim,"X",s.gast],p=>[p.p1,p.px,p.p2])+teil("OVER / UNDER 2,5",["OVER","UNDER"],p=>[p.ue25,c100(p.ue25)])+`</div>`}
 /* ---------- Konsens-Kombi ---------- */
-const KMK={x1:"1X2 Vollzeit",x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",h2:"2. HZ OVER/UNDER 0,5",bts:"Beide treffen",bts2:"Beide treffen 2. HZ",w1:"1. HZ Sieger 1 / 2",w2:"2. HZ Sieger 1 / 2",ht:"1. HZ Doppelte Chance",ht2a:"2. HZ Doppelte Chance",hz:"HZ/ES"};
+const KMK={x1:"1X2 Vollzeit",x:"1X2 / Doppelte Chance",ou:"OVER / UNDER 2,5",h2:"2. HZ OVER/UNDER 0,5",bts:"Beide treffen",bts2:"Beide treffen 2. HZ",w1:"1. HZ Sieger 1 / 2",w2:"2. HZ Sieger 1 / 2",ht:"1. HZ Doppelte Chance",ht2a:"2. HZ Doppelte Chance",cs:"Correct Score"};
 const h1o=p=>p.h1o05!=null?p.h1o05:null,h2o=p=>p.h2o05!=null?p.h2o05:null;
-/* HZ/ES: zuerst 1. HZ (1/X/2, alle Modelle), getrennt davon 2. HZ (1/X/2, alle Modelle), dann ausgewertet: Pause + 2. HZ ergeben den Endstand
-   (bei 1+2 bzw. 2+1 entscheidet die Häufigkeit aus echten Spielen, wie es endete) */
-const HZE=(a,b,T)=>{const L="1X2";if(a==b||b==1)return L[a];if(a==1)return L[b];return L[[0,1,2].sort((x,y)=>T[""+a+b][y]-T[""+a+b][x])[0]]};
-function hzKand(s,ids){const T=D.hzes&&D.hzes.t,r0=res(s);if(!T||!T["00"])return null;if(r0&&r0.hh==null)return null;
- const mods=(ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.ht&&p.ht2&&p.ht.every(v=>v!=null)&&p.ht2.every(v=>v!=null));if(!mods.length)return null;const N=mods.length,L="1X2";
- const av=g=>{const v=[0,1,2].map(i=>mods.reduce((t,p)=>t+g(p)[i],0)/N),z=v[0]+v[1]+v[2];return v.map(x=>x/z)},P1=av(p=>p.ht),P2=av(p=>p.ht2),a=P1.indexOf(Math.max(...P1)),b=P2.indexOf(Math.max(...P2));
- const e=HZE(a,b,T),pr=P1[a]*P2[b]*T[""+a+b][L.indexOf(e)]*100,ka=L[a];
- const ein=mods.filter(p=>p.ht.indexOf(Math.max(...p.ht))==a&&p.ht2.indexOf(Math.max(...p.ht2))==b).length,mkok=ein>=Math.ceil(N*.75);
- const tip={s,pr,mod:`1. HZ ${ka} · 2. HZ ${L[b]} · Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab:`HZ/ES ${ka}/${e}`,win:r=>r.hh==null?null:sg(r.hh,r.ha)==ka&&sg(r.h,r.a)==e,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
+/* Correct Score: jedes Modell rechnet aus seinen erwarteten Toren (xG) die Wahrscheinlichkeit jedes Endstands (0:0 … 5:5), Durchschnitt aller Modelle, höchster = Tipp */
+const CSL=[];for(let i=0;i<6;i++)for(let j=0;j<6;j++)CSL.push(i+":"+j);
+function csVec(p){if(!p||!p.xg||p.xg[0]==null)return null;const f=[1,1,2,6,24,120],P=(l,k)=>Math.exp(-l)*Math.pow(l,k)/f[k];return CSL.map(k=>{const[i,j]=k.split(":").map(Number);return P(p.xg[0],i)*P(p.xg[1],j)*100})}
+function csKand(s,ids){const V=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog[m.id])).map(csVec).filter(Boolean);if(!V.length)return null;const N=V.length,avg=CSL.map((_,i)=>V.reduce((a,v)=>a+v[i],0)/N),k=avg.indexOf(Math.max(...avg)),lab="CS "+CSL[k],pr=avg[k];
+ const ein=V.filter(v=>v.indexOf(Math.max(...v))==k).length,mkok=ein>=Math.ceil(N*.75),[h0,a0]=CSL[k].split(":").map(Number);
+ const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win:r=>r.h==h0&&r.a==a0,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
 /* neue Märkte: 1X2 Vollzeit, Beide treffen (Vollzeit / 2. HZ), Sieger 1. bzw. 2. HZ ohne X – alle Modelle stimmen ab */
 function kand2(s,mk,ids){const N0=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
@@ -2491,14 +2488,14 @@ function kand2(s,mk,ids){const N0=(ids?ids.map(i=>s.prog[i]):TKM().map(m=>s.prog
  const b2=p=>{if(p.h2o05==null||!p.xg)return null;const t=-Math.log(Math.max(1e-6,1-p.h2o05/100)),sh=(p.xg[0]+p.xg[1])||1,lh=t*p.xg[0]/sh,la=t*p.xg[1]/sh;return(1-Math.exp(-lh))*(1-Math.exp(-la))*100};
  const G={x1:[p=>[p.p1,p.px,p.p2],["1","X","2"]],bts:[p=>p.bts==null?null:[p.bts,100-p.bts],["BEIDE TREFFEN JA","BEIDE TREFFEN NEIN"]],bts2:[p=>{const v=b2(p);return v==null?null:[v,100-v]},["2.HZ BEIDE TREFFEN JA","2.HZ BEIDE TREFFEN NEIN"]],
   w1:[p=>p.ht?[p.ht[0],p.ht[2]]:null,["1.HZ SIEG 1","1.HZ SIEG 2"]],w2:[p=>p.ht2?[p.ht2[0],p.ht2[2]]:null,["2.HZ SIEG 1","2.HZ SIEG 2"]]}[mk];if(!G)return null;
- const V=N0.map(G[0]).filter(v=>v&&v.every(y=>y!=null&&isFinite(y)));if(!V.length)return null;const N=V.length,avg=V[0].map((_,i)=>V.reduce((a,v)=>a+v[i],0)/N),k=avg.indexOf(Math.max(...avg)),pr=avg[k];
- const ein=V.filter(v=>v.indexOf(Math.max(...v))==k).length,mkok=ein>=Math.ceil(N*.75),lab=G[1][k];
+ const V=N0.map(G[0]).filter(v=>v&&v.every(y=>y!=null&&isFinite(y)));if(!V.length)return null;const N=V.length,avg=V[0].map((_,i)=>V.reduce((a,v)=>a+v[i],0)/N),nurJa=mk=="bts"||mk=="bts2",k=nurJa?0:avg.indexOf(Math.max(...avg)),pr=avg[k];
+ const ein=V.filter(v=>nurJa?v[0]>=50:v.indexOf(Math.max(...v))==k).length,mkok=ein>=Math.ceil(N*.75),lab=G[1][k];
  const win=r=>{if(mk=="x1")return sg(r.h,r.a)==lab;if(mk=="bts")return(r.h>0&&r.a>0)==(k==0);if(r.hh==null)return null;const h2=r.h-r.hh,a2=r.a-r.ha;
   if(mk=="bts2")return(h2>0&&a2>0)==(k==0);if(mk=="w1")return sg(r.hh,r.ha)==(k?"2":"1");return sg(h2,a2)==(k?"2":"1")};
  const tip={s,pr,mod:`Einigkeit ${ein}/${N}`,q:Math.round(10000/Math.max(pr,1))/100,src:"Modell",qm:"x",lab,win,ue:[],ueOk:true,kontra:mkok?[]:["unter ¾ einig"],von:"Konsens",ein,N};
  return{tip,alt:tip,ein,N,mkok,nurTipp:true}}
 function konsKand(s,mk,ids){const k=konsKand0(s,mk,ids);if(k&&k.tip&&(mk=="ht"||mk=="ht2a"||mk=="ht2")){k.alt=k.tip;k.nurTipp=true}return k}
-function konsKand0(s,mk,ids){if(mk=="hz")return hzKand(s,ids);if(["x1","bts","bts2","w1","w2"].includes(mk))return kand2(s,mk,ids);const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
+function konsKand0(s,mk,ids){if(mk=="cs")return csKand(s,ids);if(["x1","bts","bts2","w1","w2"].includes(mk))return kand2(s,mk,ids);const N0=(mk=="ht2"?[s.prog.h2m]:mk=="ht"?[s.prog.h1m]:ids?ids.map(id=>s.prog[id]):TKM().map(m=>s.prog[m.id])).filter(p=>p&&p.p1!=null);if(!N0.length)return null;const r0=res(s);
  if((mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e"||mk=="h1"||mk=="h2")&&r0&&r0.hh==null)return null;
  const mk3=mk=="x"||mk=="ht"||mk=="ht2"||mk=="ht2a"||mk=="ht2e",get=mk=="x"?p=>[p.p1,p.px,p.p2]:mk=="ht"?p=>p.ht:mk=="ht2"||mk=="ht2a"||mk=="ht2e"?p=>p.ht2:mk=="ou"?p=>p.ue25:mk=="h1"?h1o:h2o;
  const mods=N0.filter(p=>{const v=get(p);return v!=null&&(!mk3||v.every(y=>y!=null))});const N=mods.length;if(!N)return null;
@@ -2823,33 +2820,30 @@ const MSQ=s=>{const Q=[];for(const m of TKM())if(s.prog[m.id])Q.push([m.kurz||m.
  for(const[id,nm]of[["svr","SVR"],["tcn","TCN"],["lgbm","LightGBM"],["resid","Residual"]])if(s.prog[id])Q.push([nm,s.prog[id],id]);
  if(s.prog.h1m&&s.prog.h1m.ht)Q.push(["1.-HZ-Modell",{ht:s.prog.h1m.ht},"h1m"]);if(s.prog.h2m&&s.prog.h2m.ht2)Q.push(["2.-HZ-Modell",{ht2:s.prog.h2m.ht2},"h2m"]);
  for(const id of K2IDS)if(s.prog[id])Q.push([K2N[id],s.prog[id],id]);const st=statMeinung(s);if(st)Q.push(["Statistik",{p1:st.p1,px:st.px,p2:st.p2,ue25:st.o25,bts:st.bts},"stat"]);return Q};
-const ML={h1x:["1","X","2"],h2x:["1","X","2"],x1:["1","X","2"],x:["1X","X2","12"],ou:["OVER 2,5","UNDER 2,5"],h2:["2.HZ OVER 0,5","2.HZ UNDER 0,5"],bts:["BEIDE TREFFEN JA","BEIDE TREFFEN NEIN"],bts2:["2.HZ BEIDE TREFFEN JA","2.HZ BEIDE TREFFEN NEIN"],w1:["1.HZ SIEG 1","1.HZ SIEG 2"],w2:["2.HZ SIEG 1","2.HZ SIEG 2"],ht:["1.HZ 1X","1.HZ X2","1.HZ 12"],ht2a:["2.HZ 1X","2.HZ X2","2.HZ 12"],hz:["HZ/ES 1/1","HZ/ES 2/2","HZ/ES X/1","HZ/ES X/2"]};
+const ML={h1x:["1","X","2"],h2x:["1","X","2"],x1:["1","X","2"],x:["1X","X2","12"],ou:["OVER 2,5","UNDER 2,5"],h2:["2.HZ OVER 0,5","2.HZ UNDER 0,5"],bts:["BEIDE TREFFEN JA","BEIDE TREFFEN NEIN"],bts2:["2.HZ BEIDE TREFFEN JA","2.HZ BEIDE TREFFEN NEIN"],w1:["1.HZ SIEG 1","1.HZ SIEG 2"],w2:["2.HZ SIEG 1","2.HZ SIEG 2"],ht:["1.HZ 1X","1.HZ X2","1.HZ 12"],ht2a:["2.HZ 1X","2.HZ X2","2.HZ 12"],cs:CSL.map(k=>"CS "+k)};
 function msVec(mk,p){const n3=v=>v&&v.every(y=>y!=null)?v:null,dc=v=>v?[v[0]+v[1],v[1]+v[2],v[0]+v[2]]:null;
  if(mk=="x1")return n3([p.p1,p.px,p.p2]);if(mk=="x")return dc(n3([p.p1,p.px,p.p2]));if(mk=="ou")return p.ue25==null?null:[p.ue25,100-p.ue25];
  if(mk=="h2")return p.h2o05==null?null:[p.h2o05,100-p.h2o05];if(mk=="bts")return p.bts==null?null:[p.bts,100-p.bts];
  if(mk=="bts2"){if(p.h2o05==null||!p.xg)return null;const t=-Math.log(Math.max(1e-6,1-p.h2o05/100)),sh=(p.xg[0]+p.xg[1])||1,v=(1-Math.exp(-t*p.xg[0]/sh))*(1-Math.exp(-t*p.xg[1]/sh))*100;return[v,100-v]}
  if(mk=="w1")return p.ht?[p.ht[0],p.ht[2]]:null;if(mk=="w2")return p.ht2?[p.ht2[0],p.ht2[2]]:null;if(mk=="ht")return dc(n3(p.ht||[null]));if(mk=="ht2a")return dc(n3(p.ht2||[null]));
  if(mk=="h1x")return n3(p.ht||[null]);if(mk=="h2x")return n3(p.ht2||[null]);
- if(mk=="hz"){const T=D.hzes&&D.hzes.t;if(!T||!p.ht||!p.ht2)return null;const a1=p.ht.reduce((a,b)=>a+b,0),a2=p.ht2.reduce((a,b)=>a+b,0),L="1X2",HF={};
-  for(let a=0;a<3;a++)for(let b=0;b<3;b++)for(let e=0;e<3;e++){const k=L[a]+"/"+L[e];HF[k]=(HF[k]||0)+p.ht[a]/a1*p.ht2[b]/a2*T[""+a+b][e]}return["1/1","2/2","X/1","X/2"].map(k=>HF[k]*100)}return null}
-function msWin(mk,k,r){const e=sg(r.h,r.a);if(mk=="x1")return e==ML.x1[k];if(mk=="x")return k==0?e!="2":k==1?e!="1":e!="X";if(mk=="ou")return(r.h+r.a>2)==(k==0);if(mk=="bts")return(r.h>0&&r.a>0)==(k==0);
+ if(mk=="cs")return csVec(p);return null}
+function msWin(mk,k,r){const e=sg(r.h,r.a);if(mk=="cs")return CSL[k]==r.h+":"+r.a;if(mk=="x1")return e==ML.x1[k];if(mk=="x")return k==0?e!="2":k==1?e!="1":e!="X";if(mk=="ou")return(r.h+r.a>2)==(k==0);if(mk=="bts")return(r.h>0&&r.a>0)==(k==0);
  if(r.hh==null)return null;const h1=sg(r.hh,r.ha),h2=r.h-r.hh,a2=r.a-r.ha,e2=sg(h2,a2);if(mk=="h1x")return h1==ML.x1[k];if(mk=="h2x")return e2==ML.x1[k];
  if(mk=="h2")return(h2+a2>0)==(k==0);if(mk=="bts2")return(h2>0&&a2>0)==(k==0);if(mk=="w1")return h1==(k?"2":"1");if(mk=="w2")return e2==(k?"2":"1");
- if(mk=="ht")return k==0?h1!="2":k==1?h1!="1":h1!="X";if(mk=="ht2a")return k==0?e2!="2":k==1?e2!="1":e2!="X";if(mk=="hz"){const[a,b]=["1/1","2/2","X/1","X/2"][k].split("/");return h1==a&&e==b}return null}
-const msPick=(mk,v)=>{if(mk=="hz"){const B=(D.hzes&&D.hzes.basis)||{},K=["1/1","2/2","X/1","X/2"];return v.map((x,i)=>[x/((B[K[i]]||.1)*100),i]).sort((a,b)=>b[0]-a[0])[0][1]}return v.indexOf(Math.max(...v))};
+ if(mk=="ht")return k==0?h1!="2":k==1?h1!="1":h1!="X";if(mk=="ht2a")return k==0?e2!="2":k==1?e2!="1":e2!="X";return null}
+const msPick=(mk,v)=>(mk=="bts"||mk=="bts2")?0:v.indexOf(Math.max(...v));const msJa=(mk,v)=>!(mk=="bts"||mk=="bts2")||v[0]>=50;
 function msGew(mk){const k="mg|"+mk+"|"+S.tag+"|"+ARCH.length;window._mg=window._mg||{};if(_mg[k])return _mg[k];const st={},nmOf={};
  const BG=D.master_gew||{};for(const id in BG){const e=BG[id][mk];if(e&&e[0]){st[id]={n:e[0],h:e[1],bt:e[0]}}}
- for(const s of P4POOL().filter(s=>s.datum<S.tag&&res(s))){const r=res(s);for(const[nm,p,id]of MSQ(s)){nmOf[id]=nm;const v=msVec(mk,p);if(!v)continue;const w=msWin(mk,msPick(mk,v),r);if(w==null)continue;const e=st[id]=st[id]||{n:0,h:0,bt:0};e.n++;if(w)e.h++;e.an=(e.an||0)+1;if(w)e.ah=(e.ah||0)+1}}
+ for(const s of P4POOL().filter(s=>s.datum<S.tag&&res(s))){const r=res(s);for(const[nm,p,id]of MSQ(s)){nmOf[id]=nm;const v=msVec(mk,p);if(!v||!msJa(mk,v))continue;const w=msWin(mk,msPick(mk,v),r);if(w==null)continue;const e=st[id]=st[id]||{n:0,h:0,bt:0};e.n++;if(w)e.h++;e.an=(e.an||0)+1;if(w)e.ah=(e.ah||0)+1}}
  for(const m of TKM())nmOf[m.id]=nmOf[m.id]||m.kurz||m.id;Object.assign(nmOf,{svr:"SVR",tcn:"TCN",lgbm:"LightGBM",resid:"Residual",h1m:"1.-HZ-Modell",h2m:"2.-HZ-Modell",stat:"Statistik"},K2N);
  const E=Object.values(st),tn=E.reduce((a,e)=>a+e.n,0),base=tn?E.reduce((a,e)=>a+e.h,0)/tn:.5,W={};
  for(const id in st){const{n,h}=st[id],sh=n/(n+30);W[id]=Math.max(.3,Math.min(2,1+sh*((base?h/n/base:1)-1)*2))}return _mg[k]={W,st,nmOf}}
-function msMaster(s,mk){if(mk=="hz"){const A=msMaster(s,"h1x"),B=msMaster(s,"h2x"),T=D.hzes&&D.hzes.t;if(!A||!B||!T)return null;const L="1X2",a=L.indexOf(A.lab),b=L.indexOf(B.lab),e=HZE(a,b,T),pr=A.tip.pr*B.tip.pr/100*T[""+a+b][L.indexOf(e)],lab="HZ/ES "+A.lab+"/"+e;
-  return{s,mk,lab,ein:Math.min(A.ein,B.ein),N:Math.min(A.N,B.N),ok:A.ok&&B.ok,rm:null,Q:A.Q.map(([nm,t],i)=>[nm,"1.HZ "+t+" · 2.HZ "+((B.Q[i]||[])[1]||"–")]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>r.hh==null?null:sg(r.hh,r.ha)==A.lab&&sg(r.h,r.a)==e}}}
- const Q=MSQ(s).map(([nm,p,id])=>[nm,msVec(mk,p),id]).filter(x=>x[1]);if(Q.length<2)return null;const r0=res(s);if(!["x1","x","ou","bts"].includes(mk)&&r0&&r0.hh==null)return null;
+function msMaster(s,mk){ const Q=MSQ(s).map(([nm,p,id])=>[nm,msVec(mk,p),id]).filter(x=>x[1]);if(Q.length<2)return null;const r0=res(s);if(!["x1","x","ou","bts"].includes(mk)&&r0&&r0.hh==null)return null;
  const G=msGew(mk).W;let sw=0,a=null;for(const[nm,v,id]of Q){const w=G[id]||1;sw+=w;a=a?a.map((y,i)=>y+v[i]*w):v.map(y=>y*w)}a=a.map(y=>y/sw);let k=msPick(mk,a);
  let lab=ML[mk][k],pr=a[k],rm=null;if((mk=="x1")&&s.remis&&s.remis.x){k=1;lab="X";pr=s.remis.dr;rm=s.remis}
- const ein=Q.filter(([,v])=>msPick(mk,v)==k).length,N=Q.length,ok=rm||ein/N>=.6,kk=k;
- return{s,mk,lab,ein,N,ok,rm,Q:Q.map(([nm,v])=>[nm,ML[mk][msPick(mk,v)]]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>msWin(mk,kk,r)}}}
+ const ein=Q.filter(([,v])=>(mk=='bts'||mk=='bts2')?v[0]>=50:msPick(mk,v)==k).length,N=Q.length,ok=rm||ein/N>=.6,kk=k;
+ return{s,mk,lab,ein,N,ok,rm,Q:Q.map(([nm,v])=>[nm,(mk=='bts'||mk=='bts2')?ML[mk][v[0]>=50?0:1]:ML[mk][msPick(mk,v)]]),tip:{s,lab,pr,q:Math.round(10000/Math.max(pr,1))/100,win:r=>msWin(mk,kk,r)}}}
 function renderMS(){const mk=KMK[S.msm]?S.msm:"x1",M=p4Mode("ms"),tag=D.spiele.filter(s=>s.datum==S.tag),T=tag.map(s=>msMaster(s,mk)).filter(x=>x&&x.ok).sort((a,b)=>b.tip.pr-a.tip.pr),SC=awSC(T,M.cnt?{cnt:M.cnt}:{bi:M.bi});
  const g=msGew(mk),past=P4POOL().filter(s=>s.datum<S.tag&&res(s));let mn=0,mh=0;for(const s of past){const x=msMaster(s,mk);if(!x)continue;const w=x.tip.win(res(s));if(w==null)continue;mn++;if(w)mh++}
  const L=Object.entries(g.st).filter(([,e])=>(e.an||0)>=15).map(([id,e])=>[g.nmOf[id]||id,e.ah/e.an,e.an]).sort((a,b)=>b[1]-a[1]),mp=mn?mh/mn:0,vorn=!L.length||mp>=L[0][1];
