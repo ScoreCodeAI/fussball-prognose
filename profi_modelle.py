@@ -2,7 +2,7 @@
 # Laeuft NACH "Neue Modelle" (eigener Workflow). Liest docs/daten.json und die Historie
 # (daten.alle_spiele + Quoten der Historie) und ergaenzt NUR neue Eintraege:
 #   spiel["prog"]["lgbm"]   LightGBM: lernt erwartete Tore aus Form, Elo und GEGNER-BEREINIGTER Form (ohne Markt)
-#   spiel["prog"]["resid"]  Residual: startet bei den Markt-Toren (aus den Quoten) und lernt nur die Abweichung
+#   spiel["prog"]["resid"]  Residual: startet bei der eigenen Statistik-Erwartung (gegner-bereinigt) und lernt die Abweichung - KEINE Quoten
 #   spiel["gform"]          gegner-bereinigte Form beider Teams (Angriff/Abwehr, Tore und Schuesse aufs Tor)
 #   daten["profi"]          ehrliche Pruefung: beide Modelle gegen den Markt auf Spielen, die sie nie gesehen haben
 # Ausgabe im selben Format wie SVR/TCN (alle Maerkte aus erwarteten Toren -> 1X2, DC, O/U, BTTS, Halbzeiten).
@@ -42,10 +42,18 @@ def _pmf(lam):
     return np.exp(-lam + G * np.log(np.maximum(lam, 1e-9)) - lg)
 
 
-def wk(lh, la):
-    """1X2 und OVER 2,5 aus erwarteten Toren (fuer viele Spiele gleichzeitig)."""
+def wk(lh, la, rho=None):
+    """1X2 und OVER 2,5 aus erwarteten Toren (fuer viele Spiele gleichzeitig).
+    rho: gelernte Remis-Korrektur (Dixon-Coles) je Spiel, None = unabhaengig."""
     ph, pa = _pmf(lh), _pmf(la)
     m = ph[..., :, None] * pa[..., None, :]
+    if rho is not None:
+        lh_, la_, r = np.asarray(lh, float), np.asarray(la, float), np.broadcast_to(np.asarray(rho, float), np.shape(lh))
+        m = m.copy()
+        m[..., 0, 0] *= np.clip(1 - lh_ * la_ * r, 1e-6, None)
+        m[..., 0, 1] *= np.clip(1 + lh_ * r, 1e-6, None)
+        m[..., 1, 0] *= np.clip(1 + la_ * r, 1e-6, None)
+        m[..., 1, 1] *= np.clip(1 - r, 1e-6, None)
     i, j = np.indices((11, 11))
     p1 = (m * (i > j)).sum((-1, -2))
     px = (m * (i == j)).sum((-1, -2))
@@ -286,26 +294,52 @@ def _fit(params, X, y, init=None, kat=None):
     return m2, best
 
 
+def _stat_lam(X):
+    """Eigene Statistik-Erwartung (gegner-bereinigte Tor-Erwartung lam_h / lam_a) - Startpunkt fuer Residual, KEIN Markt."""
+    return np.clip(X[:, 8:10], 0.1, 5)
+
+
 class Modelle:
-    def __init__(self, X, Y, MK, bis):
-        """X Merkmale, Y Tore, MK = (markt_p, markt_po, markt_lam, spread). Training nur mit Zeilen in 'bis'."""
+    def __init__(self, X, Y, MK, bis, D=None):
+        """X Merkmale, Y Tore. Training nur mit Zeilen in 'bis'. Keine Buchmacher-Quoten als Eingabe."""
         kat = [len(NAMEN) - 1]
         Xb, Yb = X[bis], Y[bis]
         self.lh, b1 = _fit(P_LGBM, Xb, Yb[:, 0], kat=kat)
         self.la, b2 = _fit(P_LGBM, Xb, Yb[:, 1], kat=kat)
-        lam, sp = MK[2][bis], MK[3][bis]
-        okm = ~np.isnan(lam).any(1)
-        XR = np.hstack([Xb, lam, sp])[okm]
-        self.rh, b3 = _fit(P_RES, XR, Yb[okm, 0], init=np.log(lam[okm, 0]), kat=kat)
-        self.ra, b4 = _fit(P_RES, XR, Yb[okm, 1], init=np.log(lam[okm, 1]), kat=kat)
-        self.info = {"n_lgbm": int(len(Xb)), "n_resid": int(okm.sum()), "baeume": [b1, b2, b3, b4]}
+        st = _stat_lam(Xb)
+        self.rh, b3 = _fit(P_RES, Xb, Yb[:, 0], init=np.log(st[:, 0]), kat=kat)
+        self.ra, b4 = _fit(P_RES, Xb, Yb[:, 1], init=np.log(st[:, 1]), kat=kat)
+        self.info = {"n_lgbm": int(len(Xb)), "n_resid": int(len(Xb)), "baeume": [b1, b2, b3, b4]}
+        # Remis-Korrektur je Liga aus den eigenen Erwartungen der letzten 2 Jahre gelernt (kein fester Wert)
+        self.rho = {}
+        try:
+            import kern
+            Db = np.asarray(D)[bis] if D is not None else None
+            neu = np.ones(len(Xb), bool) if Db is None else Db >= (pd.Timestamp(str(max(Db))) - pd.DateOffset(years=2)).strftime("%Y-%m-%d")
+            tage = np.zeros(neu.sum()) if Db is None else (pd.Timestamp(str(max(Db))) - pd.to_datetime(pd.Series(Db[neu].astype(str)))).dt.days.to_numpy()
+            w = np.exp(-0.003 * tage)
+            lg = Xb[neu, -1]
+            for nmid, (a, b) in (("lgbm", self.lgbm(Xb[neu])), ("resid", self.resid(Xb[neu]))):
+                tab = {"_alle": kern.lerne_rho(Yb[neu, 0], Yb[neu, 1], a, b, w)}
+                for l in np.unique(lg):
+                    k = lg == l
+                    if k.sum() >= 300:
+                        tab[int(l)] = kern.lerne_rho(Yb[neu][k, 0], Yb[neu][k, 1], a[k], b[k], w[k])
+                self.rho[nmid] = tab
+            log("Profi Remis-Korrektur gelernt: " + ", ".join(f"{k} {v['_alle']:+.3f}" for k, v in self.rho.items()))
+        except Exception as ex:
+            log("Profi Remis-Korrektur nicht moeglich:", ex)
+
+    def rho_fuer(self, nmid, X):
+        tab = self.rho.get(nmid, {})
+        return np.array([tab.get(int(l), tab.get("_alle", 0.0)) for l in X[:, -1]])
 
     def lgbm(self, X):
         return np.clip(self.lh.predict(X), 0.1, 5), np.clip(self.la.predict(X), 0.1, 5)
 
-    def resid(self, X, lam, sp):
-        XR = np.hstack([X, lam, sp])
-        return np.clip(lam[:, 0] * self.rh.predict(XR), 0.1, 5), np.clip(lam[:, 1] * self.ra.predict(XR), 0.1, 5)
+    def resid(self, X, lam=None, sp=None):
+        st = _stat_lam(X)
+        return np.clip(st[:, 0] * self.rh.predict(X), 0.1, 5), np.clip(st[:, 1] * self.ra.predict(X), 0.1, 5)
 
 
 def importance(m):
@@ -335,7 +369,7 @@ def pruefen(X, Y, D, MK, M=None, share=None, ligen=None):
     if bis.sum() < 5000 or test.sum() < 500:
         log("Pruefung: zu wenig Spiele", int(bis.sum()), int(test.sum()))
         return None
-    m = Modelle(X, Y, MK, bis)
+    m = Modelle(X, Y, MK, bis, D)
     Xt, Yt = X[test], Y[test].astype(int)
     y1 = np.where(Yt[:, 0] > Yt[:, 1], 0, np.where(Yt[:, 0] == Yt[:, 1], 1, 2))
     yo = (Yt.sum(1) > 2).astype(int)
@@ -351,17 +385,18 @@ def pruefen(X, Y, D, MK, M=None, share=None, ligen=None):
             inv = {v: k for k, v in (ligen or {}).items()}
             Mt = M[test]
             mg = {}
-            for nmid, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt, MK[2][test], MK[3][test]))):
+            for nmid, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt))):
+                rr = m.rho_fuer(nmid, Xt)
                 for i in range(len(Xt)):
                     sh = share.get(inv.get(int(Xt[i, -1])), 0.44)
                     hh, ha = Mt[i, 7], Mt[i, 8]
                     r = (int(Yt[i, 0]), int(Yt[i, 1]), None if hh != hh else int(hh), None if ha != ha else int(ha))
-                    MG.zaehlen(mg, nmid, nm.maerkte(float(lh[i]), float(la[i]), sh), r)
+                    MG.zaehlen(mg, nmid, nm.maerkte(float(lh[i]), float(la[i]), sh, rho=float(rr[i])), r)
             out["master_gew"] = mg
         except Exception as ex:
             log("Master-Bilanz nicht moeglich:", ex)
-    for nm, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt, MK[2][test], MK[3][test]))):
-        p, po = wk(lh, la)
+    for nm, (lh, la) in (("lgbm", m.lgbm(Xt)), ("resid", m.resid(Xt))):
+        p, po = wk(lh, la, m.rho_fuer(nm, Xt))
         e = {"x": _urteil(_ll(p, y1), _ll(pk, y1))}
         e["x"]["treffer"] = round(float((p.argmax(1) == y1).mean() * 100), 1)
         e["x"]["treffer_markt"] = round(float((pk.argmax(1) == y1).mean() * 100), 1)
@@ -516,18 +551,26 @@ def main():
         tot = (g["HG"] + g["AG"]).sum()
         share[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
 
-    m = Modelle(X, Y, MK, D < grenze)
+    m = Modelle(X, Y, MK, D < grenze, D)
     info["live"] = m.info
     n_l = n_r = n_g = 0
     keys = sorted(zf)
     if keys:
         XL = np.array([zf[k] for k in keys], dtype=float)
         lh, la = m.lgbm(XL)
-        for k, a, b in zip(keys, lh, la):
+        rl = m.rho_fuer("lgbm", XL)
+        rh_, ra_ = m.resid(XL)
+        rr = m.rho_fuer("resid", XL)
+        for k, a, b, r1, c, e, r2 in zip(keys, lh, la, rl, rh_, ra_, rr):
             s = spiele[k]
             try:
-                s.setdefault("prog", {})["lgbm"] = nm.maerkte(float(a), float(b), share.get(s["liga"], 0.44))
+                s.setdefault("prog", {})["lgbm"] = nm.maerkte(float(a), float(b), share.get(s["liga"], 0.44), rho=float(r1))
                 n_l += 1
+            except Exception:
+                pass
+            try:
+                s["prog"]["resid"] = nm.maerkte(float(c), float(e), share.get(s["liga"], 0.44), rho=float(r2))
+                n_r += 1
             except Exception:
                 pass
             if zg.get(k):
@@ -543,21 +586,6 @@ def main():
                         spiele[k]["remis"] = rm
                 except Exception:
                     pass
-        if LM:
-            P = np.array([v[0] for _, v in LM]); PO = np.array([v[1] for _, v in LM], dtype=float)
-            SP = np.array([v[2] for _, v in LM], dtype=float)
-            lam = markt_lam(P, PO)
-            XR = np.array([zf[k] for k, _ in LM], dtype=float)
-            ok = ~np.isnan(lam).any(1)
-            if ok.any():
-                rh, ra = m.resid(XR[ok], lam[ok], SP[ok])
-                for (k, _), a, b in zip([x for x, o in zip(LM, ok) if o], rh, ra):
-                    s = spiele[k]
-                    try:
-                        s["prog"]["resid"] = nm.maerkte(float(a), float(b), share.get(s["liga"], 0.44))
-                        n_r += 1
-                    except Exception:
-                        pass
     info["anzahl"] = {"lgbm": n_l, "resid": n_r, "gform": n_g, "spiele": len(spiele)}
     d["profi"] = info
     with open(PFAD, "w", encoding="utf-8") as f:

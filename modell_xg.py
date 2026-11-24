@@ -46,7 +46,7 @@ def _ziel(r, conv):
     return (th / n, ta / n) if n else None
 
 
-def _lauf(d, K, w=None, bis=None):
+def _lauf(d, K, w=None, bis=None, samm=None):
     """Laeuft chronologisch durch die Spiele; Teamstaerke nur aus Statistik. ll ab 'bis' (gegen echte Tore gemessen)."""
     A, D = {}, {}
     mu, h, anteil_ht = np.log(1.35), 0.12, 0.45
@@ -57,6 +57,8 @@ def _lauf(d, K, w=None, bis=None):
         lh = np.exp(mu + h + A.get(a, 0) - D.get(b, 0))
         la = np.exp(mu - h + A.get(b, 0) - D.get(a, 0))
         hg, ag = float(r.HG), float(r.AG)
+        if samm is not None and r.Date >= samm[0]:
+            samm[1].append((hg, ag, lh, la, r.Date))
         z = _ziel(r, conv)
         if z is None:
             continue
@@ -104,7 +106,9 @@ def trainiere(df, heute):
     if len(d) < 200:
         raise ValueError("zu wenig Daten")
     K, w = _tune(d, heute)
-    m, _ = _lauf(d, K, w)
+    samm = (heute - pd.DateOffset(years=2), [])
+    m, _ = _lauf(d, K, w, samm=samm)
+    m["rho"] = kern.rho_aus_sammlung(samm[1], heute)   # Remis-Korrektur aus den eigenen Ergebnissen gelernt
     m.update(K=K, w=w, n=len(d), schuss=int(d["HST"].notna().sum()), xg=int(d["HXG"].notna().sum()) if "HXG" in d else 0)
     return m
 
@@ -112,7 +116,7 @@ def trainiere(df, heute):
 def vorhersage(m, heim, gast):
     lh = float(np.exp(m["mu"] + m["h"] + m["A"].get(heim, 0) - m["D"].get(gast, 0)))
     la = float(np.exp(m["mu"] - m["h"] + m["A"].get(gast, 0) - m["D"].get(heim, 0)))
-    ft = kern.matrix_dixon_coles(lh, la, kern.REMIS_RHO)
+    ft = kern.matrix_dixon_coles(lh, la, m.get("rho", 0.0))
     ht = kern.matrix_unabhaengig(lh * m["ht"], la * m["ht"])
     return {"ft": ft, "ht": ht, "xg": [lh, la]}
 

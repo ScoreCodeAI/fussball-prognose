@@ -6,10 +6,11 @@
 # - Poisson-Grundmodell mit getrennter Heim-/Auswaertsstaerke (Partial Pooling)
 # Nur numpy/scipy - keine weiteren Pakete noetig.
 import numpy as np
+import pandas as pd
 from scipy.optimize import minimize, minimize_scalar
 from scipy.stats import poisson
 
-REMIS_RHO = -0.05        # Remis-Korrektur (Dixon-Coles) fuer den Endstand: Poisson unterschaetzt 0:0/1:1
+REMIS_RHO = -0.05        # nur noch fuer die Umrechnung von Buchmacher-Quoten (Markt-Vergleich), NICHT fuer Prognosen
                          # Test 7134 Spiele: Remis-Prognose 23,7 % -> 24,8 % (echt 25,7 %), 1X2 genauer
 REST_TOLERANZ = 1e-6     # erlaubte Restmasse ausserhalb der Matrix (wird danach normiert)
 MIN_TORE, MAX_TORE = 6, 15
@@ -72,12 +73,29 @@ def matrix(lh, la, abh=("unabhaengig", 0.0), endstand=True):
         return matrix_dixon_coles(lh, la, par)
     if typ == "frank":
         return matrix_frank(lh, la, par)
-    if endstand:
-        return matrix_dixon_coles(lh, la, REMIS_RHO)     # nie mehr reines Poisson fuer den Endstand
-    return matrix_unabhaengig(lh, la)                    # Halbzeit: Remis stimmt bereits (Test)
+    return matrix_unabhaengig(lh, la)                    # Daten sagen: keine Abhaengigkeit -> keine feste Korrektur
 
 
 # ---------- Abhaengigkeit automatisch waehlen ----------
+def lerne_rho(x, y, lh, la, w=None):
+    """Remis-Korrektur (Dixon-Coles rho) aus echten Ergebnissen gelernt: welcher Wert erklaert die
+    historischen 0:0, 1:0, 0:1 und 1:1 zu den Modell-Erwartungen am besten. Kein fester Wert."""
+    x, y, lh, la = (np.asarray(v, dtype=float) for v in (x, y, lh, la))
+    if len(x) < 200:
+        return 0.0
+    w = np.ones(len(x)) if w is None else np.asarray(w, dtype=float)
+    f = lambda r: -float(np.sum(w * np.log(np.clip(_dc_tau(x, y, lh, la, r), 1e-9, None))))
+    return float(minimize_scalar(f, bounds=(-0.25, 0.25), method="bounded").x)
+
+
+def rho_aus_sammlung(samm, heute, xi=0.003):
+    """samm: Liste (Tore Heim, Tore Gast, lh, la, Datum) -> gelerntes rho (neuere Spiele zaehlen mehr)."""
+    if not samm:
+        return 0.0
+    hg, ag, lh, la, dt = zip(*samm)
+    tage = (pd.Timestamp(heute) - pd.to_datetime(pd.Series(dt))).dt.days.clip(lower=0).to_numpy()
+    return lerne_rho(hg, ag, lh, la, np.exp(-xi * tage))
+
 def _ll_unabh(x, y, lh, la, w):
     return float(np.sum(w * (poisson.logpmf(x, lh) + poisson.logpmf(y, la))))
 

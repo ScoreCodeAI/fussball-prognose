@@ -192,6 +192,8 @@ class Verlauf:
 
 def durchlauf(H, ziele):
     """Liefert Trainingszeilen (Merkmale, Folgen, Tore) und je Ziel-Spiel die Merkmale zu dessen Datum."""
+    global DL_LIGEN
+    DL_LIGEN = []
     ziele = sorted(ziele, key=lambda z: z["datum"])
     V = Verlauf()
     X, S1, S2, Y, D = [], [], [], [], []
@@ -238,7 +240,7 @@ def durchlauf(H, ziele):
         f = V.merkmale(row.Div, row.Home, row.Away)
         if f:
             s1, s2 = V.folge(row.Div, row.Home, row.Away)
-            X.append(f); S1.append(s1); S2.append(s2); Y.append((row.HG, row.AG)); D.append(d)
+            X.append(f); S1.append(s1); S2.append(s2); Y.append((row.HG, row.AG)); D.append(d); DL_LIGEN.append(row.Div)
         V.eintragen(row.Div, row.Home, row.Away, float(row.HG), float(row.AG), row.HST, row.AST)
     while zi < len(ziele):
         z = ziele[zi]
@@ -286,6 +288,33 @@ def mit_quoten(H):
     return H.sort_values("Date").reset_index(drop=True)
 
 
+# ---------------- Remis-Korrektur je Liga aus den eigenen Erwartungen gelernt (kein fester Wert) ----------------
+DL_LIGEN = []
+K2_RHO = {}
+
+
+def rho_tabelle(Y, LH, LA, ligen, D, grenze):
+    """Je Liga: welches Dixon-Coles-rho passt die echten 0:0/1:0/0:1/1:1 zu den Modell-Erwartungen am besten.
+    Nur Spiele der letzten 2 Jahre VOR der Grenze. Ligen mit zu wenig Spielen nehmen den Wert ueber alle Ligen."""
+    import kern
+    Y, LH, LA, ligen, D = np.asarray(Y, float), np.asarray(LH, float), np.asarray(LA, float), np.asarray(ligen), np.asarray(D)
+    von = (pd.Timestamp(grenze) - pd.DateOffset(years=2)).strftime("%Y-%m-%d")
+    m = (D >= von) & (D < grenze)
+    tage = (pd.Timestamp(grenze) - pd.to_datetime(pd.Series(D[m].astype(str)))).dt.days.to_numpy()
+    w = np.exp(-0.003 * tage)
+    tab = {"_alle": kern.lerne_rho(Y[m, 0], Y[m, 1], LH[m], LA[m], w)}
+    for lg in set(ligen[m]):
+        k = ligen[m] == lg
+        if k.sum() >= 300:
+            tab[lg] = kern.lerne_rho(Y[m][k, 0], Y[m][k, 1], LH[m][k], LA[m][k], w[k])
+    return tab
+
+
+def rho_von(modell, liga):
+    tab = getattr(modell, "rho", None) or {}
+    return tab.get(liga, tab.get("_alle", 0.0))
+
+
 def svr_modell(X, Y, D, grenze):
     from sklearn.svm import SVR
     from sklearn.preprocessing import StandardScaler
@@ -295,7 +324,15 @@ def svr_modell(X, Y, D, grenze):
     mh = SVR(kernel="rbf", C=1.0, epsilon=0.1).fit(sk.transform(Xt), Yt[:, 0])
     ma = SVR(kernel="rbf", C=1.0, epsilon=0.1).fit(sk.transform(Xt), Yt[:, 1])
     log(f"SVR trainiert mit {len(Xt)} Spielen (bis {grenze})")
-    return lambda f: (float(mh.predict(sk.transform([f]))[0]), float(ma.predict(sk.transform([f]))[0]))
+    fn = lambda f: (float(mh.predict(sk.transform([f]))[0]), float(ma.predict(sk.transform([f]))[0]))
+    try:
+        Lg = np.asarray(DL_LIGEN)[ok][-N_SVR:]
+        Z = sk.transform(Xt)
+        fn.rho = rho_tabelle(Yt, np.clip(mh.predict(Z), 0.05, 6), np.clip(ma.predict(Z), 0.05, 6), Lg, D[ok][-N_SVR:], grenze)
+        log(f"SVR Remis-Korrektur gelernt: {fn.rho.get('_alle', 0):+.3f} (alle Ligen), {len(fn.rho) - 1} Ligen einzeln")
+    except Exception as ex:
+        log("SVR Remis-Korrektur nicht moeglich:", ex)
+    return fn
 
 
 # ---------------- REMIS-RADAR ----------------
@@ -396,6 +433,14 @@ def tcn_modell(X, S1, S2, Y, D, grenze):
         with torch.no_grad():
             lam = net(t([q1]).permute(0, 2, 1), t([q2]).permute(0, 2, 1), t([(np.array(fz) - mu) / sd]))[0]
         return float(lam[0]), float(lam[1])
+    try:
+        with torch.no_grad():
+            L = torch.cat([net(s1[k:k + 2048], s2[k:k + 2048], f[k:k + 2048]) for k in range(0, n, 2048)]).numpy()
+        Lg = np.asarray(DL_LIGEN)[ok][-N_TCN:]
+        vorhersage.rho = rho_tabelle(Yt, L[:, 0], L[:, 1], Lg, D[ok][-N_TCN:], grenze)
+        log(f"TCN Remis-Korrektur gelernt: {vorhersage.rho.get('_alle', 0):+.3f} (alle Ligen)")
+    except Exception as ex:
+        log("TCN Remis-Korrektur nicht moeglich:", ex)
     return vorhersage
 
 
@@ -522,6 +567,50 @@ def xg_team(xg_liga, name, vor):
     return sum(f) / len(f), sum(g) / len(g)
 
 
+K2_LAM = {"korr": lambda A, B, L: lam_korr(A, B, L), "rating": lambda A, B, L: lam_rating(A, B),
+          "hz": lambda A, B, L: lam_hz(A, B), "reines": lambda A, B, L: lam_reines(A, B)}
+
+
+def k2_rho_lernen(H, bis):
+    """Konsens 2: Remis-Korrektur je Variante und Liga aus den letzten 2 Jahren gelernt (Saison-Historie wie live)."""
+    import kern
+    global K2_RHO
+    von = pd.Timestamp(bis) - pd.DateOffset(years=2)
+    d = H[(H["Date"] >= von) & (H["Date"] < pd.Timestamp(bis))].dropna(subset=["HG", "AG"])
+    samm = {v: defaultdict(list) for v in K2_LAM}
+    for liga, g in d.groupby("Div"):
+        saison = defaultdict(list)
+        for r in g.sort_values("Date").itertuples(index=False):
+            sj = r.Date.year if r.Date.month >= 7 else r.Date.year - 1
+            hist = saison[sj]
+            if len(hist) >= 15:
+                A, B = team_stat(hist, r.Home), team_stat(hist, r.Away)
+                if A and B:
+                    L = liga_kennz(hist)
+                    for v, fn in K2_LAM.items():
+                        try:
+                            lh, la = fn(A, B, L)
+                            samm[v][liga].append((float(r.HG), float(r.AG), max(lh, 0.05), max(la, 0.05), r.Date))
+                        except Exception:
+                            pass
+            ht = [int(r.HTHG), int(r.HTAG)] if not (pd.isna(r.HTHG) or pd.isna(r.HTAG)) else None
+            hist.append({"datum": r.Date.strftime("%Y-%m-%d"), "heim": r.Home, "gast": r.Away, "ft": [int(r.HG), int(r.AG)], "ht": ht})
+    K2_RHO = {}
+    for v in K2_LAM:
+        alle = [x for l in samm[v].values() for x in l]
+        tab = {"_alle": kern.rho_aus_sammlung(alle, bis)}
+        for liga, l in samm[v].items():
+            if len(l) >= 300:
+                tab[liga] = kern.rho_aus_sammlung(l, bis)
+        K2_RHO[v] = tab
+    log("Konsens 2 Remis-Korrektur gelernt: " + ", ".join(f"{v} {K2_RHO[v]['_alle']:+.3f}" for v in K2_RHO))
+
+
+def k2_rho(v, liga):
+    tab = K2_RHO.get(v, {})
+    return tab.get(liga, tab.get("_alle", 0.0))
+
+
 def konsens2(s, saison_liga, xg_liga):
     hist = [e for e in saison_liga if e["datum"] < s["datum"]]
     if len(hist) < 15:
@@ -531,15 +620,15 @@ def konsens2(s, saison_liga, xg_liga):
         return {}
     L = liga_kennz(hist)
     out = {
-        "k2_korr": maerkte(*lam_korr(A, B, L), L["share"], rho=-0.10),
-        "k2_rating": maerkte(*lam_rating(A, B), L["share"], remis_boost=True),
-        "k2_hz": maerkte(*lam_hz(A, B), L["share"]),
-        "k2_reines": maerkte(*lam_reines(A, B), L["share"]),
+        "k2_korr": maerkte(*lam_korr(A, B, L), L["share"], rho=k2_rho("korr", s["liga"])),
+        "k2_rating": maerkte(*lam_rating(A, B), L["share"], rho=k2_rho("rating", s["liga"])),
+        "k2_hz": maerkte(*lam_hz(A, B), L["share"], rho=k2_rho("hz", s["liga"])),
+        "k2_reines": maerkte(*lam_reines(A, B), L["share"], rho=k2_rho("reines", s["liga"])),
     }
     Ax = xg_team(xg_liga, s["heim"], s["datum"]) if xg_liga else None
     Bx = xg_team(xg_liga, s["gast"], s["datum"]) if xg_liga else None
     if Ax and Bx:
-        out["k2_xg"] = maerkte(*lam_xg(Ax, Bx), L["share"])
+        out["k2_xg"] = maerkte(*lam_xg(Ax, Bx), L["share"], rho=k2_rho("korr", s["liga"]))
     return out
 
 
@@ -578,6 +667,10 @@ def rueckblick(H, share, xg, log_=None):
         h2m = h2_modell(HX, HY, HD, g2)
     except Exception as ex:
         log("Rueckblick 2.-HZ:", ex)
+    try:
+        k2_rho_lernen(H, g2)
+    except Exception as ex:
+        log("Rueckblick K2-Remis-Korrektur:", ex)
     # Konsens 2: je Spiel nur Spiele derselben Saison vor dem Datum (wie live)
     sai = defaultdict(list)
     for r in H.itertuples(index=False):
@@ -590,9 +683,9 @@ def rueckblick(H, share, xg, log_=None):
             if k in zf:
                 f, q1, q2 = zf[k]
                 if svr:
-                    MG.zaehlen(stats, "svr", maerkte(*svr(f), sh), z["erg"])
+                    MG.zaehlen(stats, "svr", maerkte(*svr(f), sh, rho=rho_von(svr, z["liga"])), z["erg"])
                 if tcn:
-                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh), z["erg"])
+                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, z["liga"])), z["erg"])
             if h1m and k in zh1:
                 MG.zaehlen(stats, "h1m", {"ht": h1m(zh1[k])["ht"]}, z["erg"])
             if h2m and k in zh:
@@ -661,6 +754,10 @@ def main():
     except Exception as ex:
         log("TCN nicht moeglich:", ex)
 
+    try:
+        k2_rho_lernen(H, grenze)
+    except Exception as ex:
+        log("K2-Remis-Korrektur nicht moeglich:", ex)
     # Saison-Historie je Liga fuer Konsens 2
     sai = H[H["Date"] >= pd.Timestamp(SAISON_START)]
     saison = defaultdict(list)
@@ -678,13 +775,13 @@ def main():
             f, q1, q2 = zf[i]
             if svr:
                 try:
-                    p["svr"] = maerkte(*svr(f), sh)
+                    p["svr"] = maerkte(*svr(f), sh, rho=rho_von(svr, s["liga"]))
                     n_svr += 1
                 except Exception:
                     pass
             if tcn:
                 try:
-                    p["tcn"] = maerkte(*tcn(f, q1, q2), sh)
+                    p["tcn"] = maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, s["liga"]))
                     n_tcn += 1
                 except Exception:
                     pass

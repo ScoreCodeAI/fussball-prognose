@@ -72,14 +72,21 @@ def trainiere(df, heute):
     ht = d.dropna(subset=["HTHG", "HTAG"])
     anteil = float((ht["HTHG"] + ht["HTAG"]).sum() / max((ht["HG"] + ht["AG"]).sum(), 1)) if len(ht) > 100 else 0.45
     club = int(d["HE"].notna().sum()) if "HE" in d else 0
-    return {"R": R, "wh": wh, "wa": wa, "ht": anteil, "n": len(d), "club": club}
+    # Remis-Korrektur aus den eigenen Erwartungen und echten Ergebnissen gelernt (letzte 2 Jahre)
+    st = min(len(vor) // 4, 300)
+    dt = d["Date"].to_numpy()[st:]
+    lh = np.exp(wh[0] + wh[1] * x)
+    la = np.exp(wa[0] + wa[1] * -x)
+    neu = dt >= np.datetime64(heute - pd.DateOffset(years=2))
+    rho = kern.rho_aus_sammlung(list(zip(v[neu, 1], v[neu, 2], lh[neu], la[neu], dt[neu])), heute)
+    return {"R": R, "wh": wh, "wa": wa, "ht": anteil, "n": len(d), "club": club, "rho": rho}
 
 
 def vorhersage(m, heim, gast):
     x = (m["R"].get(heim, START) - m["R"].get(gast, START)) / 100
     lh = float(np.clip(np.exp(m["wh"][0] + m["wh"][1] * x), 0.15, 5))
     la = float(np.clip(np.exp(m["wa"][0] + m["wa"][1] * -x), 0.15, 5))
-    ft = kern.matrix_dixon_coles(lh, la, kern.REMIS_RHO)
+    ft = kern.matrix_dixon_coles(lh, la, m.get("rho", 0.0))
     ht = kern.matrix_unabhaengig(lh * m["ht"], la * m["ht"])
     return {"ft": ft, "ht": ht, "xg": [lh, la]}
 

@@ -25,7 +25,7 @@ STANDARD = (0.03, 0.6)
 _TUNING = {}
 
 
-def _lauf(d, K, w, bis=None):
+def _lauf(d, K, w, bis=None, samm=None):
     """Laeuft chronologisch durch die Spiele; liefert Zustand und (optional) Log-Likelihood ab 'bis'."""
     A, D = {}, {}
     mu, h, conv, anteil_ht = np.log(1.35), 0.12, 0.32, 0.45
@@ -35,6 +35,8 @@ def _lauf(d, K, w, bis=None):
         lh = np.exp(mu + h + A.get(a, 0) - D.get(b, 0))
         la = np.exp(mu - h + A.get(b, 0) - D.get(a, 0))
         hg, ag = float(r.HG), float(r.AG)
+        if samm is not None and r.Date >= samm[0]:
+            samm[1].append((hg, ag, lh, la, r.Date))
         if bis is not None and r.Date >= bis:
             ll += hg * np.log(lh) - lh + ag * np.log(la) - la
             n += 1
@@ -79,7 +81,9 @@ def trainiere(df, heute):
     if len(d) < 200:
         raise ValueError("zu wenig Daten")
     K, w = _tune(d, heute)
-    m, _ = _lauf(d, K, w)
+    samm = (heute - pd.DateOffset(years=2), [])
+    m, _ = _lauf(d, K, w, samm=samm)
+    m["rho"] = kern.rho_aus_sammlung(samm[1], heute)   # Remis-Korrektur aus den eigenen Ergebnissen gelernt
     m.update(K=K, w=w, n=len(d), schuss=int(d["HST"].notna().sum()))
     return m
 
@@ -87,7 +91,7 @@ def trainiere(df, heute):
 def vorhersage(m, heim, gast):
     lh = float(np.exp(m["mu"] + m["h"] + m["A"].get(heim, 0) - m["D"].get(gast, 0)))
     la = float(np.exp(m["mu"] - m["h"] + m["A"].get(gast, 0) - m["D"].get(heim, 0)))
-    ft = kern.matrix_dixon_coles(lh, la, kern.REMIS_RHO)
+    ft = kern.matrix_dixon_coles(lh, la, m.get("rho", 0.0))
     ht = kern.matrix_unabhaengig(lh * m["ht"], la * m["ht"])
     return {"ft": ft, "ht": ht, "xg": [lh, la]}
 
