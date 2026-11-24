@@ -14,7 +14,7 @@ import math
 import os
 import sys
 import warnings
-from collections import defaultdict
+from collections import defaultdict, deque
 
 import numpy as np
 import pandas as pd
@@ -85,6 +85,9 @@ def fair(q):
 
 
 # ---------------- Verlauf: Form, Elo und gegner-bereinigte Staerke ----------------
+ORT_N = 9
+
+
 class Verlauf:
     """Geht die Historie Spiel fuer Spiel durch. Alles, was ein Spiel 'weiss', stammt aus frueheren Spielen."""
 
@@ -95,6 +98,17 @@ class Verlauf:
         self.f = defaultdict(lambda: [None] * 7)                    # EWMA: Tore, Gegentore, SaT, SaT gegen, Punkte, Heim-Tore, Ausw.-Tore
         self.n = defaultdict(int)
         self.zuletzt = {}
+        # Heimteam nur Heimspiele, Gastteam nur Auswaertsspiele (letzte 10 je Ort)
+        self.ort = {"H": defaultdict(lambda: deque(maxlen=10)), "A": defaultdict(lambda: deque(maxlen=10))}
+
+    @staticmethod
+    def _ort(q, n):
+        L = list(q)[-n:]
+        if not L:
+            return [np.nan] * ORT_N + [0]
+        with np.errstate(all="ignore"):
+            m = np.nanmean(np.array(L, dtype=float), 0)
+        return list(m) + [len(L)]
 
     @staticmethod
     def _ew(alt, neu, a=0.25):
@@ -123,7 +137,9 @@ class Verlauf:
         return [rh[0], rh[1], ra[0], ra[1], rh[2], rh[3], ra[2], ra[3], lam_h, lam_a, slam_h, slam_a,
                 self.elo[h] - self.elo[a], self.elo[h], self.elo[a],
                 *[x if x is not None else np.nan for x in fh], *[x if x is not None else np.nan for x in fa],
-                rest_h, rest_a, min(self.n[h], 60), min(self.n[a], 60), L[0], L[1]]
+                rest_h, rest_a, min(self.n[h], 60), min(self.n[a], 60), L[0], L[1],
+                *self._ort(self.ort["H"][h], 6), *self._ort(self.ort["H"][h], 10),
+                *self._ort(self.ort["A"][a], 6), *self._ort(self.ort["A"][a], 10)]
 
     def gform(self, h, a):
         if self.n[h] < MIN_SPIELE or self.n[a] < MIN_SPIELE:
@@ -132,7 +148,7 @@ class Verlauf:
                        "sang": round(self.r[t][2], 3), "sabw": round(self.r[t][3], 3)}
         return {"h": k(h), "a": k(a)}
 
-    def eintragen(self, div, h, a, d, hg, ag, hst, ast):
+    def eintragen(self, div, h, a, d, hg, ag, hst, ast, hth=None, hta=None, hc=None, ac=None):
         self._pause(h, d)
         self._pause(a, d)
         L = self.liga[div]
@@ -152,8 +168,8 @@ class Verlauf:
         for i in range(4):
             rh[i] = max(-1.5, min(1.5, rh[i])); ra[i] = max(-1.5, min(1.5, ra[i]))
         L[0] += 0.005 * (hg - L[0]); L[1] += 0.005 * (ag - L[1])
-        # Elo (Heimvorteil 60, Tordifferenz-Faktor)
-        e = 1 / (1 + 10 ** ((self.elo[a] - self.elo[h] - 60) / 400))
+        # Elo (kein fester Heimbonus, Tordifferenz-Faktor) - der Ort wirkt nur ueber die echten Heim-/Auswaertsdaten
+        e = 1 / (1 + 10 ** ((self.elo[a] - self.elo[h]) / 400))
         s = 1.0 if hg > ag else 0.5 if hg == ag else 0.0
         k = 20 * (1 + abs(hg - ag)) ** 0.5
         self.elo[h] += k * (s - e); self.elo[a] -= k * (s - e)
@@ -167,11 +183,18 @@ class Verlauf:
         fh[5] = self._ew(fh[5], hg); fa[6] = self._ew(fa[6], ag)
         self.n[h] += 1; self.n[a] += 1
         self.zuletzt[h] = d; self.zuletzt[a] = d
+        g = lambda x: np.nan if x is None or x != x else float(x)
+        p = lambda x, y: 3.0 if x > y else 1.0 if x == y else 0.0
+        # [Tore, Gegentore, Punkte, SaT, SaT gegen, HZ-Tore, HZ-Gegentore, Ecken, Ecken gegen]
+        self.ort["H"][h].append([hg, ag, p(hg, ag), g(hst), g(ast), g(hth), g(hta), g(hc), g(ac)])
+        self.ort["A"][a].append([ag, hg, p(ag, hg), g(ast), g(hst), g(hta), g(hth), g(ac), g(hc)])
 
 
 NAMEN = ["ang_h", "abw_h", "ang_a", "abw_a", "sang_h", "sabw_h", "sang_a", "sabw_a", "lam_h", "lam_a", "slam_h", "slam_a",
          "elo_diff", "elo_h", "elo_a"] + [f"f{i}_h" for i in range(7)] + [f"f{i}_a" for i in range(7)] + \
-        ["rest_h", "rest_a", "n_h", "n_a", "liga_h", "liga_a", "liga"]
+        ["rest_h", "rest_a", "n_h", "n_a", "liga_h", "liga_a"] + \
+        [f"ort{w}{n}_{k}" for w, n in (("H", 6), ("H", 10), ("A", 6), ("A", 10))
+         for k in ["tore", "gegen", "pkt", "sat", "satg", "hzt", "hzg", "ecken", "eckeng", "anzahl"]] + ["liga"]
 
 
 def durchlauf(H, ziele, ligen):
@@ -199,7 +222,8 @@ def durchlauf(H, ziele, ligen):
             if f:
                 X.append(f + [ligen.get(row.Div, -1)]); Y.append((row.HG, row.AG)); D.append(ds)
                 M.append((row.OD1, row.ODX, row.OD2, row.OO, row.OU, row.MX1, row.MX2, row.HTHG, row.HTAG))
-        V.eintragen(row.Div, row.Home, row.Away, d, float(row.HG), float(row.AG), row.HST, row.AST)
+        V.eintragen(row.Div, row.Home, row.Away, d, float(row.HG), float(row.AG), row.HST, row.AST,
+                    row.HTHG, row.HTAG, getattr(row, "HC", None), getattr(row, "AC", None))
     while zi < len(ziele):
         ziel(ziele[zi]); zi += 1
     return np.array(X, dtype=float), np.array(Y, dtype=float), np.array(D), np.array(M, dtype=float), zf, zg
@@ -219,7 +243,7 @@ def historie():
         H = H.merge(q.drop_duplicates(subset=["Div", "Date", "Home", "Away"]), on=["Div", "Date", "Home", "Away"], how="left")
     except Exception as ex:
         log("Quoten der Historie nicht geladen:", ex)
-    for c in ("OD1", "ODX", "OD2", "OO", "OU", "MX1", "MX2", "HST", "AST", "HTHG", "HTAG"):
+    for c in ("OD1", "ODX", "OD2", "OO", "OU", "MX1", "MX2", "HST", "AST", "HTHG", "HTAG", "HC", "AC"):
         H[c] = pd.to_numeric(H[c], errors="coerce") if c in H else np.nan
     return H.sort_values("Date").reset_index(drop=True)
 

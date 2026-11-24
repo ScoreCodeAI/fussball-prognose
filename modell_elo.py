@@ -20,7 +20,7 @@ BESCHREIBUNG = "Teamstärke als Elo-Zahl: echte ClubElo-Werte (inkl. Europapokal
 
 JAHRE = 5
 K = 20.0
-HEIM = 65.0
+HEIM = 0.0   # kein fester Heimbonus; Heim-/Auswaertstore lernt das Modell aus den Daten (wh/wa)
 START = 1500.0
 
 
