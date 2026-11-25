@@ -391,7 +391,7 @@ def pruefen(X, Y, D, MK, M=None, share=None, ligen=None):
                     sh = share.get(inv.get(int(Xt[i, -1])), 0.44)
                     hh, ha = Mt[i, 7], Mt[i, 8]
                     r = (int(Yt[i, 0]), int(Yt[i, 1]), None if hh != hh else int(hh), None if ha != ha else int(ha))
-                    MG.zaehlen(mg, nmid, nm.maerkte(float(lh[i]), float(la[i]), sh, rho=float(rr[i])), r)
+                    MG.zaehlen(mg, nmid, nm.maerkte(float(lh[i]), float(la[i]), sh, rho=float(rr[i])), r, inv.get(int(Xt[i, -1])))
             out["master_gew"] = mg
         except Exception as ex:
             log("Master-Bilanz nicht moeglich:", ex)

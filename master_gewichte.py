@@ -60,10 +60,10 @@ def vec(mk, p):
         gg = 1 - math.exp(-lam)
         return [h / lam * gg * 100, a / lam * gg * 100]
     ht, ht2 = g("ht"), g("ht2")
-    if mk == "w1":
-        return [ht[0], ht[2]] if _ok3(ht) else None
-    if mk == "w2":
-        return [ht2[0], ht2[2]] if _ok3(ht2) else None
+    if mk == "w1":                      # 1. HZ 1 X 2
+        return ht if _ok3(ht) else None
+    if mk == "w2":                      # 2. HZ 1 X 2
+        return ht2 if _ok3(ht2) else None
     if mk == "ht":
         return dc(ht) if _ok3(ht) else None
     if mk == "ht2a":
@@ -110,9 +110,9 @@ def win(mk, k, r):
     if mk == "bts2":
         return (h2 > 0 and a2 > 0) == (k == 0)
     if mk == "w1":
-        return h1 == (2 if k else 0)
+        return h1 == k
     if mk == "w2":
-        return e2 == (2 if k else 0)
+        return e2 == k
     if mk == "ht":
         return h1 != (2 if k == 0 else 0 if k == 1 else 1)
     if mk == "ht2a":
@@ -129,7 +129,70 @@ def win(mk, k, r):
     return None
 
 
-def zaehlen(stats, quelle, p, r):
+# ---------------- SELBST-EICHUNG (immer aktiv auf der Seite) ----------------
+# Fuer jede Quelle und jedes Grundfeld, aus dem die 12 Maerkte gerechnet werden, wird gezaehlt:
+#   _eich:   "feld|ausgang|stufe" -> [n, treffer]     wie oft trat ein Ausgang ein, wenn das Modell ~X % sagte (10er-Stufen)
+#   _muster: "feld|ausgang|liga"  -> [n, summe %, treffer]   systematische Abweichung je Liga (Fehler-Muster)
+EICH_FELDER = ("x", "ue25", "bts", "ht", "ht2", "h1o05", "h2o05")
+
+
+def _eich_ausgaenge(feld, p, r):
+    """[(ausgang, wahrscheinlichkeit %, eingetreten?)] fuer ein Grundfeld; None wenn nicht pruefbar."""
+    h, a, hh, ha = r
+    g = p.get
+    if feld == "x":
+        v = [g("p1"), g("px"), g("p2")]
+        if not _ok3(v):
+            return None
+        e = _sg(h, a)
+        return [(k, v[k], e == k) for k in range(3)]
+    if feld in ("ue25", "bts"):
+        v = g(feld)
+        if v is None:
+            return None
+        hit = (h + a > 2) if feld == "ue25" else (h > 0 and a > 0)
+        return [(0, v, hit)]
+    if hh is None or ha is None:
+        return None
+    if feld in ("ht", "ht2"):
+        v = g(feld)
+        if not _ok3(v):
+            return None
+        e = _sg(hh, ha) if feld == "ht" else _sg(h - hh, a - ha)
+        return [(k, v[k], e == k) for k in range(3)]
+    if feld in ("h1o05", "h2o05"):
+        v = g(feld)
+        if v is None:
+            return None
+        hit = (hh + ha > 0) if feld == "h1o05" else (h - hh + a - ha > 0)
+        return [(0, v, hit)]
+    return None
+
+
+def eichen_zaehlen(stats, quelle, p, r, liga=None):
+    E = stats.setdefault("_eich", {}).setdefault(quelle, {})
+    Mu = stats.setdefault("_muster", {}).setdefault(quelle, {})
+    for feld in EICH_FELDER:
+        try:
+            aus = _eich_ausgaenge(feld, p, r)
+        except Exception:
+            aus = None
+        for k, v, hit in aus or []:
+            if v is None or v != v:
+                continue
+            st = min(9, max(0, int(float(v) // 10)))
+            e = E.setdefault(f"{feld}|{k}|{st}", [0, 0])
+            e[0] += 1
+            e[1] += int(bool(hit))
+            if liga:
+                m = Mu.setdefault(f"{feld}|{k}|{liga}", [0, 0.0, 0])
+                m[0] += 1
+                m[1] = round(m[1] + float(v), 2)
+                m[2] += int(bool(hit))
+
+
+def zaehlen(stats, quelle, p, r, liga=None):
+    eichen_zaehlen(stats, quelle, p, r, liga)
     for mk in MAERKTE:
         v = vec(mk, p)
         if not v:
@@ -182,7 +245,7 @@ def aus_bt(bt, log=print, ab="2025-07-01"):
                 if pd.Timestamp(sp["Date"]).strftime("%Y-%m-%d") < ab:
                     continue
                 hh, ha = _ht(sp)
-                zaehlen(stats, mid, _bt_zu_seite(sp), (int(sp["HG"]), int(sp["AG"]), hh, ha))
+                zaehlen(stats, mid, _bt_zu_seite(sp), (int(sp["HG"]), int(sp["AG"]), hh, ha), sp.get("Div"))
             except Exception:
                 continue
     log("Master-Gewichte (Engine-Rueckblick):", ", ".join(f"{m} {s.get('x1', [0])[0]}" for m, s in stats.items()))
@@ -192,6 +255,9 @@ def aus_bt(bt, log=print, ab="2025-07-01"):
 def eintragen(d, stats):
     g = d.setdefault("master_gew", {})
     for q, s in stats.items():
+        if q in ("_eich", "_muster"):      # je Quelle uebernehmen (jede Pipeline hat ihre eigenen Quellen)
+            g.setdefault(q, {}).update(s)
+            continue
         if q == "_kal":                    # Kalibrierung aufsummieren statt ueberschreiben
             k = g.setdefault("_kal", {})
             for b, (n, h) in s.items():

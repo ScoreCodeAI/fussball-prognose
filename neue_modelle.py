@@ -683,19 +683,19 @@ def rueckblick(H, share, xg, log_=None):
             if k in zf:
                 f, q1, q2 = zf[k]
                 if svr:
-                    MG.zaehlen(stats, "svr", maerkte(*svr(f), sh, rho=rho_von(svr, z["liga"])), z["erg"])
+                    MG.zaehlen(stats, "svr", maerkte(*svr(f), sh, rho=rho_von(svr, z["liga"])), z["erg"], z["liga"])
                 if tcn:
-                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, z["liga"])), z["erg"])
+                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, z["liga"])), z["erg"], z["liga"])
             if h1m and k in zh1:
-                MG.zaehlen(stats, "h1m", {"ht": h1m(zh1[k])["ht"]}, z["erg"])
+                MG.zaehlen(stats, "h1m", {"ht": h1m(zh1[k])["ht"]}, z["erg"], z["liga"])
             if h2m and k in zh:
-                MG.zaehlen(stats, "h2m", {"ht2": h2m(zh[k])["ht2"]}, z["erg"])
+                MG.zaehlen(stats, "h2m", {"ht2": h2m(zh[k])["ht2"]}, z["erg"], z["liga"])
             y = int(z["datum"][:4]) if int(z["datum"][5:7]) >= 7 else int(z["datum"][:4]) - 1
             sstart = f"{y}-07-01"
             hist = [e for e in sai.get(z["liga"], []) if sstart <= e["datum"] < z["datum"]]
             k2 = konsens2(z, hist, xg.get(z["liga"], []))
             for q, pp in (k2 or {}).items():
-                MG.zaehlen(stats, q, pp, z["erg"])
+                MG.zaehlen(stats, q, pp, z["erg"], z["liga"])
         except Exception:
             continue
     log("Rueckblick fuer MASTER:", ", ".join(f"{q} {s.get('x1', s.get('h1x', s.get('h2x', [0])))[0]}" for q, s in stats.items()))
