@@ -26,6 +26,7 @@ PFAD = os.path.join(HIER, "docs", "daten.json")
 AB = "2016-07-01"            # Historie fuer Merkmale (Form braucht Vorlauf)
 TRAIN_AB = "2018-07-01"      # erste Trainingszeile
 TEST_AB = "2025-07-01"       # ehrliche Pruefung: alles ab hier hat das Pruef-Modell nie gesehen
+TRAIN_TAGE = 365             # Option D (25.11.2026): nur 1 Saison/1 Jahr Training je Lauf. None = alle Jahre (Option C)
 MIN_SPIELE = 6               # so viele Spiele braucht ein Team, bevor es Merkmale bekommt
 BOOT = 400
 G = np.arange(11)
@@ -108,6 +109,29 @@ class Verlauf:
         self.zuletzt = {}
         # Heimteam nur Heimspiele, Gastteam nur Auswaertsspiele (letzte 10 je Ort)
         self.ort = {"H": defaultdict(lambda: deque(maxlen=10)), "A": defaultdict(lambda: deque(maxlen=10))}
+        # Tabelle der laufenden Saison je Liga: Punkte, Tordifferenz, Spiele, Tore
+        self.tab = defaultdict(lambda: defaultdict(lambda: [0, 0, 0, 0]))
+
+    @staticmethod
+    def _saison(d):
+        return d.year if d.month >= 7 else d.year - 1
+
+    def _tabelle(self, div, h, a, d):
+        """Tabellenstand VOR dem Spiel: Punkte, Punkte/Spiel, Tordiff./Spiel, Platz (0..1), Spiele je Team,
+        Unterschiede und Abstand nach oben (Platz 1) und unten (4. letzter Platz)."""
+        t = self.tab[(div, self._saison(d))]
+        rows = sorted(t.items(), key=lambda kv: (-kv[1][0], -kv[1][1], -kv[1][3]))
+        rk = {k: i + 1 for i, (k, _) in enumerate(rows)}
+        n = max(len(rows), 1)
+        pts = [v[0] for _, v in rows]
+
+        def z(tm):
+            p, gd, gp, gf = t[tm]
+            oben = (pts[0] - p) if pts else np.nan
+            unten = (p - (pts[n - 4] if n >= 4 else pts[-1])) if pts else np.nan
+            return [p, p / gp if gp else np.nan, gd / gp if gp else np.nan, rk.get(tm, n) / n, gp, oben, unten]
+        zh, za = z(h), z(a)
+        return zh + za + [zh[1] - za[1] if zh[4] and za[4] else np.nan, zh[3] - za[3]]
 
     @staticmethod
     def _ort(q, n):
@@ -147,7 +171,8 @@ class Verlauf:
                 *[x if x is not None else np.nan for x in fh], *[x if x is not None else np.nan for x in fa],
                 rest_h, rest_a, min(self.n[h], 60), min(self.n[a], 60), L[0], L[1],
                 *self._ort(self.ort["H"][h], 6), *self._ort(self.ort["H"][h], 10),
-                *self._ort(self.ort["A"][a], 6), *self._ort(self.ort["A"][a], 10)]
+                *self._ort(self.ort["A"][a], 6), *self._ort(self.ort["A"][a], 10),
+                *self._tabelle(div, h, a, d)]
 
     def gform(self, h, a):
         if self.n[h] < MIN_SPIELE or self.n[a] < MIN_SPIELE:
@@ -157,6 +182,13 @@ class Verlauf:
         return {"h": k(h), "a": k(a)}
 
     def eintragen(self, div, h, a, d, hg, ag, hst, ast, hth=None, hta=None, hc=None, ac=None):
+        t = self.tab[(div, self._saison(d))]
+        for tm, f, g in ((h, hg, ag), (a, ag, hg)):
+            e = t[tm]
+            e[0] += 3 if f > g else 1 if f == g else 0
+            e[1] += f - g
+            e[2] += 1
+            e[3] += f
         self._pause(h, d)
         self._pause(a, d)
         L = self.liga[div]
@@ -202,7 +234,9 @@ NAMEN = ["ang_h", "abw_h", "ang_a", "abw_a", "sang_h", "sabw_h", "sang_a", "sabw
          "elo_diff", "elo_h", "elo_a"] + [f"f{i}_h" for i in range(7)] + [f"f{i}_a" for i in range(7)] + \
         ["rest_h", "rest_a", "n_h", "n_a", "liga_h", "liga_a"] + \
         [f"ort{w}{n}_{k}" for w, n in (("H", 6), ("H", 10), ("A", 6), ("A", 10))
-         for k in ["tore", "gegen", "pkt", "sat", "satg", "hzt", "hzg", "ecken", "eckeng", "anzahl"]] + ["liga"]
+         for k in ["tore", "gegen", "pkt", "sat", "satg", "hzt", "hzg", "ecken", "eckeng", "anzahl"]] + \
+        [f"tab{w}_{k}" for w in ("H", "A") for k in ["pkt", "ppg", "tdpg", "platz", "spiele", "abst_oben", "abst_unten"]] + \
+        ["tab_ppg_diff", "tab_platz_diff", "liga"]
 
 
 def durchlauf(H, ziele, ligen):
@@ -299,6 +333,14 @@ def _stat_lam(X):
     return np.clip(X[:, 8:10], 0.1, 5)
 
 
+def trainfenster(D, grenze):
+    """Trainingszeilen: vor der Grenze, und bei TRAIN_TAGE nur das letzte Jahr (Option D)."""
+    m = D < grenze
+    if TRAIN_TAGE:
+        m &= D >= (pd.Timestamp(grenze) - pd.Timedelta(days=TRAIN_TAGE)).strftime("%Y-%m-%d")
+    return m
+
+
 class Modelle:
     def __init__(self, X, Y, MK, bis, D=None):
         """X Merkmale, Y Tore. Training nur mit Zeilen in 'bis'. Keine Buchmacher-Quoten als Eingabe."""
@@ -364,7 +406,7 @@ def _urteil(llm, llk):
 
 
 def pruefen(X, Y, D, MK, M=None, share=None, ligen=None):
-    bis = D < TEST_AB
+    bis = trainfenster(D, TEST_AB)
     test = (D >= TEST_AB) & ~np.isnan(MK[0]).any(1) & ~np.isnan(MK[2]).any(1)
     if bis.sum() < 5000 or test.sum() < 500:
         log("Pruefung: zu wenig Spiele", int(bis.sum()), int(test.sum()))
@@ -551,7 +593,7 @@ def main():
         tot = (g["HG"] + g["AG"]).sum()
         share[div] = float((g["HTHG"] + g["HTAG"]).sum() / tot) if tot else 0.44
 
-    m = Modelle(X, Y, MK, D < grenze, D)
+    m = Modelle(X, Y, MK, trainfenster(D, grenze), D)
     info["live"] = m.info
     n_l = n_r = n_g = 0
     keys = sorted(zf)
