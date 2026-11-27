@@ -24,6 +24,8 @@ HIER = os.path.dirname(os.path.abspath(__file__))
 ARCHIV = os.path.join(HIER, "archiv", "sportsapi.json.gz")
 MIN_SPIELE = 3
 N_FORM = 8
+# weitere echte SportsAPI-Statistiken (fuer / gegen), aus denen die Tor-Erwartung gelernt wird
+STATS = ["expectedGoals", "expectedGoalsOnTarget", "bigChanceCreated", "totalShotsInsideBox", "touchesInOppBox", "shotsOnGoal"]
 OHNE = {"remis", "sv", "hz2", "karten", "ecken", "ou_best", "h1m", "h2m"}   # Hilfs-/Spezialfelder ohne Tor-Erwartung
 
 
@@ -46,7 +48,15 @@ def lade():
         x = (e.get("stat") or {}).get("ALL", {}).get("expectedGoals")
         ft = e.get("ft")
         if e.get("fertig") and x and ft and e.get("datum"):
-            je[e["liga"]].append((e["datum"], e["heim"], e["gast"], float(x[0]), float(x[1]), int(ft[0]), int(ft[1])))
+            al = (e.get("stat") or {}).get("ALL", {})
+            st = []
+            for k in STATS:
+                v = al.get(k)
+                try:
+                    st.append((float(v[0]), float(v[1])))
+                except Exception:
+                    st.append((np.nan, np.nan))
+            je[e["liga"]].append((e["datum"], e["heim"], e["gast"], float(x[0]), float(x[1]), int(ft[0]), int(ft[1]), st))
     for l in je:
         je[l].sort()
     return je
@@ -75,19 +85,20 @@ class Form:
         if not echt:
             return None
         R = []
-        for d, h, a, xh, xa, gh, ga in self.je[liga]:
+        for d, h, a, xh, xa, gh, ga, st in self.je[liga]:
             if d >= vor:
                 break
             if h == echt:
-                R.append((xh, xa, gh, ga))
+                R.append((xh, xa, gh, ga, *[v[0] for v in st], *[v[1] for v in st]))
             elif a == echt:
-                R.append((xa, xh, ga, gh))
+                R.append((xa, xh, ga, gh, *[v[1] for v in st], *[v[0] for v in st]))
         R = R[-N_FORM:]
         if len(R) < MIN_SPIELE:
             return None
         w = np.array([0.85 ** (len(R) - 1 - i) for i in range(len(R))])
         A = np.array(R, float)
-        return tuple((A * w[:, None]).sum(0) / w.sum())
+        ok = ~np.isnan(A)
+        return tuple(np.where(ok.any(0), np.nansum(A * w[:, None], 0) / np.maximum((ok * w[:, None]).sum(0), 1e-9), np.nan))
 
     def schnitt(self, liga, vor):
         L = [x for x in self.je.get(liga, []) if x[0] < vor][-300:]
@@ -104,7 +115,32 @@ class Form:
         xgh, xga, gh, ga = s
         x = (fh[0] * fa[1] / max(xga, .2) * gh / max(xgh, .2), fa[0] * fh[1] / max(xgh, .2) * ga / max(xga, .2))
         g = (fh[2] * fa[3] / max(ga, .2), fa[2] * fh[3] / max(gh, .2))
-        return tuple(min(max(v, .1), 5) for v in x), tuple(min(max(v, .1), 5) for v in g)
+        x = tuple(min(max(v, .1), 5) for v in x)
+        g = tuple(min(max(v, .1), 5) for v in g)
+        if self.reg is not None:                       # aus allen Statistiken gelernte Erwartung
+            try:
+                x = self.reg_erw(fh, fa)
+            except Exception:
+                pass
+        return x, g
+
+    reg = None
+    K = len(STATS)
+
+    def merk(self, fh, fa):
+        """Merkmale Heim: eigene Offensiv-Statistik + Defensiv-Statistik des Gegners (log)."""
+        K = self.K
+        f = lambda v: math.log(max(v, 0.05)) if v == v else 0.0
+        h = [f(fh[4 + k]) for k in range(K)] + [f(fa[4 + K + k]) for k in range(K)]
+        a = [f(fa[4 + k]) for k in range(K)] + [f(fh[4 + K + k]) for k in range(K)]
+        return h, a
+
+    def reg_erw(self, fh, fa):
+        h, a = self.merk(fh, fa)
+        b = self.reg
+        lh = math.exp(b[0] + b[1] + float(np.dot(b[2:], h)))      # b[1] = Heim-Abschnitt (gelernt, kein fester Wert)
+        la = math.exp(b[0] + float(np.dot(b[2:], a)))
+        return min(max(lh, .1), 5), min(max(la, .1), 5)
 
 
 def _p(lh, la):
@@ -121,11 +157,50 @@ def _ll(lh, la, gh, ga):
     return -math.log(max(p[e], 1e-9)) - math.log(max(po if o else 1 - po, 1e-9))
 
 
+def lerne_regression(F):
+    """Tor-Erwartung aus ALLEN Statistiken (xG, xGOT, Grosschancen, Schuesse im Strafraum, Ballkontakte im
+    Strafraum, Schuesse aufs Tor; jeweils eigene + Gegner-Abwehr). Poisson-Regression, nur Spiele mit Vorgeschichte.
+    Gibt Koeffizienten zurueck, oder None wenn sie in der Pruefhaelfte nicht besser als reines xG ist."""
+    from scipy.optimize import minimize
+    Xs, Ys, xe, D = [], [], [], []
+    for liga, L in F.je.items():
+        for d, h, a, xh, xa, gh, ga, st in L:
+            fh, fa = F.team(liga, h, d), F.team(liga, a, d)
+            e = F.erwartung(liga, h, a, d) if (fh and fa) else None
+            if not e:
+                continue
+            mh, ma = F.merk(fh, fa)
+            Xs += [[1.0, 1.0] + mh, [1.0, 0.0] + ma]
+            Ys += [gh, ga]
+            xe += [e[0][0], e[0][1]]
+            D += [d, d]
+    if len(Ys) < 400:
+        return None, {"stat_spiele": len(Ys) // 2}
+    Xs, Ys, xe, D = np.array(Xs), np.array(Ys, float), np.array(xe), np.array(D)
+    o = np.argsort(D, kind="stable")
+    Xs, Ys, xe = Xs[o], Ys[o], xe[o]
+    half = len(Ys) // 2
+
+    def nll(b, X, Y):
+        lam = np.exp(np.clip(X @ b, -3, 2))
+        return float(np.mean(lam - Y * np.log(lam))) + 1e-2 * float(np.sum(b[2:] ** 2))
+    b = minimize(nll, np.zeros(Xs.shape[1]), args=(Xs[:half], Ys[:half]), method="L-BFGS-B").x
+    lam_r = np.exp(np.clip(Xs[half:] @ b, -3, 2))
+    pl = lambda lam: float(np.mean(lam - Ys[half:] * np.log(lam)))
+    info = {"stat_spiele": len(Ys) // 2, "pruef_regression": round(pl(lam_r), 4), "pruef_nur_xg": round(pl(np.clip(xe[half:], .1, 5)), 4)}
+    if pl(lam_r) >= pl(np.clip(xe[half:], .1, 5)):
+        log("alle Statistiken: nicht besser als reines xG - bleibt bei xG", info)
+        return None, info
+    b = minimize(nll, b, args=(Xs, Ys), method="L-BFGS-B").x          # mit allen Spielen neu
+    log("alle Statistiken: besser als reines xG", info)
+    return b, info
+
+
 def lerne_w(F):
     """Wie stark soll echtes xG gegenueber der Tor-Form zaehlen? Erste Haelfte waehlen, zweite pruefen."""
     Z = []
     for liga, L in F.je.items():
-        for d, h, a, xh, xa, gh, ga in L:
+        for d, h, a, xh, xa, gh, ga, st in L:
             e = F.erwartung(liga, h, a, d)
             if e:
                 Z.append((d, e, gh, ga))
@@ -220,13 +295,28 @@ def anwenden(d, nm, share):
     if not je:
         return {"aktiv": False, "grund": "kein xG-Archiv"}
     F = Form(je)
+    try:
+        F.reg, ri = lerne_regression(F)
+    except Exception as ex:
+        F.reg, ri = None, {"fehler": str(ex)}
     w0, info = lerne_w(F)
+    info["statistiken"] = ri
     # zweite, entscheidende Pruefung direkt an den Modellen (Archiv + Spiele mit Ergebnis)
     try:
         A = json.load(open(os.path.join(HIER, "docs", "archiv_spiele.json"), encoding="utf-8"))
     except Exception:
         A = []
-    wm, im = lerne_w_modelle(F, list(A) + [s for s in d.get("spiele", []) if _erg(s)], nm, share)
+    pool = list(A) + [s for s in d.get("spiele", []) if _erg(s)]
+    wm, im = lerne_w_modelle(F, pool, nm, share)
+    if F.reg is not None:                 # entscheidend ist, was den MODELLEN mehr hilft: alle Statistiken oder nur xG
+        reg, F.reg = F.reg, None
+        wx, ix = lerne_w_modelle(F, pool, nm, share)
+        if wm is not None and wx is not None and ix.get("modell_ll_mit", 9) <= im.get("modell_ll_mit", 9):
+            log("Modelle profitieren mehr von reinem xG:", ix, "statt", im)
+            wm, im = wx, dict(ix, quelle="nur xG")
+        else:
+            F.reg = reg
+            im = dict(im, quelle="alle Statistiken")
     info["modelle"] = im
     if wm is not None:
         w = wm
