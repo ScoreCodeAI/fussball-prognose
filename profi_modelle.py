@@ -668,6 +668,12 @@ def main():
     except Exception as ex:
         log("Waage nicht moeglich:", ex)
     info["anzahl"] = {"lgbm": n_l, "resid": n_r, "waage": n_w, "gform": n_g, "spiele": len(spiele)}
+    # ---------- ECHTES xG fuer ALLE Modelle und Maerkte (letzter Schritt des Tages) ----------
+    try:
+        import xg_alle
+        info["xg_alle"] = xg_alle.anwenden(d, nm, share)
+    except Exception as ex:
+        log("xG fuer alle nicht moeglich:", ex)
     d["profi"] = info
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
