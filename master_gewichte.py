@@ -254,6 +254,10 @@ def aus_bt(bt, log=print, ab="2025-07-01"):
 
 def eintragen(d, stats):
     g = d.setdefault("master_gew", {})
+    for alt in ("tcn",):                  # entfernte Modelle nirgends mehr mitzaehlen
+        g.pop(alt, None)
+        for t in ("_eich", "_muster"):
+            (g.get(t) or {}).pop(alt, None)
     for q, s in stats.items():
         if q in ("_eich", "_muster"):      # je Quelle uebernehmen (jede Pipeline hat ihre eigenen Quellen)
             g.setdefault(q, {}).update(s)

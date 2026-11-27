@@ -1,7 +1,7 @@
-# ===== NEUE MODELLE · SVR, TCN und Konsens 2 (eigenstaendig) =====
+# ===== NEUE MODELLE · SVR und Konsens 2 (eigenstaendig; TCN entfernt 27.11.2026) =====
 # Laeuft NACH dem Morgenlauf (eigener Workflow). Liest docs/daten.json und die Historie
 # (daten.alle_spiele), rechnet je Spiel und ergaenzt NUR neue Eintraege in spiel["prog"]:
-#   svr, tcn                  -> eigene Tabs in Analyse 1
+#   svr                       -> eigener Tab in Analyse 1
 #   remis                     -> Remis-Radar (eigenes 1X2-Modell mit Remis-Merkmalen, ohne Liga-Merkmal)
 #   h2m                       -> 2.-HZ-Modell: lernt nur das Ergebnis der 2. Halbzeit (fuer den Markt 2. HZ 1X2)
 #   h1m                       -> 1.-HZ-Modell: lernt nur das Ergebnis der 1. Halbzeit (fuer den Markt 1. HZ 1X2)
@@ -379,70 +379,7 @@ def tor_modell(TX, T, HD, grenze, name):
     return lambda f: round(float(lr.predict_proba(sk.transform([f]))[0][1]) * 100, 2)
 
 
-# ---------------- TCN ----------------
-def tcn_modell(X, S1, S2, Y, D, grenze):
-    import torch
-    import torch.nn as nn
-    torch.manual_seed(0)
-    np.random.seed(0)
-    ok = D < grenze
-    Xt, A, B, Yt = X[ok][-N_TCN:], S1[ok][-N_TCN:], S2[ok][-N_TCN:], Y[ok][-N_TCN:]
-    mu, sd = Xt.mean(0), Xt.std(0) + 1e-6
-
-    class Kausal(nn.Module):
-        def __init__(self, cin, cout, dil):
-            super().__init__()
-            self.pad = 2 * dil
-            self.c = nn.Conv1d(cin, cout, 3, dilation=dil)
-            self.r = nn.Conv1d(cin, cout, 1) if cin != cout else nn.Identity()
-
-        def forward(self, x):
-            y = self.c(nn.functional.pad(x, (self.pad, 0)))
-            return torch.relu(y) + self.r(x)
-
-    class TCN(nn.Module):
-        def __init__(self):
-            super().__init__()
-            self.enc = nn.Sequential(Kausal(3, 16, 1), Kausal(16, 16, 2), Kausal(16, 16, 4))
-            self.kopf = nn.Sequential(nn.Linear(16 * 2 + 10, 32), nn.ReLU(), nn.Linear(32, 2))
-
-        def forward(self, s1, s2, f):
-            e1 = self.enc(s1)[:, :, -1]
-            e2 = self.enc(s2)[:, :, -1]
-            return nn.functional.softplus(self.kopf(torch.cat([e1, e2, f], 1))) + 0.05
-
-    t = lambda a: torch.tensor(np.asarray(a), dtype=torch.float32)
-    s1, s2 = t(A).permute(0, 2, 1), t(B).permute(0, 2, 1)
-    f, y = t((Xt - mu) / sd), t(Yt)
-    net = TCN()
-    opt = torch.optim.Adam(net.parameters(), lr=1e-3)
-    n = len(y)
-    for ep in range(8):
-        perm = torch.randperm(n)
-        for k in range(0, n, 256):
-            b = perm[k:k + 256]
-            lam = net(s1[b], s2[b], f[b])
-            loss = (lam - y[b] * torch.log(lam)).mean()   # Poisson-Verlust
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-    net.eval()
-    log(f"TCN trainiert mit {n} Spielen (bis {grenze})")
-
-    def vorhersage(fz, q1, q2):
-        with torch.no_grad():
-            lam = net(t([q1]).permute(0, 2, 1), t([q2]).permute(0, 2, 1), t([(np.array(fz) - mu) / sd]))[0]
-        return float(lam[0]), float(lam[1])
-    try:
-        with torch.no_grad():
-            L = torch.cat([net(s1[k:k + 2048], s2[k:k + 2048], f[k:k + 2048]) for k in range(0, n, 2048)]).numpy()
-        Lg = np.asarray(DL_LIGEN)[ok][-N_TCN:]
-        vorhersage.rho = rho_tabelle(Yt, L[:, 0], L[:, 1], Lg, D[ok][-N_TCN:], grenze)
-        log(f"TCN Remis-Korrektur gelernt: {vorhersage.rho.get('_alle', 0):+.3f} (alle Ligen)")
-    except Exception as ex:
-        log("TCN Remis-Korrektur nicht moeglich:", ex)
-    return vorhersage
-
+# TCN wurde am 27.11.2026 komplett entfernt (nicht mehr gewuenscht).
 
 # ---------------- Konsens 2: fuenf Modelle (Saison-Historie der Liga) ----------------
 K = 8
@@ -656,10 +593,6 @@ def rueckblick(H, share, xg, log_=None):
     except Exception as ex:
         log("Rueckblick SVR:", ex)
     try:
-        tcn = tcn_modell(X, S1, S2, Y, D, g2)
-    except Exception as ex:
-        log("Rueckblick TCN:", ex)
-    try:
         h1m = h2_modell(H1X, H1Y, HD, g2, "ht", "1.-HZ-Modell")
     except Exception as ex:
         log("Rueckblick 1.-HZ:", ex)
@@ -684,8 +617,6 @@ def rueckblick(H, share, xg, log_=None):
                 f, q1, q2 = zf[k]
                 if svr:
                     MG.zaehlen(stats, "svr", maerkte(*svr(f), sh, rho=rho_von(svr, z["liga"])), z["erg"], z["liga"])
-                if tcn:
-                    MG.zaehlen(stats, "tcn", maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, z["liga"])), z["erg"], z["liga"])
             if h1m and k in zh1:
                 MG.zaehlen(stats, "h1m", {"ht": h1m(zh1[k])["ht"]}, z["erg"], z["liga"])
             if h2m and k in zh:
@@ -749,10 +680,6 @@ def main():
         svr = svr_modell(X, Y, D, grenze)
     except Exception as ex:
         log("SVR nicht moeglich:", ex)
-    try:
-        tcn = tcn_modell(X, S1, S2, Y, D, grenze)
-    except Exception as ex:
-        log("TCN nicht moeglich:", ex)
 
     try:
         k2_rho_lernen(H, grenze)
@@ -779,12 +706,7 @@ def main():
                     n_svr += 1
                 except Exception:
                     pass
-            if tcn:
-                try:
-                    p["tcn"] = maerkte(*tcn(f, q1, q2), sh, rho=rho_von(tcn, s["liga"]))
-                    n_tcn += 1
-                except Exception:
-                    pass
+            p.pop("tcn", None)              # TCN entfernt: alte Werte loeschen
         if h1m and i in zh1:
             try:
                 p["h1m"] = h1m(zh1[i])
@@ -823,7 +745,7 @@ def main():
 
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"SVR {n_svr} · TCN {n_tcn} · Konsens 2 {n_k2} · Remis-Radar {n_rem} · 1.-HZ-Modell {n_h1} · 2.-HZ-Modell {n_h2} von {len(spiele)} Spielen")
+    log(f"SVR {n_svr} · Konsens 2 {n_k2} · Remis-Radar {n_rem} · 1.-HZ-Modell {n_h1} · 2.-HZ-Modell {n_h2} von {len(spiele)} Spielen")
 
 
 if __name__ == "__main__":

@@ -239,10 +239,17 @@ NAMEN = ["ang_h", "abw_h", "ang_a", "abw_a", "sang_h", "sabw_h", "sang_a", "sabw
         ["tab_ppg_diff", "tab_platz_diff", "liga"]
 
 
+WAAGE_N, WAAGE_ZN = [], {}
+
+
 def durchlauf(H, ziele, ligen):
     """Trainingszeilen (Merkmale + Tore + Markt) und Merkmale je Ziel-Spiel zu dessen Datum."""
     ziele = sorted(ziele, key=lambda z: z["datum"])
+    global WAAGE_N, WAAGE_ZN
+    import waage as WG
     V = Verlauf()
+    GR = WG.GlueckRichtung()                      # Waage: Glueck + Richtung, Stand vor dem Spiel
+    WAAGE_N, WAAGE_ZN = [], {}
     X, Y, D, M = [], [], [], []
     zf, zg = {}, {}
     zi = 0
@@ -253,6 +260,7 @@ def durchlauf(H, ziele, ligen):
         if f:
             zf[z["key"]] = f + [ligen.get(z["liga"], -1)]
             zg[z["key"]] = V.gform(z["heim"], z["gast"])
+            WAAGE_ZN[z["key"]] = GR.zustand(z["heim"], z["gast"])
 
     for row in H.itertuples(index=False):
         d = row.Date
@@ -263,9 +271,11 @@ def durchlauf(H, ziele, ligen):
             f = V.merkmale(row.Div, row.Home, row.Away, d)
             if f:
                 X.append(f + [ligen.get(row.Div, -1)]); Y.append((row.HG, row.AG)); D.append(ds)
+                WAAGE_N.append(GR.zustand(row.Home, row.Away))
                 M.append((row.OD1, row.ODX, row.OD2, row.OO, row.OU, row.MX1, row.MX2, row.HTHG, row.HTAG))
         V.eintragen(row.Div, row.Home, row.Away, d, float(row.HG), float(row.AG), row.HST, row.AST,
                     row.HTHG, row.HTAG, getattr(row, "HC", None), getattr(row, "AC", None))
+        GR.eintragen(row.Div, row.Home, row.Away, float(row.HG), float(row.AG), row.HST, row.AST)
     while zi < len(ziele):
         ziel(ziele[zi]); zi += 1
     return np.array(X, dtype=float), np.array(Y, dtype=float), np.array(D), np.array(M, dtype=float), zf, zg
@@ -628,11 +638,40 @@ def main():
                         spiele[k]["remis"] = rm
                 except Exception:
                     pass
-    info["anzahl"] = {"lgbm": n_l, "resid": n_r, "gform": n_g, "spiele": len(spiele)}
+    # ---------- ⚖️ WAAGE: eigenstaendiges S/U/N-Modell (zaehlt nirgends mit) ----------
+    n_w = 0
+    try:
+        import waage as WG
+        import kern
+        NW = np.array(WAAGE_N, dtype=float)
+        y3 = WG.ergebnis(Y)
+        info["waage_pruefung"] = WG.pruefen(X, NW, Y, D, trainfenster(D, TEST_AB), D >= TEST_AB)
+        log("Waage Pruefung:", info["waage_pruefung"])
+        bw = trainfenster(D, grenze)
+        W = WG.Waage(X, NW, y3, bw)
+        st = _stat_lam(X[bw])
+        rho_w = kern.lerne_rho(Y[bw, 0], Y[bw, 1], st[:, 0], st[:, 1])     # Tor-Maerkte: eigene Statistik-Erwartung
+        kw = [k for k in keys if k in WAAGE_ZN]
+        if kw:
+            XW = np.array([zf[k] for k in kw], dtype=float)
+            PW = W.vorhersage(XW, np.array([WAAGE_ZN[k] for k in kw], dtype=float))
+            SL = _stat_lam(XW)
+            for k, p3, (a, b) in zip(kw, PW, SL):
+                s = spiele[k]
+                try:
+                    q = nm.maerkte(float(a), float(b), share.get(s["liga"], 0.44), rho=rho_w)
+                    q["p1"], q["px"], q["p2"] = (round(float(v) * 100, 1) for v in p3)   # S/U/N direkt aus der Waage
+                    s.setdefault("prog", {})["waage"] = q
+                    n_w += 1
+                except Exception:
+                    pass
+    except Exception as ex:
+        log("Waage nicht moeglich:", ex)
+    info["anzahl"] = {"lgbm": n_l, "resid": n_r, "waage": n_w, "gform": n_g, "spiele": len(spiele)}
     d["profi"] = info
     with open(PFAD, "w", encoding="utf-8") as f:
         json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
-    log(f"LightGBM {n_l} · Residual {n_r} · gegner-bereinigte Form {n_g} von {len(spiele)} Spielen")
+    log(f"LightGBM {n_l} · Residual {n_r} · Waage {n_w} · gegner-bereinigte Form {n_g} von {len(spiele)} Spielen")
 
 
 if __name__ == "__main__":
