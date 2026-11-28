@@ -1,0 +1,34 @@
+name: Modelle-Sichten (Gesamt, Heim/Auswaerts, H2H)
+
+on:
+  workflow_run:
+    workflows: ["Profi-Modelle (Residual, LightGBM)"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sichten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Pakete installieren
+        run: pip install requests pandas numpy scipy scikit-learn lightgbm statsmodels
+      - name: Sichten je Modell rechnen
+        run: python sichten.py
+      - name: Speichern
+        run: |
+          git config user.name "score-code-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/daten.json
+          git commit -m "Sichten $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
+          git pull --rebase origin main
+          git push
