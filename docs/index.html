@@ -2901,13 +2901,14 @@ function neuHotAlle(tag,mks){/* JEDER Tipp ab Konfidenz 90 einzeln – jedes Mod
 function neuJeSpiel(B){const m=new Map();for(const t of B){const k=t.s.datum+t.s.heim;if(!m.has(k))m.set(k,t)}return [...m.values()]}
 const hInf=nInf;
 /* ---------- 🔥 HOT: ein Markt, alle Modelle und Sichten, nur Konfidenz ab 90 ---------- */
-function renderNHot(){S.nhm=KMK[S.nhm]?S.nhm:"x1";const tag=D.spiele.filter(s=>s.datum==S.tag),B=neuHotAlle(tag,[S.nhm]),L=neuJeSpiel(B).map(t=>({tip:t,ein:1,N:1}));
- $("nhotlist").innerHTML=`${neuDet(S.nhm)}<h3>🔥 HOT · ${KMK[S.nhm]} <span>${B.length} Tipps ab 90</span></h3><div class="ngri">Jeder Tipp mit Konfidenz ab 90 in diesem Markt – jedes Modell und jede Sicht einzeln. Scheine: je Spiel der stärkste Tipp (ein Spiel nur einmal pro Schein).</div>${neuMkSw("nhm","renderNHot()")}${nReset("renderNHot",["nhm"])}${neuScheine(L,"nhot","renderNHot()",hInf)}
- <div class="p4ctl"><button class="p4qb${S.nhl?' on':''}" onclick="S.nhl=!S.nhl;renderNHot()">${S.nhl?'▾':'▸'} Alle HOT-Tipps einzeln · nach Konfidenz (${B.length})</button></div>${S.nhl?`<div class="card p4c"><div class="klst" style="display:block">${B.map((t,i)=>neuZeile({tip:t},i,hInf({tip:t}))).join("")}</div></div>`:""}`}
-/* ---------- 🔥 HOT 2: alles gemischt – alle Märkte, Modelle, Sichten · nur ab 90 ---------- */
-function renderNHot2(){const tag=D.spiele.filter(s=>s.datum==S.tag),B=neuHotAlle(tag,Object.keys(KMK)),L=neuJeSpiel(B).map(t=>({tip:t,ein:1,N:1}));
- $("nhot2list").innerHTML=`${neuDet("x1")}<h3>🔥🔥 HOT 2 · alles gemischt <span>${B.length} Tipps ab 90</span></h3><div class="ngri">Alle 12 Märkte, alle Modelle, alle Sichten gemischt: jeder Tipp mit Konfidenz ab 90 einzeln. Scheine: je Spiel der stärkste Tipp.</div>${neuScheine(L,"nhot2","renderNHot2()",hInf)}
- <div class="p4ctl"><button class="p4qb${S.nh2l?' on':''}" onclick="S.nh2l=!S.nh2l;renderNHot2()">${S.nh2l?'▾':'▸'} Alle HOT-2-Tipps einzeln · nach Konfidenz (${B.length})</button></div>${S.nh2l?`<div class="card p4c"><div class="klst" style="display:block">${B.map((t,i)=>neuZeile({tip:t},i,hInf({tip:t}))).join("")}</div></div>`:""}`}
+function neuHotHTML(B){if(!B.length)return `<div class="card p4c"><p class="msub">Keine Tipps ab Konfidenz 90 an diesem Tag.</p></div>`;
+ return `<div class="card p4c"><div class="klst" style="display:block">${B.map((t,i)=>neuZeile({tip:t},i,nInf({tip:t}))).join("")}</div></div>`}
+/* 🔥 HOT: Einzel-Tipps (keine Scheine) ab Konfidenz 90 in einem Markt – jedes Modell, jede Sicht */
+function renderNHot(){S.nhm=KMK[S.nhm]?S.nhm:"x1";const tag=D.spiele.filter(s=>s.datum==S.tag),B=neuHotAlle(tag,[S.nhm]);
+ $("nhotlist").innerHTML=`${neuDet(S.nhm)}<h3>🔥 HOT · ${KMK[S.nhm]} <span>${B.length} Einzel-Tipps ab 90</span></h3><div class="ngri">Einzel-Tipps, keine Scheine: jeder Tipp mit Konfidenz ab 90 – jedes Modell und jede Sicht einzeln, absteigend nach Konfidenz.</div>${neuMkSw("nhm","renderNHot()")}${nReset("renderNHot",["nhm"])}${neuHotHTML(B)}`}
+/* 🔥 HOT 2: Einzel-Tipps aus allen Märkten, Modellen und Sichten gemischt, ab 90 */
+function renderNHot2(){const tag=D.spiele.filter(s=>s.datum==S.tag),B=neuHotAlle(tag,Object.keys(KMK));
+ $("nhot2list").innerHTML=`${neuDet("x1")}<h3>🔥🔥 HOT 2 · alles gemischt <span>${B.length} Einzel-Tipps ab 90</span></h3><div class="ngri">Einzel-Tipps, keine Scheine: alle 12 Märkte, alle Modelle, alle Sichten gemischt – jeder Tipp mit Konfidenz ab 90, absteigend.</div>${neuHotHTML(B)}`}
 /* ---------- ⚽ SPIELE: Länder · Ligen · Teams ---------- */
 function renderNSp(){S.nspm=KMK[S.nspm]?S.nspm:"x1";const mk=S.nspm,tag=D.spiele.filter(s=>s.datum==S.tag),LD=D.laender||[],land=c=>LD.find(l=>l.ligen.some(g=>g.code==c));
  const da=[...new Set(tag.map(s=>(land(s.liga)||{name:"Weitere"}).name))];if(S.nspl&&!da.includes(S.nspl))S.nspl=null;
