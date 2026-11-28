@@ -27,6 +27,7 @@ from ligen import LAENDER
 
 PFAD = "docs/daten.json"
 ARCHIV = "docs/archiv_spiele.json"
+AUS = "docs/sichten.json"
 BASIS = ["modell_bayes", "modell_copula", "modell_elo", "modell_ensemble", "modell_sarimax", "modell_schuss", "modell_xg"]
 MIN_DUELLE = 3
 T0 = time.time()
@@ -579,26 +580,30 @@ def main():
             log(nm_, "Fehler:", ex, traceback.format_exc()[-500:])
     stacking(d, sicht)
 
+    # Eigene Datei docs/sichten.json (nur dieser Lauf schreibt sie -> kein Konflikt mit daten.json beim Speichern)
     n = defaultdict(int)
+    je = {}
     for i, s in enumerate(spiele):
-        s["sicht"] = rund(sicht[i])
+        e = {"sicht": rund(sicht[i])}
         for name, P in sicht[i].items():
             n[name] += bool(P)
         try:
-            s["x"] = xwerte(HALL, s)
+            e["x"] = xwerte(HALL, s)
         except Exception:
             pass
-    d["normal"] = normalwerte(HALL, grenze)
+        je[f'{s["datum"]}|{s["heim"]}|{s["gast"]}'] = e
+        s["sicht"] = e["sicht"]          # nur fuer den xG-Vergleich unten
     try:
         arch = json.load(open(ARCHIV, encoding="utf-8"))
     except Exception:
         arch = []
-    d["xgvgl"] = xg_vergleich(arch + spiele)
-    d["sichten_info"] = {"stand": pd.Timestamp.today().strftime("%Y-%m-%d"), "grenze": str(grenze.date()),
-                         "spiele": len(spiele), "ha": n["ha"], "h2h": n["h2h"], "h2h_moeglich": len(h2h_ok),
-                         "gruppen": len(B), "sekunden": round(time.time() - T0)}
-    with open(PFAD, "w", encoding="utf-8") as f:
-        json.dump(d, f, ensure_ascii=False, separators=(",", ":"))
+    info = {"stand": pd.Timestamp.today().strftime("%Y-%m-%d"), "grenze": str(grenze.date()),
+            "spiele": len(spiele), "ha": n["ha"], "h2h": n["h2h"], "h2h_moeglich": len(h2h_ok),
+            "gruppen": len(B), "sekunden": round(time.time() - T0)}
+    out = {"info": info, "normal": normalwerte(HALL, grenze), "xgvgl": xg_vergleich(arch + spiele), "spiele": je}
+    with open(AUS, "w", encoding="utf-8") as f:
+        json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+    d = {"sichten_info": info}
     log("fertig:", d["sichten_info"])
 
 
@@ -607,5 +612,5 @@ if __name__ == "__main__":
         main()
     except Exception as ex:
         import traceback
-        log("Fehler (daten.json unveraendert):", ex, traceback.format_exc()[-800:])
+        log("Fehler (sichten.json unveraendert):", ex, traceback.format_exc()[-800:])
     sys.exit(0)

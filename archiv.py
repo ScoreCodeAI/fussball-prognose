@@ -55,6 +55,14 @@ def main():
         d = json.load(open(SRC, encoding="utf-8"))
     except Exception as e:
         print("archiv: keine daten.json", e); return
+    try:                                          # 🧩 Sichten je Modell stehen in eigener Datei
+        sj = json.load(open("docs/sichten.json", encoding="utf-8")).get("spiele", {})
+        for s in d.get("spiele", []):
+            e = sj.get(key(s))
+            if e and e.get("sicht"):
+                s["sicht"] = e["sicht"]
+    except Exception:
+        pass
     heute = date.today().isoformat()
     n = 0
     for s in d.get("spiele", []):
