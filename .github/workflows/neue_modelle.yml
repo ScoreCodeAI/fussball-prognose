@@ -24,7 +24,6 @@ jobs:
       - name: Pakete installieren
         run: |
           pip install requests pandas numpy scipy scikit-learn
-          pip install torch --index-url https://download.pytorch.org/whl/cpu
       - name: SVR, TCN und Konsens 2 rechnen
         run: python neue_modelle.py
       - name: Speichern
