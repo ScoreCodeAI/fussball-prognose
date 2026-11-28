@@ -28,7 +28,7 @@ jobs:
         run: |
           git config user.name "score-code-bot"
           git config user.email "actions@users.noreply.github.com"
-          git add docs/daten.json
+          git add docs/sichten.json
           git commit -m "Sichten $(date +'%Y-%m-%d')" || echo "Keine Aenderungen"
           git pull --rebase origin main
           git push
