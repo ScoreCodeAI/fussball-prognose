@@ -52,7 +52,7 @@ def mischen(ps, w):
     return ps[int(np.argmax(w))]
 
 
-MARKT = True       # Markt-Baustein (Tor-Matrix aus Buchmacher-Quoten) mit ins Stacking nehmen
+MARKT = False      # KEINE Buchmacher-Quote als Eingabe (Regel). Markt-Baustein (Tor-Matrix aus Buchmacher-Quoten) mit ins Stacking nehmen
 _MK = {}
 
 

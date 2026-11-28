@@ -1,4 +1,4 @@
-# ===== MODELL X · XGBOOST (mit Quote) =====
+# ===== MODELL X · XGBOOST (OHNE Buchmacher-Quote: keine Quote als Eingabe) =====
 # Gradient-Boosting-Baeume lernen direkt jeden Markt (1X2, OVER/UNDER 2,5, BTTS, 1. und 2. Halbzeit) aus:
 #   - fairen Markt-Wahrscheinlichkeiten (Pinnacle, sonst Durchschnitt; Marge entfernt)
 #   - Schuss-Staerken beider Teams (Schuesse aufs Tor + Tore, laufend nachgefuehrt)
@@ -12,13 +12,13 @@ import pandas as pd
 import kern
 import markt
 
-INFO = {"id": "xgb", "name": "XGBoost · Markt + Schüsse", "kurz": "XGBoost", "icon": "X",
+INFO = {"id": "xgb", "name": "XGBoost · Schüsse", "kurz": "XGBoost", "icon": "X",
         "farbe1": "#ffd84d", "farbe2": "#ff7a45",
-        "beschreibung": "Gradient Boosting aus fairer Quote, Schuss-Stärken, Elo, Form und Ruhetagen"}
+        "beschreibung": "Gradient Boosting aus Schuss-Stärken, Elo, Form und Ruhetagen"}
 
 K = 0.03
 ELO_K, ELO_HEIM = 20.0, 65.0      # Elo als Merkmal: ClubElo (HE/AE) wenn vorhanden, sonst eigenes laufendes Elo
-FEAT = ["m1", "mx", "m2", "mo", "s1", "sx", "s2", "so", "sb", "lh", "la", "g1", "gx", "g2", "go",
+FEAT = ["s1", "sx", "s2", "so", "sb", "lh", "la", "g1", "gx", "g2", "go",
         "Ah", "Dh", "Aa", "Da", "f_h", "f_a", "rest_h", "rest_a", "liga", "elo_d", "elo_p"]
 
 
@@ -124,11 +124,11 @@ def berechne(spiele, q, liste, zeilen, log=print):
         if r.Date >= stichtag:
             continue
         k = _key(r.Div, r.Date, r.Home, r.Away)
-        f, m = vor.get(k), _markt(zeilen.get(k))
-        if not f or not m:
+        f = vor.get(k)
+        if not f:
             continue
         hg, ag = int(r.HG), int(r.AG)
-        z = dict(f, **m, liga=ligen.get(r.Div, -1),
+        z = dict(f, liga=ligen.get(r.Div, -1),
                  y1=0 if hg > ag else 1 if hg == ag else 2, yo=int(hg + ag > 2), yb=int(hg > 0 and ag > 0))
         if not (pd.isna(r.HTHG) or pd.isna(r.HTAG)):
             h1, a1 = int(r.HTHG), int(r.HTAG)
@@ -151,15 +151,12 @@ def berechne(spiele, q, liste, zeilen, log=print):
     out = {}
     for i, e in enumerate(liste):
         k = (e["liga"], e["datum"], e["heim"], e["gast"])
-        m = _markt(zeilen.get(k))
-        if not m:
-            continue
         f = vor.get(k) if e.get("ergebnis") else None
         if f is None:
             if e["liga"] not in ende:
                 continue
             f = _zukunft(ende[e["liga"]], e["liga"], e["datum"], e["heim"], e["gast"])
-        X = pd.DataFrame([dict(f, **m, liga=ligen.get(e["liga"], -1))])[FEAT]
+        X = pd.DataFrame([dict(f, liga=ligen.get(e["liga"], -1))])[FEAT]
         pr = lambda z: modelle[z].predict_proba(X)[0] if z in modelle else None
         p1, po, pb, ph, ph2 = pr("y1"), pr("yo"), pr("yb"), pr("yh"), pr("yh2")
         if p1 is None or po is None:
@@ -185,11 +182,11 @@ def rueckblick(spiele, q, zeilen, ab, log=print):
     tr, te = [], []
     for r in q.itertuples(index=False):
         k = _key(r.Div, r.Date, r.Home, r.Away)
-        f, m = vor.get(k), _markt(zeilen.get(k))
-        if not f or not m:
+        f = vor.get(k)
+        if not f:
             continue
         hg, ag = int(r.HG), int(r.AG)
-        z = dict(f, **m, liga=ligen.get(r.Div, -1), y1=0 if hg > ag else 1 if hg == ag else 2, yo=int(hg + ag > 2),
+        z = dict(f, liga=ligen.get(r.Div, -1), y1=0 if hg > ag else 1 if hg == ag else 2, yo=int(hg + ag > 2),
                  Div=r.Div, Date=r.Date, Home=r.Home, Away=r.Away, HG=hg, AG=ag)
         (tr if r.Date < ab else te).append(z)
     if len(tr) < 1000 or not te:

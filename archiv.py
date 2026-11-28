@@ -28,6 +28,13 @@ def schlank(s):
             prog[k] = {f: v[f] for f in FELDER if v.get(f) is not None}
     out = {k: s.get(k) for k in ("id", "liga", "datum", "zeit", "heim", "gast", "ergebnis", "ergebnis_ht")}
     out["prog"] = prog
+    sicht = {}                                    # 🧩 Modelle: Heim/Ausw und H2H je Modell (fuer die Schwelle aus der Historie)
+    for name, P in (s.get("sicht") or {}).items():
+        q = {k: {f: v[f] for f in FELDER if v.get(f) is not None} for k, v in (P or {}).items() if isinstance(v, dict)}
+        if q:
+            sicht[name] = q
+    if sicht:
+        out["sicht"] = sicht
     if s.get("xgform"):
         out["xgform"] = s["xgform"]
     if s.get("elo"):

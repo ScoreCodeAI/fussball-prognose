@@ -368,6 +368,7 @@ def stacking_modell(modelle, bt, live_p, ergebnis, eintrag, qual_roh, woche_star
     tm = time.time()
     log("===== Stacking · Meta-Modell =====")
     st_bt, st_live, gew = stacking.berechne(bt, live_p, list(modelle), log)
+    ergebnis["stacking_gew"] = gew
     try:
         import bewertung
         ergebnis["bewertung"] = bewertung.berechne(bt, log)
