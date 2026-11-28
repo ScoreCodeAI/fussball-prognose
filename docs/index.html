@@ -3736,7 +3736,10 @@ function start(j){try{if(localStorage.getItem("liste")!=="0")document.body.class
  setTimeout(mxStart,50);$("stand").textContent="STAND "+dm(D.stand)+" · DATEN BIS "+dm(D.daten_bis);
  const oa=D.odds_api;if(oa&&oa.aktiv&&oa.rest!=null){const ges=(oa.rest||0)+(oa.verbraucht||0);$("credits").innerHTML=`ODDS API · <b>${oa.rest}</b>/${ges||500} Credits${oa.zeit?` · ${oa.zeit}`:""}`}
  render()}
-if(window.__DEMO__)start(window.__DEMO__);else fetch("daten.json?v="+Date.now()).then(r=>r.json()).then(start).catch(()=>{$("stand").textContent="DATEN NICHT GEFUNDEN"});
+if(window.__DEMO__)start(window.__DEMO__);else Promise.all([fetch("daten.json?v="+Date.now()).then(r=>r.json()),fetch("sichten.json?v="+Date.now()).then(r=>r.ok?r.json():null).catch(()=>null)]).then(([d,sj])=>{
+ /* 🧩 Sichten je Modell (Heim/Ausw, H2H), X-Werte, Liga-Normalwerte, xG-Vergleich aus eigener Datei */
+ if(sj){const E=sj.spiele||{};for(const s of d.spiele||[]){const e=E[s.datum+"|"+s.heim+"|"+s.gast];if(e){s.sicht=e.sicht;if(e.x)s.x=e.x}}d.normal=sj.normal;d.xgvgl=sj.xgvgl;d.sichten_info=sj.info}
+ start(d)}).catch(()=>{$("stand").textContent="DATEN NICHT GEFUNDEN"});
 </script>
 <script id="skin15js">/* ===== DESIGN 15 · nur Optik: liest fertige Seite, ändert keine Berechnung ===== */
 (function(){const B=document.body;try{if(localStorage.getItem("sk_nofx")=="1")B.classList.add("nofx")}catch(e){}
